@@ -1,0 +1,285 @@
+"""Application configuration via pydantic-settings v2.
+
+All settings are read from environment variables prefixed ``SCHOLARHUB_`` or
+from a ``.env`` file at the backend root. Secrets (``secret_key``,
+``admin_password``) have no defaults and must be provided in every non-test
+environment; the ``validate_secrets`` model validator enforces this.
+"""
+
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Test-only secrets. Never used outside the test environment; exist solely so
+# the test suite can run without manual .env configuration.
+_TEST_SECRET_KEY = "TEST_ONLY_DO_NOT_USE_IN_PRODUCTION_0123456789abcdef"
+_TEST_ADMIN_PASSWORD = "test_admin_password_12345"
+
+# Placeholder values that must never appear in a real environment.
+_WEAK_SECRET_KEYS = frozenset(
+    {
+        "",
+        "change-me-in-production-use-openssl-rand-hex-32",
+        "<generate-with-openssl-rand-hex-32>",
+        "REPLACE_ME_WITH_OPENSSL_RAND_HEX_32",
+        _TEST_SECRET_KEY,
+    }
+)
+_WEAK_ADMIN_PASSWORDS = frozenset(
+    {
+        "",
+        "changeme",
+        "change-me",
+        "<change-me-at-least-12-chars>",
+        "REPLACE_ME_WITH_STRONG_PASSWORD",
+        "admin",
+        "password",
+        "admin123",
+        _TEST_ADMIN_PASSWORD,
+    }
+)
+
+
+class Settings(BaseSettings):
+    """Strongly-typed application settings.
+
+    All env vars are prefixed ``SCHOLARHUB_`` (e.g. ``SCHOLARHUB_DATABASE_URL``).
+    Nested fields use ``__`` separator (e.g. ``SCHOLARHUB_DB__POOL_SIZE``).
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="SCHOLARHUB_",
+        env_nested_delimiter="__",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    # --- Application identity ---
+    app_name: str = "ScholarHUB API"
+    environment: Literal["development", "staging", "production", "test"] = "development"
+    debug: bool = False
+
+    # --- Tenancy ---
+    # single = one tenant per deployment (typical self-hosted)
+    # multi  = many tenants resolved from host header (SaaS)
+    tenancy_mode: Literal["single", "multi"] = "single"
+    # In single mode, this is the slug of the bootstrap tenant created on
+    # first startup. Leave as default unless you want a custom slug.
+    bootstrap_tenant_slug: str = "default"
+
+    # --- Database (PostgreSQL only — RLS requires PG) ---
+    database_url: str = (
+        "postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub"
+    )
+    db_pool_size: int = Field(default=10, ge=1)
+    db_max_overflow: int = Field(default=20, ge=0)
+    db_pool_recycle: int = Field(default=1800, ge=0, description="0 = never recycle")
+    db_pool_pre_ping: bool = True
+    db_pool_timeout: int = Field(default=30, ge=1)
+    db_startup_retries: int = Field(default=5, ge=0)
+    db_startup_retry_delay: float = Field(default=2.0, ge=0.1)
+
+    # --- Redis (cache + rate limit, planned — currently unused) ---
+    redis_url: str = ""
+
+    # --- JWT / Auth ---
+    secret_key: str = Field(default="")
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
+    algorithm: str = "HS256"
+    refresh_token_cookie_name: str = "scholarhub_refresh"
+    refresh_token_cookie_secure: bool | None = None
+    refresh_token_cookie_samesite: str = "strict"
+
+    # --- Email ---
+    # ``console`` logs to stdout (dev/test). ``smtp`` uses the relay below.
+    # Mailgun / SendGrid / SES / Postmark all expose an SMTP relay, so this
+    # one backend covers every mainstream transactional provider.
+    email_backend: Literal["console", "smtp"] = "console"
+    email_from_address: str = "no-reply@scholarhub.local"
+    email_from_name: str = "ScholarHUB"
+    email_smtp_host: str = ""
+    email_smtp_port: int = Field(default=587, ge=1, le=65535)
+    email_smtp_username: str = ""
+    email_smtp_password: str = ""
+    email_smtp_use_tls: bool = False
+    email_smtp_starttls: bool = True
+    email_verification_expire_hours: int = Field(default=24, ge=1)
+    password_reset_expire_minutes: int = Field(default=60, ge=1)
+
+    # --- Frontend base URL ---
+    # Used to build deep-link URLs in transactional emails (verify-email,
+    # password-reset). If unset, links use a relative path so the SPA can
+    # route them client-side — but most deployments should set this so
+    # links work in any email client.
+    frontend_base_url: str = ""
+
+    # --- OIDC SSO ---
+    # ``oidc_enabled`` flips the /api/auth/oidc/* routes on. Provider
+    # configuration is per-provider (Google / GitHub / generic), loaded
+    # from the env vars below. If multiple providers are needed, repeat
+    # the vars with the provider slug in the field name.
+    # See docs/integrations.md for the per-provider setup walkthrough.
+    oidc_enabled: bool = False
+    oidc_provider: str = ""  # e.g. "google" / "github" / "keycloak"
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_authorize_url: str = ""
+    oidc_token_url: str = ""
+    oidc_userinfo_url: str = ""
+    oidc_scopes: str = "openid email profile"
+    # After OIDC callback, where to redirect the browser. We append
+    # ``?access_token=...&refresh_token=...`` (refresh also set as cookie).
+    oidc_redirect_url: str = ""  # e.g. https://app.example.com/auth/oidc/callback
+
+    # --- Bibliographic metadata ---
+    # Used by the ingest module to identify itself to Crossref (their API
+    # policy asks callers to include a mailto in the User-Agent header).
+    # Optional — falls back to a placeholder if not set.
+    crossref_mailto: str = ""
+
+    # --- CORS / Trusted hosts ---
+    cors_origins: str = "http://localhost:5173,http://localhost"
+    allowed_hosts: str = "localhost,127.0.0.1"
+    trusted_proxies_count: int = Field(default=0, ge=0)
+
+    # --- Rate limiting ---
+    rate_limit_per_minute: int = Field(default=120, ge=1)
+
+    # --- Logging ---
+    log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    json_logs: bool = False
+
+    # --- Admin bootstrap ---
+    admin_email: str = "admin@scholarhub.local"
+    admin_username: str = "admin"
+    admin_password: str = Field(default="")
+
+    # --- Storage (Phase 10 later) ---
+    storage_backend: str = Field(default="local", pattern=r"^(local|s3)$")
+    storage_path: str = "/data/uploads"
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: object) -> str:
+        if isinstance(value, list):
+            return ",".join(str(item) for item in value)
+        if isinstance(value, str):
+            import json
+
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return ",".join(str(item) for item in parsed)
+            except json.JSONDecodeError:
+                pass
+        return str(value)
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def parse_allowed_hosts(cls, value: object) -> str:
+        if isinstance(value, list):
+            return ",".join(str(item) for item in value)
+        return str(value)
+
+    @model_validator(mode="after")
+    def validate_secrets(self) -> "Settings":
+        """Enforce strong secrets in every non-test environment."""
+        # Test environment: auto-fill test secrets if not provided.
+        if self.environment == "test":
+            if not self.secret_key:
+                self.secret_key = _TEST_SECRET_KEY
+            if not self.admin_password:
+                self.admin_password = _TEST_ADMIN_PASSWORD
+            return self
+
+        # Non-test environments: reject weak/missing secrets.
+        if self.secret_key in _WEAK_SECRET_KEYS:
+            raise ValueError(
+                "SCHOLARHUB_SECRET_KEY is missing or uses a known-weak value. "
+                "Generate a strong key with: openssl rand -hex 32"
+            )
+        if len(self.secret_key) < 32:
+            raise ValueError(
+                "SCHOLARHUB_SECRET_KEY must be at least 32 characters long. "
+                "Generate with: openssl rand -hex 32"
+            )
+
+        if self.admin_password in _WEAK_ADMIN_PASSWORDS:
+            raise ValueError(
+                "SCHOLARHUB_ADMIN_PASSWORD is missing or uses a common weak value. "
+                "Provide a strong password of at least 12 characters."
+            )
+        if len(self.admin_password) < 12:
+            raise ValueError("SCHOLARHUB_ADMIN_PASSWORD must be at least 12 characters long.")
+
+        # Production-specific checks.
+        if self.is_production:
+            hosts = self.allowed_hosts_list
+            if not hosts or hosts == ["*"]:
+                raise ValueError("SCHOLARHUB_ALLOWED_HOSTS must be explicitly set in production")
+            if "*" in self.cors_origins_list:
+                raise ValueError("CORS wildcard '*' is not allowed in production")
+            if self.tenancy_mode == "single" and self.bootstrap_tenant_slug == "default":
+                # Allow default slug in single mode for self-hosted convenience;
+                # warn but don't fail — single mode has exactly one tenant.
+                pass
+
+        return self
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+    @property
+    def is_test(self) -> bool:
+        return self.environment == "test"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def allowed_hosts_list(self) -> list[str]:
+        return [host.strip() for host in self.allowed_hosts.split(",") if host.strip()]
+
+    @property
+    def cors_methods(self) -> list[str]:
+        if self.is_production:
+            return ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        return ["*"]
+
+    @property
+    def cors_headers(self) -> list[str]:
+        if self.is_production:
+            return ["Authorization", "Content-Type", "X-Tenant-ID"]
+        return ["*"]
+
+    @property
+    def cookie_secure(self) -> bool:
+        if self.refresh_token_cookie_secure is not None:
+            return self.refresh_token_cookie_secure
+        return self.is_production
+
+    @property
+    def cookie_samesite(self) -> Literal["lax", "strict", "none"]:
+        mode = self.refresh_token_cookie_samesite.lower()
+        if mode == "strict":
+            return "strict"
+        if mode == "lax":
+            return "lax"
+        if mode == "none":
+            return "none"
+        return "strict" if self.is_production else "lax"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

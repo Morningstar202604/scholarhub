@@ -1,0 +1,186 @@
+"""Startup bootstrap: ensure the bootstrap tenant + initial admin user exist.
+
+Why a dedicated module (not inline in ``main.py`` lifespan):
+- tenant creation currently happens lazily in ``TenantContextMiddleware``
+  on the first request. That works for tenant, but admin user creation
+  has the same first-startup need and would otherwise require a manual
+  one-off script (which is what ``_dev_create_admin.py`` was).
+- Keeping the two concerns separate (tenant vs admin) lets us test
+  each in isolation and avoids coupling admin creation to the HTTP
+  middleware layer.
+
+Idempotency:
+- Tenant: SELECT by ``slug == settings.bootstrap_tenant_slug``; create
+  only if missing.
+- Admin: SELECT by ``tenant_id + username == settings.admin_username``;
+  create only if missing. Updating the password of an existing admin
+  is intentionally NOT done here — operators change passwords via the
+  admin UI or password-reset flow, not by editing ``.env`` and
+  restarting.
+"""
+
+from __future__ import annotations
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.db import async_session_factory
+from app.core.logging import get_logger
+from app.core.security import hash_password
+from app.models import Role, Tenant, User, UserRole
+
+logger = get_logger("scholarhub.bootstrap")
+
+# Predefined role slugs (kept in sync with deps.py).
+ROLE_EDITOR = "editor"
+ROLE_REVIEWER = "reviewer"
+
+
+async def _ensure_bootstrap_tenant(session: AsyncSession) -> Tenant:
+    """Return the bootstrap tenant, creating it if absent (single mode)."""
+    slug = settings.bootstrap_tenant_slug
+    result = await session.execute(select(Tenant).where(Tenant.slug == slug))
+    tenant = result.scalar_one_or_none()
+    if tenant is not None:
+        return tenant
+    tenant = Tenant(
+        slug=slug,
+        name=f"Bootstrap ({slug})",
+        tenant_type="journal",
+        is_active=True,
+    )
+    session.add(tenant)
+    await session.commit()
+    await session.refresh(tenant)
+    logger.info("bootstrap_tenant_created", slug=slug, tenant_id=str(tenant.id))
+    return tenant
+
+
+async def _ensure_admin_user(session: AsyncSession, tenant: Tenant) -> None:
+    """Create the initial admin user under ``tenant`` if absent.
+
+    Idempotent: if an admin with ``settings.admin_username`` already
+    exists under this tenant, do nothing. Password rotations are NOT
+    applied here — see module docstring.
+    """
+    username = settings.admin_username
+    result = await session.execute(
+        select(User).where(
+            User.tenant_id == tenant.id,
+            User.username == username,
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return
+    user = User(
+        tenant_id=tenant.id,
+        email=settings.admin_email,
+        username=username,
+        hashed_password=hash_password(settings.admin_password),
+        is_active=True,
+        is_admin=True,
+        # Bootstrap admin is trusted — skip the email-verification gate.
+        is_email_verified=True,
+    )
+    session.add(user)
+    await session.commit()
+    logger.info(
+        "bootstrap_admin_created",
+        user_id=user.id,
+        username=username,
+        tenant_id=str(tenant.id),
+    )
+
+
+async def run_bootstrap() -> None:
+    """Ensure the bootstrap tenant and initial admin user exist.
+
+    Called from the FastAPI lifespan on startup (skipped in test env,
+    where fixtures build their own users).
+    """
+    if settings.is_test:
+        return
+    async with async_session_factory() as session:
+        tenant = await _ensure_bootstrap_tenant(session)
+        await _ensure_admin_user(session, tenant)
+        # Create the reviewer + editor roles the review workflow needs; the
+        # admin is then granted both so operators can self-test the
+        # reviewer/editor flows directly.
+        await _ensure_review_roles(session, tenant)
+        await _ensure_admin_roles(session, tenant)
+
+
+async def _ensure_review_roles(session: AsyncSession, tenant: Tenant) -> None:
+    """Idempotently create the reviewer + editor role rows."""
+    for name, desc in (
+        (ROLE_EDITOR, "Editor (assign reviewers + final decision)"),
+        (ROLE_REVIEWER, "Peer reviewer (accept/decline invitations + submit reports)"),
+    ):
+        existing = (
+            await session.execute(
+                select(Role).where(
+                    Role.tenant_id == tenant.id,
+                    Role.name == name,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue
+        session.add(
+            Role(
+                tenant_id=tenant.id,
+                name=name,
+                description=desc,
+            )
+        )
+    await session.commit()
+
+
+async def _ensure_admin_roles(session: AsyncSession, tenant: Tenant) -> None:
+    """Assign the editor + reviewer roles to the admin user (dev convenience only).
+
+    In production, roles are granted on demand via the user-management API.
+    The admin already passes every require_editor / require_reviewer check
+    via is_admin=True, so this assignment is purely an explicit marker
+    for visibility in the admin UI.
+    """
+    admin = (
+        await session.execute(
+            select(User).where(
+                User.tenant_id == tenant.id,
+                User.username == settings.admin_username,
+            )
+        )
+    ).scalar_one_or_none()
+    if admin is None:
+        return
+    roles = (
+        await session.execute(
+            select(Role).where(
+                Role.tenant_id == tenant.id,
+                Role.name.in_((ROLE_EDITOR, ROLE_REVIEWER)),
+            )
+        )
+    ).scalars().all()
+    for role in roles:
+        existing = (
+            await session.execute(
+                select(UserRole).where(
+                    UserRole.tenant_id == tenant.id,
+                    UserRole.user_id == admin.id,
+                    UserRole.role_id == role.id,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue
+        session.add(
+            UserRole(
+                tenant_id=tenant.id,
+                user_id=admin.id,
+                role_id=role.id,
+            )
+        )
+    await session.commit()

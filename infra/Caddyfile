@@ -1,0 +1,59 @@
+# Prod Caddyfile for ScholarHUB.
+#
+# Usage (in docker-compose.prod.yml):
+#   volumes:
+#     - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+#
+# Replace ``scholarhub.example.com`` with your real hostname. Caddy
+# issues + renews Let's Encrypt certs automatically when the host is
+# reachable on 80/443 from the public internet.
+#
+# For internal / self-hosted deployments without a public DNS entry,
+# use the ``internal`` directive instead of the auto-HTTPS magic:
+#   scholarhub.internal {
+#       internal
+#       ...
+#   }
+
+scholarhub.example.com {
+	# API — reverse proxy to the backend service.
+	reverse_proxy backend:8000 {
+		# Forward the original Host + X-Forwarded-* headers so the
+		# backend's TrustedHostMiddleware + tenant resolver see the
+		# real client, not the Caddy internal IP.
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# SPA (when shipped) — uncomment when apps/frontend exists.
+	# root * /srv/spa
+	# try_files {path} /index.html
+	# file_server
+
+	# Security headers (complement to the app's own middleware, but
+	# we set them here so static assets + 502 pages also get them).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# CSP is set by the app (SecurityHeadersMiddleware); we don't
+		# override it here because the API needs a tighter policy than
+		# static assets would.
+		-Content-Security-Policy
+	}
+
+	# Compression + reasonable timeouts.
+	encode gzip zstd
+	# 60s is generous for an API call that may run a 3s DB query; bump
+	# if you have known long-running endpoints.
+	timeout 60s
+
+	# Access logs to stdout (Caddy in Docker logs to stdout by default).
+	log {
+		output stdout
+		format json
+	}
+}

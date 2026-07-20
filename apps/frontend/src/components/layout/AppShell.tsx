@@ -1,0 +1,244 @@
+import { useEffect, useState } from 'react'
+import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
+import {
+  Bell,
+  BookOpen,
+  ChevronLeft,
+  ClipboardCheck,
+  Heart,
+  Home,
+  Library,
+  Lightbulb,
+  type LucideIcon,
+  Menu,
+  Upload,
+  ScrollText,
+  ShieldCheck,
+  Users,
+  X,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '@/hooks/use-auth'
+import { useLogout } from '@/hooks/api/use-auth'
+import { useUnreadCount } from '@/hooks/api/use-modules'
+import { cn } from '@/lib/utils'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { ThemeToggle } from '@/components/theme-toggle'
+
+interface NavItem {
+  to: string
+  label: string
+  icon: LucideIcon
+  auth?: boolean
+  adminOnly?: boolean
+}
+
+const NAV: NavItem[] = [
+  { to: '/dashboard', label: '概览', icon: Home, auth: true },
+  { to: '/catalog', label: '资源目录', icon: BookOpen },
+  { to: '/library', label: '阅读列表', icon: Library, auth: true },
+  { to: '/follows', label: '关注与订阅', icon: Heart, auth: true },
+  { to: '/submissions', label: '我的提交', icon: ScrollText, auth: true },
+  { to: '/review/assignments', label: '审稿工作台', icon: ClipboardCheck, auth: true },
+  { to: '/ingest', label: '导入', icon: Upload, auth: true },
+  { to: '/recommendations', label: '推荐', icon: Lightbulb, auth: true },
+  { to: '/notifications', label: '通知', icon: Bell, auth: true },
+  { to: '/admin/users', label: '用户管理', icon: Users, auth: true, adminOnly: true },
+  { to: '/admin/audit-logs', label: '审计日志', icon: ShieldCheck, auth: true, adminOnly: true },
+]
+
+export function AppShell() {
+  // collapsed 仅用于桌面端（≥md）侧边栏宽窄切换
+  const [collapsed, setCollapsed] = useState(false)
+  // mobileOpen 控制 <md 抽屉开合；路由切换后自动关闭
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const { isAuthenticated, isAdmin, user, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const logoutMut = useLogout()
+  const { data: unread } = useUnreadCount()
+
+  const visibleNav = NAV.filter((n) => {
+    if (n.adminOnly && !isAdmin) return false
+    if (n.auth && !isAuthenticated) return false
+    return true
+  })
+
+  // 路由变化时关闭移动端抽屉，避免点击导航后抽屉仍挡住内容
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
+  // 移动端抽屉打开时锁 body 滚动，避免背景滚动穿透
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = ''
+      }
+    }
+  }, [mobileOpen])
+
+  // ESC 关闭抽屉
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
+
+  const onLogout = async () => {
+    try {
+      await logoutMut.mutateAsync()
+      toast.success('已退出登录')
+      void navigate({ to: '/login' })
+    } catch {
+      // 即使 backend logout 失败也清本地状态
+      logout()
+      void navigate({ to: '/login' })
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen bg-background">
+      {/* 移动端遮罩：<md 抽屉打开时显示 */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          aria-hidden="true"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside
+        className={cn(
+          'sticky top-0 z-40 flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all',
+          // 桌面端：根据 collapsed 切换宽窄；移动端：固定窄宽 + translate 控制显隐
+          'md:sticky md:translate-x-0',
+          collapsed ? 'md:w-14' : 'md:w-60',
+          'w-60 max-md:fixed max-md:transition-transform',
+          mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
+        )}
+      >
+        <div className="flex h-14 items-center justify-between border-b px-4">
+          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <BookOpen className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>ScholarHUB</span>}
+          </Link>
+          {/* 移动端关闭按钮（仅 <md 显示） */}
+          <button
+            type="button"
+            className="text-sidebar-foreground/60 hover:text-sidebar-foreground md:hidden"
+            onClick={() => setMobileOpen(false)}
+            aria-label="关闭菜单"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <nav className="flex-1 overflow-y-auto px-2 py-3">
+          {visibleNav.map((item) => {
+            const Icon = item.icon
+            const active = location.pathname.startsWith(item.to)
+            const showBadge = item.to === '/notifications' && (unread?.unread ?? 0) > 0
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  'mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                  active
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span className="flex-1">{item.label}</span>}
+                {showBadge && !collapsed && (
+                  <span className="rounded-full bg-destructive px-2 py-0.5 text-xs text-destructive-foreground">
+                    {unread!.unread}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
+        </nav>
+        {/* 折叠按钮仅桌面端可见 */}
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          className="hidden h-12 items-center justify-center border-t text-sidebar-foreground/60 hover:text-sidebar-foreground md:flex"
+          aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
+        >
+          <ChevronLeft className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')} />
+        </button>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          {/* 左侧：移动端汉堡 + 折叠状态下的页面标识 */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileOpen(true)}
+              aria-label="打开菜单"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </div>
+          {/* 右侧：主题切换 + 用户菜单/登录注册 */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <ThemeToggle />
+            {isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Avatar className="h-7 w-7">
+                      <AvatarFallback>{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="hidden text-sm sm:inline">{user.username}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{user.username}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onLogout} className="text-destructive">
+                    退出登录
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/login">登录</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link to="/register">注册</Link>
+                </Button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto">
+          {/* 响应式 padding：移动端紧凑，桌面端宽松 */}
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  )
+}

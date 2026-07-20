@@ -1,0 +1,61 @@
+"""Security headers + API version response middleware.
+
+Adds baseline security headers (X-Content-Type-Options, X-Frame-Options,
+HSTS in production) and the ``X-API-Version`` header to every HTTP response.
+"""
+
+from __future__ import annotations
+
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from app import __version__
+from app.core.config import settings
+
+
+class SecurityHeadersMiddleware:
+    """Add baseline security headers and API version to every response."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.extend(
+                    [
+                        (b"x-content-type-options", b"nosniff"),
+                        (b"x-frame-options", b"DENY"),
+                        (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                        (
+                            b"permissions-policy",
+                            b"geolocation=(), microphone=(), camera=()",
+                        ),
+                        (
+                            b"content-security-policy",
+                            b"default-src 'self'; "
+                            b"script-src 'self'; "
+                            b"style-src 'self'; "
+                            b"frame-src https:; "
+                            b"connect-src 'self'; "
+                            b"img-src 'self' data: https:; "
+                            b"font-src 'self'",
+                        ),
+                        (b"x-api-version", __version__.encode()),
+                    ]
+                )
+                if settings.is_production:
+                    headers.append(
+                        (
+                            b"strict-transport-security",
+                            b"max-age=31536000; includeSubDomains",
+                        )
+                    )
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)

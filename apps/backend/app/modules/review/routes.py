@@ -1,0 +1,339 @@
+"""Peer-review API routes.
+
+Reviewer side (auth + reviewer role, see deps.require_reviewer):
+  GET    /review/assignments/me           — list my assignments
+  GET    /review/assignments/{id}         — view one assignment + submission details
+  POST   /review/assignments/{id}/accept  — accept invitation
+  POST   /review/assignments/{id}/decline — decline invitation
+  POST   /review/assignments/{id}/submit  — submit review report
+
+Editor-facing assignment management lives under ``/submissions`` for
+cohesion (both modules share the Submission row). See ``submission.routes``.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import desc, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.api.deps import require_reviewer, require_tenant_id
+from app.core.db import get_db, paginate
+from app.core.time import utcnow
+from app.models import User
+from app.modules.notifications import services as notifications
+from app.modules.review.models import ReviewAssignment, ReviewReport
+from app.modules.review.schemas import (
+    AssignmentListResponse,
+    AssignmentResponse,
+    ReviewReportResponse,
+    ReviewSubmit,
+)
+from app.modules.submission.schemas import SubmissionResponse
+
+router = APIRouter(prefix="/review", tags=["review"])
+
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+
+
+def _to_assignment_response(
+    a: ReviewAssignment, *, include_submission_title: bool = False
+) -> AssignmentResponse:
+    return AssignmentResponse(
+        id=a.id,
+        submission_id=a.submission_id,
+        reviewer_id=a.reviewer_id,
+        assigned_by=a.assigned_by,
+        status=a.status,
+        due_date=a.due_date,
+        invited_at=a.invited_at,
+        responded_at=a.responded_at,
+        completed_at=a.completed_at,
+        reviewer_username=a.reviewer.username if a.reviewer else None,
+        submission_title=(
+            a.submission.title
+            if include_submission_title and a.submission
+            else None
+        ),
+    )
+
+
+async def _get_assignment_or_404(
+    db: AsyncSession, assignment_id: int
+) -> ReviewAssignment:
+    tenant_id = require_tenant_id()
+    a = (
+        await db.execute(
+            select(ReviewAssignment)
+            .where(
+                ReviewAssignment.id == assignment_id,
+                ReviewAssignment.tenant_id == tenant_id,
+            )
+            .options(
+                selectinload(ReviewAssignment.reviewer),
+                selectinload(ReviewAssignment.submission),
+            )
+        )
+    ).scalar_one_or_none()
+    if a is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found",
+        )
+    return a
+
+
+async def _get_assignment_for_reviewer(
+    db: AsyncSession, assignment_id: int, reviewer_id: int
+) -> ReviewAssignment:
+    """Fetch assignment + ensure current reviewer is the assignee."""
+    a = await _get_assignment_or_404(db, assignment_id)
+    if a.reviewer_id != reviewer_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This assignment belongs to another reviewer",
+        )
+    return a
+
+
+@router.get("/assignments/me", response_model=AssignmentListResponse)
+async def list_my_assignments(
+    status_filter: str = Query(
+        default=None,
+        alias="status",
+        pattern=r"^(pending|accepted|declined|completed|cancelled)$",
+    ),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    current_user: User = Depends(require_reviewer),
+    db: AsyncSession = Depends(get_db),
+) -> AssignmentListResponse:
+    """List the current reviewer's assignments (filter by status)."""
+    query = (
+        select(ReviewAssignment)
+        .where(
+            ReviewAssignment.reviewer_id == current_user.id,
+            ReviewAssignment.tenant_id == current_user.tenant_id,
+        )
+        .options(selectinload(ReviewAssignment.submission))
+    )
+    if status_filter is not None:
+        query = query.where(ReviewAssignment.status == status_filter)
+    rows, meta = await paginate(
+        db,
+        query,
+        page=page,
+        page_size=page_size,
+        order_by=(desc(ReviewAssignment.invited_at), ReviewAssignment.id.asc()),
+    )
+    return AssignmentListResponse(
+        data=[
+            _to_assignment_response(r, include_submission_title=True) for r in rows
+        ],
+        meta=meta,
+    )
+
+
+@router.get("/assignments/{assignment_id}", response_model=AssignmentResponse)
+async def get_my_assignment(
+    assignment_id: int,
+    current_user: User = Depends(require_reviewer),
+    db: AsyncSession = Depends(get_db),
+) -> AssignmentResponse:
+    """View one assignment (reviewer only sees their own)."""
+    a = await _get_assignment_for_reviewer(db, assignment_id, current_user.id)
+    return _to_assignment_response(a, include_submission_title=True)
+
+
+@router.get(
+    "/assignments/{assignment_id}/submission",
+    response_model=SubmissionResponse,
+)
+async def get_assignment_submission(
+    assignment_id: int,
+    current_user: User = Depends(require_reviewer),
+    db: AsyncSession = Depends(get_db),
+) -> SubmissionResponse:
+    """审稿人查看分配稿件的完整内容（abstract / preview / file_path 等）。
+
+    审稿人需要看完整稿件，单盲剥离仅作用于作者侧的 review reports。
+    仅 pending/accepted/completed 状态可查看；declined/cancelled 不可查看。
+    """
+    a = await _get_assignment_for_reviewer(db, assignment_id, current_user.id)
+    if a.status not in ("pending", "accepted", "completed"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot view submission in status '{a.status}'",
+        )
+    s = a.submission
+    if s is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Submission not found",
+        )
+    return SubmissionResponse(
+        id=s.id,
+        title=s.title,
+        type=s.type,
+        authors=s.authors,
+        year=s.year,
+        venue=s.venue,
+        discipline=s.discipline,
+        subdiscipline=s.subdiscipline,
+        keywords=s.keywords,
+        jel_codes=s.jel_codes,
+        tags=s.tags,
+        abstract=s.abstract,
+        preview=s.preview,
+        download_url=s.download_url,
+        external_url=s.external_url,
+        doi=s.doi,
+        corresponding_author_email=s.corresponding_author_email,
+        status=s.status,
+        admin_note=s.admin_note,
+        editor_note=s.editor_note,
+        resource_id=s.resource_id,
+        file_path=s.file_path,
+        submitted_by=s.submitted_by,
+        submitted_at=s.submitted_at,
+        reviewed_by=s.reviewed_by,
+        reviewed_at=s.reviewed_at,
+    )
+
+
+@router.post(
+    "/assignments/{assignment_id}/accept",
+    response_model=AssignmentResponse,
+)
+async def accept_assignment(
+    assignment_id: int,
+    current_user: User = Depends(require_reviewer),
+    db: AsyncSession = Depends(get_db),
+) -> AssignmentResponse:
+    """Reviewer accepts the invitation."""
+    a = await _get_assignment_for_reviewer(db, assignment_id, current_user.id)
+    if a.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Assignment is in status '{a.status}', cannot accept",
+        )
+    a.status = "accepted"
+    a.responded_at = utcnow()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Could not update assignment (concurrent change)",
+        ) from exc
+    await db.refresh(a)
+    return _to_assignment_response(a)
+
+
+@router.post(
+    "/assignments/{assignment_id}/decline",
+    response_model=AssignmentResponse,
+)
+async def decline_assignment(
+    assignment_id: int,
+    current_user: User = Depends(require_reviewer),
+    db: AsyncSession = Depends(get_db),
+) -> AssignmentResponse:
+    """Reviewer declines the invitation."""
+    a = await _get_assignment_for_reviewer(db, assignment_id, current_user.id)
+    if a.status not in ("pending", "accepted"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Assignment is in status '{a.status}', cannot decline",
+        )
+    a.status = "declined"
+    a.responded_at = utcnow()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Could not update assignment (concurrent change)",
+        ) from exc
+    await db.refresh(a)
+    return _to_assignment_response(a)
+
+
+@router.post(
+    "/assignments/{assignment_id}/submit",
+    response_model=ReviewReportResponse,
+)
+async def submit_review_report(
+    assignment_id: int,
+    body: ReviewSubmit,
+    current_user: User = Depends(require_reviewer),
+    db: AsyncSession = Depends(get_db),
+) -> ReviewReportResponse:
+    """Reviewer submits the review report (terminal)."""
+    a = await _get_assignment_for_reviewer(db, assignment_id, current_user.id)
+    if a.status != "accepted":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Assignment must be 'accepted' to submit (currently '{a.status}')",
+        )
+    existing = (
+        await db.execute(
+            select(ReviewReport).where(ReviewReport.assignment_id == a.id)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A report has already been submitted for this assignment",
+        )
+    report = ReviewReport(
+        tenant_id=current_user.tenant_id,
+        assignment_id=a.id,
+        recommendation=body.recommendation,
+        scores=body.scores,
+        comments_to_editor=body.comments_to_editor,
+        comments_to_author=body.comments_to_author,
+    )
+    db.add(report)
+    a.status = "completed"
+    a.completed_at = utcnow()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Could not submit report (concurrent change)",
+        ) from exc
+    await db.refresh(report)
+
+    # 通知编辑分配者：审稿人提交了报告
+    if a.assigned_by is not None:
+        await notifications.create(
+            db,
+            tenant_id=current_user.tenant_id,
+            user_id=a.assigned_by,
+            type_="review.submitted",
+            title=(
+                f"审稿人提交了报告：{a.submission.title if a.submission else f'#{a.submission_id}'}"
+            ),
+            body=f"推荐：{body.recommendation}",
+            related_type="review_assignment",
+            related_id=str(a.id),
+        )
+        await db.commit()
+
+    return ReviewReportResponse(
+        id=report.id,
+        assignment_id=report.assignment_id,
+        recommendation=report.recommendation,
+        scores=report.scores,
+        comments_to_editor=report.comments_to_editor,
+        comments_to_author=report.comments_to_author,
+        submitted_at=report.submitted_at,
+    )

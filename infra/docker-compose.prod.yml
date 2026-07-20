@@ -1,0 +1,78 @@
+# ScholarHUB prod stack — Postgres + backend + Caddy.
+#
+# Differences from dev (infra/docker-compose.yml):
+# - No ports exposed on backend (Caddy is the only public ingress).
+# - Caddy terminates TLS + reverse-proxies to backend.
+# - Postgres uses a stronger password + named volume (no host bind).
+# - Backend reads .env.prod (you must create this separately; never
+#   commit it). It overrides DATABASE_URL to point at the postgres service.
+#
+# Usage:
+#   1. cp .env.example .env.prod
+#   2. edit .env.prod: set SCHOLARHUB_SECRET_KEY (openssl rand -hex 32),
+#      SCHOLARHUB_ADMIN_PASSWORD (>=12 chars), SCHOLARHUB_ALLOWED_HOSTS,
+#      SCHOLARHUB_CORS_ORIGINS, SCHOLARHUB_FRONTEND_BASE_URL.
+#   3. edit infra/Caddyfile: replace scholarhub.example.com with your real hostname.
+#   4. docker compose -f infra/docker-compose.prod.yml up -d --build
+#   5. Run one-off migrations (the backend image also runs them on boot,
+#      but for prod you typically want a separate job so startup order
+#      is explicit):
+#      docker compose -f infra/docker-compose.prod.yml run --rm \
+#        backend alembic upgrade head
+#
+# For self-hosted / internal deployments, edit infra/Caddyfile to use the
+# ``internal`` directive instead of the auto-HTTPS magic (see comments there).
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: scholarhub
+      POSTGRES_USER: scholarhub
+      # CHANGE THIS — set POSTGRES_PASSWORD in .env.prod
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?must be set in .env.prod}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    # Don't expose 5432 to the host in prod. Backends connect via the
+    # compose network. If you need to run ad-hoc psql, use:
+    #   docker compose -f infra/docker-compose.prod.yml exec postgres psql -U scholarhub
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scholarhub"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    env_file:
+      - ../.env.prod
+    environment:
+      # Override the .env's localhost URL to point at the compose service.
+      SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:${POSTGRES_PASSWORD}@postgres:5432/scholarhub
+      SCHOLARHUB_ENVIRONMENT: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # No ports — Caddy is the only public ingress.
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata_prod:
+  caddy_data:
+  caddy_config:

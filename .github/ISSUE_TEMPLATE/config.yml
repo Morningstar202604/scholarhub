@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://gitcode.com/badhope/scholarhub/issues
+    about: For questions and general discussion, please open an issue with the `question` label.

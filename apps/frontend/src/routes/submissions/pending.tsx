@@ -1,0 +1,717 @@
+import { useState } from 'react'
+import { createFileRoute, redirect, useNavigate, useSearch } from '@tanstack/react-router'
+import { ClipboardList, Eye, FileText, Gavel, UserPlus } from 'lucide-react'
+import { toast } from 'sonner'
+import { getAuthState } from '@/lib/auth'
+import {
+  useAdminUsers,
+  useAllSubmissions,
+  useAssignReviewer,
+  useCancelAssignment,
+  useEditorDecision,
+  useSubmissionAssignments,
+  useSubmissionReports,
+} from '@/hooks/api/use-modules'
+import type {
+  AssignmentResponse,
+  EditorDecision,
+  ReviewReportResponse,
+  SubmissionResponse,
+  SubmissionStatus,
+} from '@/lib/types'
+import { extractError } from '@/lib/utils'
+import { PageHeader } from '@/components/common/page-header'
+import { Pagination } from '@/components/common/pagination'
+import { EmptyState, ErrorState, Loading } from '@/components/common/state'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+
+export const Route = createFileRoute('/submissions/pending')({
+  beforeLoad: () => {
+    if (!getAuthState().isAdmin) throw redirect({ to: '/login' })
+  },
+  component: PendingSubmissionsPage,
+})
+
+const DECISION_OPTIONS: { value: EditorDecision; label: string; hint?: string }[] = [
+  { value: 'accept', label: '接收（Accept）', hint: '自动入目录' },
+  { value: 'minor_revision', label: '小修（Minor Revision）' },
+  { value: 'major_revision', label: '大修（Major Revision）' },
+  { value: 'reject', label: '拒稿（Reject）' },
+]
+
+// 编辑工作台状态 tab：全部 + 7 种 submission status
+type StatusTab = SubmissionStatus | 'all'
+const STATUS_TABS: { value: StatusTab; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'pending', label: '待分配' },
+  { value: 'under_review', label: '审稿中' },
+  { value: 'major_revision', label: '大修' },
+  { value: 'minor_revision', label: '小修' },
+  { value: 'resubmitted', label: '重投' },
+  { value: 'accepted', label: '已接收' },
+  { value: 'rejected', label: '已拒稿' },
+]
+
+interface PendingSearch {
+  status?: StatusTab
+  page?: number
+}
+
+function statusBadge(status: string) {
+  switch (status) {
+    case 'pending':
+      return <Badge variant="secondary">待分配</Badge>
+    case 'under_review':
+      return <Badge className="bg-blue-500/15 text-blue-700">审稿中</Badge>
+    case 'major_revision':
+      return <Badge className="bg-amber-500/15 text-amber-700">大修</Badge>
+    case 'minor_revision':
+      return <Badge className="bg-yellow-500/15 text-yellow-700">小修</Badge>
+    case 'accepted':
+    case 'approved':
+      return <Badge className="bg-emerald-500/15 text-emerald-700">已接收</Badge>
+    case 'rejected':
+      return <Badge variant="destructive">已拒稿</Badge>
+    default:
+      return <Badge variant="outline">{status}</Badge>
+  }
+}
+
+function assignmentStatusBadge(status: string) {
+  switch (status) {
+    case 'pending':
+      return <Badge variant="secondary">待回应</Badge>
+    case 'accepted':
+      return <Badge className="bg-blue-500/15 text-blue-700">已接受</Badge>
+    case 'declined':
+      return <Badge variant="outline">已拒绝</Badge>
+    case 'completed':
+      return <Badge className="bg-emerald-500/15 text-emerald-700">已完成</Badge>
+    case 'cancelled':
+      return <Badge variant="outline">已撤销</Badge>
+    default:
+      return <Badge variant="outline">{status}</Badge>
+  }
+}
+
+interface DecisionFormState {
+  decision: EditorDecision
+  editor_note: string
+}
+
+const EMPTY_DECISION: DecisionFormState = {
+  decision: 'minor_revision',
+  editor_note: '',
+}
+
+function PendingSubmissionsPage() {
+  const navigate = useNavigate()
+  const search = useSearch({ strict: false }) as PendingSearch
+  const statusTab = (search.status ?? 'all') as StatusTab
+  const page = search.page ?? 1
+  // 'all' tab 不传 status，让后端返回全部状态
+  const statusFilter = statusTab === 'all' ? undefined : statusTab
+
+  const { data, isLoading, isError, refetch } = useAllSubmissions(
+    statusFilter,
+    page,
+    10,
+  )
+  const decisionMut = useEditorDecision()
+
+  const [detail, setDetail] = useState<SubmissionResponse | null>(null)
+  const [assignTarget, setAssignTarget] = useState<SubmissionResponse | null>(null)
+  const [assignmentsTarget, setAssignmentsTarget] = useState<SubmissionResponse | null>(null)
+  const [decisionTarget, setDecisionTarget] = useState<SubmissionResponse | null>(null)
+  const [reportsTarget, setReportsTarget] = useState<SubmissionResponse | null>(null)
+  const [decisionForm, setDecisionForm] = useState<DecisionFormState>(EMPTY_DECISION)
+
+  const updateSearch = (patch: Partial<PendingSearch>) => {
+    void navigate({
+      to: '/submissions/pending',
+      search: { ...search, ...patch },
+      replace: true,
+    })
+  }
+
+  const onConfirmDecision = async () => {
+    if (!decisionTarget) return
+    const target = decisionTarget
+    try {
+      await decisionMut.mutateAsync({
+        id: target.id,
+        body: {
+          decision: decisionForm.decision,
+          editor_note: decisionForm.editor_note || undefined,
+        },
+      })
+      toast.success('决定已记录')
+      setDecisionTarget(null)
+      setDecisionForm(EMPTY_DECISION)
+    } catch (err) {
+      toast.error(extractError(err, '操作失败'))
+    }
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title="编辑工作台"
+        description="分配审稿人、查看审稿报告、做最终决定。支持按状态筛选全部提交。"
+      />
+
+      <Tabs
+        value={statusTab}
+        onValueChange={(v) =>
+          updateSearch({ status: v as StatusTab, page: 1 })
+        }
+        className="mb-4"
+      >
+        <TabsList className="flex-wrap">
+          {STATUS_TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {isLoading ? (
+        <Loading />
+      ) : isError ? (
+        <ErrorState message="加载失败" onRetry={() => refetch()} />
+      ) : !data || data.data.length === 0 ? (
+        <EmptyState title="暂无提交" />
+      ) : (
+        <div className="space-y-4">
+          {data.data.map((s) => (
+            <Card key={s.id}>
+              <CardContent className="space-y-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium">{s.title}</h3>
+                    {statusBadge(s.status)}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">{s.type}</Badge>
+                    <span>{s.discipline}</span>
+                    <span>{s.year}</span>
+                    <span>
+                      提交于 {new Date(s.submitted_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {s.authors.join(', ')}
+                </p>
+                <p className="line-clamp-2 text-sm">{s.abstract}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setDetail(s)}>
+                    <Eye className="h-4 w-4" /> 详情
+                  </Button>
+                  {s.status === 'pending' && (
+                    <Button size="sm" onClick={() => setAssignTarget(s)}>
+                      <UserPlus className="h-4 w-4" /> 分配审稿人
+                    </Button>
+                  )}
+                  {(s.status === 'under_review' || s.status === 'resubmitted') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAssignmentsTarget(s)}
+                    >
+                      <ClipboardList className="h-4 w-4" /> 查看分配
+                    </Button>
+                  )}
+                  {['pending', 'under_review', 'resubmitted'].includes(s.status) && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setDecisionTarget(s)
+                        setDecisionForm(EMPTY_DECISION)
+                      }}
+                      disabled={decisionMut.isPending}
+                    >
+                      <Gavel className="h-4 w-4" /> 做决定
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReportsTarget(s)}
+                  >
+                    <FileText className="h-4 w-4" /> 审稿报告
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {data && (
+        <Pagination
+          page={data.meta.page}
+          totalPages={data.meta.total_pages}
+          onPageChange={(p) => updateSearch({ page: p })}
+        />
+      )}
+
+      {/* 详情 Dialog */}
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{detail?.title}</DialogTitle>
+          </DialogHeader>
+          {detail && <SubmissionDetailBody sub={detail} />}
+        </DialogContent>
+      </Dialog>
+
+      {/* 分配审稿人 Dialog */}
+      {assignTarget && (
+        <AssignReviewerDialog
+          submission={assignTarget}
+          onClose={() => setAssignTarget(null)}
+        />
+      )}
+
+      {/* 查看分配 Dialog */}
+      {assignmentsTarget && (
+        <AssignmentsDialog
+          submission={assignmentsTarget}
+          onClose={() => setAssignmentsTarget(null)}
+        />
+      )}
+
+      {/* 做决定 Dialog */}
+      <Dialog
+        open={!!decisionTarget}
+        onOpenChange={(o) => !o && setDecisionTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>做决定 — {decisionTarget?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="decision">决定</Label>
+              <Select
+                value={decisionForm.decision}
+                onValueChange={(v) =>
+                  setDecisionForm((prev) => ({
+                    ...prev,
+                    decision: v as EditorDecision,
+                  }))
+                }
+              >
+                <SelectTrigger id="decision" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DECISION_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                      {o.hint && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({o.hint})
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editor_note">编辑备注（作者可见）</Label>
+              <Textarea
+                id="editor_note"
+                value={decisionForm.editor_note}
+                onChange={(e) =>
+                  setDecisionForm((prev) => ({
+                    ...prev,
+                    editor_note: e.target.value,
+                  }))
+                }
+                placeholder="说明决定原因，作者将在投稿详情中看到"
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDecisionTarget(null)}>
+              取消
+            </Button>
+            <Button onClick={onConfirmDecision} disabled={decisionMut.isPending}>
+              {decisionMut.isPending ? '处理中…' : '确认决定'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 审稿报告 Dialog */}
+      {reportsTarget && (
+        <ReportsDialog
+          submission={reportsTarget}
+          onClose={() => setReportsTarget(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// 详情面板：抽出为组件避免主组件过于臃肿
+function SubmissionDetailBody({ sub }: { sub: SubmissionResponse }) {
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline">{sub.type}</Badge>
+        <span className="text-muted-foreground">{sub.discipline}</span>
+        <span className="text-muted-foreground">{sub.year}</span>
+        {sub.subdiscipline && (
+          <span className="text-muted-foreground">{sub.subdiscipline}</span>
+        )}
+      </div>
+      <div>
+        <span className="text-muted-foreground">作者：</span>
+        {sub.authors.join(', ')}
+      </div>
+      {sub.venue && (
+        <div>
+          <span className="text-muted-foreground">出版物：</span>
+          {sub.venue}
+        </div>
+      )}
+      {sub.keywords && sub.keywords.length > 0 && (
+        <div>
+          <span className="text-muted-foreground">关键词：</span>
+          {sub.keywords.join(', ')}
+        </div>
+      )}
+      {sub.jel_codes && sub.jel_codes.length > 0 && (
+        <div>
+          <span className="text-muted-foreground">JEL Codes：</span>
+          {sub.jel_codes.join(', ')}
+        </div>
+      )}
+      {sub.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {sub.tags.map((t) => (
+            <Badge key={t} variant="secondary">
+              {t}
+            </Badge>
+          ))}
+        </div>
+      )}
+      <div>
+        <span className="text-muted-foreground">摘要</span>
+        <p className="mt-1 whitespace-pre-wrap">{sub.abstract}</p>
+      </div>
+      <div>
+        <span className="text-muted-foreground">预览</span>
+        <p className="mt-1 whitespace-pre-wrap">{sub.preview}</p>
+      </div>
+      {sub.doi && (
+        <div>
+          <span className="text-muted-foreground">DOI：</span>
+          {sub.doi}
+        </div>
+      )}
+      {sub.download_url && (
+        <div>
+          <span className="text-muted-foreground">下载：</span>
+          {sub.download_url}
+        </div>
+      )}
+      {sub.external_url && (
+        <div>
+          <span className="text-muted-foreground">外部链接：</span>
+          {sub.external_url}
+        </div>
+      )}
+      {sub.file_path && (
+        <div>
+          <span className="text-muted-foreground">稿件文件：</span>
+          <span className="text-primary">{sub.file_path}</span>
+        </div>
+      )}
+      <div className="text-xs text-muted-foreground">
+        提交于 {new Date(sub.submitted_at).toLocaleString()}
+      </div>
+    </div>
+  )
+}
+
+// 分配审稿人对话框：列出本租户所有用户供编辑挑选
+function AssignReviewerDialog({
+  submission,
+  onClose,
+}: {
+  submission: SubmissionResponse
+  onClose: () => void
+}) {
+  const { data: users, isLoading } = useAdminUsers(200, 0)
+  const assignMut = useAssignReviewer()
+  const [reviewerId, setReviewerId] = useState<number | null>(null)
+  const [dueDate, setDueDate] = useState('')
+
+  const onConfirm = async () => {
+    if (reviewerId === null) {
+      toast.error('请选择审稿人')
+      return
+    }
+    try {
+      await assignMut.mutateAsync({
+        id: submission.id,
+        body: {
+          reviewer_id: reviewerId,
+          due_date: dueDate ? new Date(dueDate).toISOString() : undefined,
+        },
+      })
+      toast.success('已分配审稿人')
+      onClose()
+    } catch (err) {
+      toast.error(extractError(err, '分配失败'))
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>分配审稿人 — {submission.title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="reviewer">审稿人</Label>
+            {isLoading ? (
+              <Loading />
+            ) : (
+              <Select
+                value={reviewerId !== null ? String(reviewerId) : undefined}
+                onValueChange={(v) => setReviewerId(Number(v))}
+              >
+                <SelectTrigger id="reviewer" className="w-full">
+                  <SelectValue placeholder="选择用户…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(users ?? []).map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.username} ({u.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="due_date">截止日期（可选）</Label>
+            <Input
+              id="due_date"
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            取消
+          </Button>
+          <Button onClick={onConfirm} disabled={assignMut.isPending}>
+            {assignMut.isPending ? '处理中…' : '确认分配'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// 查看分配列表对话框
+function AssignmentsDialog({
+  submission,
+  onClose,
+}: {
+  submission: SubmissionResponse
+  onClose: () => void
+}) {
+  const { data, isLoading, isError, refetch } = useSubmissionAssignments(
+    submission.id,
+  )
+  const cancelMut = useCancelAssignment()
+
+  const onCancel = async (assignmentId: number) => {
+    try {
+      await cancelMut.mutateAsync({
+        submissionId: submission.id,
+        assignmentId,
+      })
+      toast.success('已撤销分配')
+    } catch (err) {
+      toast.error(extractError(err, '撤销失败'))
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>审稿分配 — {submission.title}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <Loading />
+        ) : isError ? (
+          <ErrorState message="加载失败" onRetry={() => refetch()} />
+        ) : !data || data.data.length === 0 ? (
+          <EmptyState title="暂无审稿分配" />
+        ) : (
+          <div className="space-y-2">
+            {data.data.map((a: AssignmentResponse) => (
+              <div
+                key={a.id}
+                className="flex flex-wrap items-center gap-2 rounded border p-2 text-sm"
+              >
+                <span className="font-medium">
+                  {a.reviewer_username ?? `#${a.reviewer_id}`}
+                </span>
+                {assignmentStatusBadge(a.status)}
+                <span className="text-xs text-muted-foreground">
+                  邀于 {new Date(a.invited_at).toLocaleString()}
+                </span>
+                {a.due_date && (
+                  <span className="text-xs text-muted-foreground">
+                    · 截止 {new Date(a.due_date).toLocaleString()}
+                  </span>
+                )}
+                {a.completed_at && (
+                  <span className="text-xs text-muted-foreground">
+                    · 完成 {new Date(a.completed_at).toLocaleString()}
+                  </span>
+                )}
+                <div className="ml-auto">
+                  {['pending', 'accepted'].includes(a.status) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onCancel(a.id)}
+                      disabled={cancelMut.isPending}
+                    >
+                      撤销
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            关闭
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// 审稿报告对话框：编辑可见完整报告（含 comments_to_editor）
+function ReportsDialog({
+  submission,
+  onClose,
+}: {
+  submission: SubmissionResponse
+  onClose: () => void
+}) {
+  const { data, isLoading, isError, refetch } = useSubmissionReports(
+    submission.id,
+  )
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>审稿报告 — {submission.title}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <Loading />
+        ) : isError ? (
+          <ErrorState message="加载失败" onRetry={() => refetch()} />
+        ) : !data || data.length === 0 ? (
+          <EmptyState title="暂无已完成的审稿报告" />
+        ) : (
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto">
+            {data.map((r: ReviewReportResponse) => (
+              <div key={r.id} className="rounded border p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-emerald-500/15 text-emerald-700">
+                    已完成
+                  </Badge>
+                  <Badge variant="outline">推荐：{r.recommendation}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(r.submitted_at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {Object.entries(r.scores).map(([k, v]) => (
+                    <div
+                      key={k}
+                      className="rounded bg-muted p-1 text-center text-xs"
+                    >
+                      <div className="font-medium capitalize">{k}</div>
+                      <div className="text-muted-foreground">{v}/5</div>
+                    </div>
+                  ))}
+                </div>
+                {r.comments_to_author && (
+                  <div className="mt-2">
+                    <div className="text-xs text-muted-foreground">
+                      给作者的意见
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap">
+                      {r.comments_to_author}
+                    </p>
+                  </div>
+                )}
+                {r.comments_to_editor && (
+                  <div className="mt-2 rounded bg-amber-500/10 p-2">
+                    <div className="text-xs text-amber-700">
+                      给编辑的保密意见
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap">
+                      {r.comments_to_editor}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            关闭
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

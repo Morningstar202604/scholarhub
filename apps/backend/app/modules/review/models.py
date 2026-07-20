@@ -1,0 +1,155 @@
+"""SQLAlchemy models for the peer-review module.
+
+Tables:
+
+- ``review_assignments`` — editor→reviewer task assignment. One submission
+  can have multiple assignments (multiple reviewers). Each assignment has
+  its own status lifecycle: ``pending`` (invited) → ``accepted`` / ``declined``
+  → ``completed`` (reviewer submitted) → ``cancelled`` (editor withdrew).
+- ``review_reports`` — the actual review report submitted by a reviewer:
+  overall recommendation + per-criterion scores + comments to editor +
+  comments to author. One report per assignment (1:1).
+
+Tenant-scoped with RLS, mirroring the catalog/submission strategy.
+Single-blind by default: reviewer identity visible to editors but not
+to authors. (Double-blind is a future tenant setting; for now we keep
+the data model identity-bearing to keep the MVP simple.)
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.time import utcnow
+from app.models import Base, JSONBVariant
+
+
+class ReviewAssignment(Base):
+    """Editor→reviewer task assignment for a submission.
+
+    Lifecycle: ``pending`` (invited) → ``accepted``|``declined`` →
+    ``completed`` (reviewer submitted the report) → ``cancelled``.
+    """
+
+    __tablename__ = "review_assignments"
+    __table_args__ = (
+        # 防止同一编辑对同一审稿人重复邀请同一稿件
+        UniqueConstraint(
+            "submission_id", "reviewer_id", name="uq_review_assignment_submission_reviewer"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    submission_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("submissions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reviewer_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    assigned_by: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # pending=已邀请待回应, accepted=审稿人接受, declined=审稿人拒绝,
+    # completed=审稿人已提交报告, cancelled=编辑撤销邀请
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", index=True
+    )
+    due_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    invited_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    responded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    submission = relationship(
+        "Submission", backref="review_assignments"
+    )
+    reviewer = relationship(
+        "User", foreign_keys="ReviewAssignment.reviewer_id"
+    )
+    assigner = relationship(
+        "User", foreign_keys="ReviewAssignment.assigned_by"
+    )
+    report: Mapped[list[ReviewReport]] = relationship(
+        back_populates="assignment", cascade="all, delete-orphan"
+    )
+
+
+class ReviewReport(Base):
+    """Review report submitted by a reviewer (one per assignment).
+
+    ``recommendation``: accept / minor_revision / major_revision / reject.
+    ``scores``: structured JSON of per-criterion scores (e.g. originality,
+    methodology, clarity, significance, each on 1-5 scale).
+    ``comments_to_editor``: confidential comments visible to editor only.
+    ``comments_to_author``: comments visible to author (single-blind:
+    author sees these but not reviewer identity).
+    """
+
+    __tablename__ = "review_reports"
+    __table_args__ = (
+        UniqueConstraint("assignment_id", name="uq_review_report_assignment"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    assignment_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("review_assignments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    recommendation: Mapped[str] = mapped_column(String(32), nullable=False)
+    scores: Mapped[dict[str, Any]] = mapped_column(JSONBVariant, nullable=False, default=dict)
+    comments_to_editor: Mapped[str | None] = mapped_column(Text, nullable=True)
+    comments_to_author: Mapped[str | None] = mapped_column(Text, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+
+    assignment = relationship(
+        "ReviewAssignment", back_populates="report"
+    )
+
+
+__all__ = ["ReviewAssignment", "ReviewReport"]

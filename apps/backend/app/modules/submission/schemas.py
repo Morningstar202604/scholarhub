@@ -1,0 +1,156 @@
+"""Pydantic schemas for the submission module.
+
+Create / Review / Response shapes. Field constraints mirror catalog
+``ResourceBase`` so an approval can materialize a catalog Resource
+without value re-validation surprises.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
+
+from app.core.schemas import Authors, MessageResponse, PaginationMeta
+
+# 完整 workflow 状态机：
+#   pending → under_review → (major_revision | minor_revision | accepted | rejected)
+#   major_revision / minor_revision → resubmitted → under_review（再分配审稿人）
+#   accepted → 自动物化 Resource 入 catalog（等价于旧 approved，保留向后兼容）
+# pending = 作者已提交、待编辑分配审稿人；accepted = 旧 approved 的同义词。
+# 旧测试用 pending/approved/rejected 路径仍走原 review 端点，保持兼容。
+SubmissionStatus = Literal[
+    "pending",
+    "under_review",
+    "major_revision",
+    "minor_revision",
+    "resubmitted",
+    "accepted",
+    "rejected",
+    # 向后兼容别名（review 端点允许 approved 作为 accepted 的同义词写入）
+    "approved",
+]
+SubmissionType = Literal["paper", "book", "dataset", "tutorial"]
+ReviewRecommendation = Literal[
+    "accept",
+    "minor_revision",
+    "major_revision",
+    "reject",
+]
+EditorDecision = Literal[
+    "accept",
+    "minor_revision",
+    "major_revision",
+    "reject",
+    # 向后兼容：旧 review 端点
+    "approved",
+    "rejected",
+]
+
+
+class SubmissionCreate(BaseModel):
+    """Body for POST /submissions — author submits a record for review."""
+
+    title: str = Field(min_length=1, max_length=1000)
+    type: SubmissionType
+    authors: Authors = Field(min_length=1, max_length=200)
+    year: int = Field(ge=-3000, le=2100)
+    venue: str | None = Field(default=None, max_length=500)
+    discipline: str = Field(min_length=1, max_length=100)
+    subdiscipline: str | None = Field(default=None, max_length=100)
+    keywords: list[str] = Field(default_factory=list, max_length=50)
+    jel_codes: list[str] = Field(default_factory=list, max_length=20)
+    tags: list[str] = Field(default_factory=list, max_length=50)
+    abstract: str = Field(min_length=1, max_length=20000)
+    # preview 可选：作者通常不知道要填，留空时自动从 abstract 截取前 500 字。
+    # 之所以放宽是因为旧版本必填导致大量首次投稿 422 失败（实测摩擦点）。
+    preview: str | None = Field(default=None, max_length=5000)
+    download_url: AnyHttpUrl | None = None
+    external_url: AnyHttpUrl | None = None
+    doi: str | None = Field(default=None, max_length=200)
+    corresponding_author_email: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def _fill_preview_from_abstract(self) -> SubmissionCreate:
+        if not self.preview:
+            # 留空时用 abstract 前 500 字作 preview；不超过 5000 字限制
+            self.preview = (self.abstract or "")[:500]
+        return self
+
+
+class SubmissionReview(BaseModel):
+    """Body for PATCH /submissions/{id}/review — editor decision.
+
+    ``resource_id`` is only meaningful for approvals and is optional:
+    if omitted on approval, a new catalog Resource is materialized from
+    the submission payload.
+    """
+
+    status: Literal["approved", "rejected"]
+    admin_note: str | None = Field(default=None, max_length=5000)
+    resource_id: int | None = Field(default=None, ge=1)
+
+
+class SubmissionDecision(BaseModel):
+    """Body for PATCH /submissions/{id}/decision — editor final decision.
+
+    4-元决定（accept/minor_revision/major_revision/reject）。accept 等价于
+    旧 approved：自动物化 catalog Resource（除非 resource_id 指定现有资源）。
+    major_revision / minor_revision 把状态置为相应值，等作者 resubmit。
+    """
+
+    decision: EditorDecision
+    editor_note: str | None = Field(default=None, max_length=5000)
+    resource_id: int | None = Field(default=None, ge=1)
+
+
+class SubmissionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    type: str
+    authors: list[str]
+    year: int
+    venue: str | None = None
+    discipline: str
+    subdiscipline: str | None = None
+    keywords: list[str] = Field(default_factory=list)
+    jel_codes: list[str] = Field(default_factory=list)
+    tags: list[str]
+    abstract: str
+    preview: str
+    download_url: str | None = None
+    external_url: str | None = None
+    doi: str | None = None
+    corresponding_author_email: str | None = None
+    status: SubmissionStatus
+    admin_note: str | None = None
+    editor_note: str | None = None
+    resource_id: int | None = None
+    file_path: str | None = None
+    submitted_by: int
+    submitted_at: datetime
+    reviewed_by: int | None = None
+    reviewed_at: datetime | None = None
+
+
+class SubmissionListResponse(BaseModel):
+    data: list[SubmissionResponse]
+    meta: PaginationMeta
+
+
+__all__ = [
+    "EditorDecision",
+    "MessageResponse",
+    "PaginationMeta",
+    "ReviewRecommendation",
+    "SubmissionCreate",
+    "SubmissionDecision",
+    "SubmissionListResponse",
+    "SubmissionResponse",
+    "SubmissionReview",
+    "SubmissionStatus",
+    "SubmissionType",
+]
