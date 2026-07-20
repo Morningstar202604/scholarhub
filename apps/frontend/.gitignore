@@ -35,3 +35,9 @@ coverage
 # Vite / vitest 缓存
 .vite
 .vitest-cache
+
+# Playwright E2E 测试输出（trace / screenshot / error-context）
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache

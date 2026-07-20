@@ -119,11 +119,13 @@ async def record_view(
     # Reject views for non-existent resources so history cannot point at
     # missing rows. Scope by tenant too — a resource id from another tenant
     # must not be viewable.
+    user_id = current_user.id
+    tenant_id = current_user.tenant_id
     resource = (
         await db.execute(
             select(Resource).where(
                 Resource.id == resource_id,
-                Resource.tenant_id == current_user.tenant_id,
+                Resource.tenant_id == tenant_id,
             )
         )
     ).scalar_one_or_none()
@@ -133,13 +135,22 @@ async def record_view(
         )
 
     now = utcnow()
+    # 用 flush 而不是 commit 触发 IntegrityError：
+    # SQLAlchemy 2 async + aiosqlite 在 commit 阶段抛 IntegrityError 时，
+    # 会被包成 greenlet_spawn error，导致 except IntegrityError 不触发。
+    # flush 在事务内执行 INSERT，IntegrityError 能被正常捕获。
+    #
+    # 同时：try 块前把 user_id / tenant_id 缓存为局部变量。db.rollback() 后
+    # SQLAlchemy 会 expire 所有 ORM 对象的属性，再次访问 current_user.id 会
+    # 触发 lazy-load（同步 IO），在 async 上下文里抛 greenlet_spawn error。
+    # 用局部变量绕开对 current_user 的属性访问。
     try:
         entry = (
             await db.execute(
                 select(ReadingHistory).where(
-                    ReadingHistory.user_id == current_user.id,
+                    ReadingHistory.user_id == user_id,
                     ReadingHistory.resource_id == resource_id,
-                    ReadingHistory.tenant_id == current_user.tenant_id,
+                    ReadingHistory.tenant_id == tenant_id,
                 )
             )
         ).scalar_one_or_none()
@@ -149,14 +160,14 @@ async def record_view(
             entry.visit_count = (entry.visit_count or 1) + 1
         else:
             entry = ReadingHistory(
-                tenant_id=current_user.tenant_id,
-                user_id=current_user.id,
+                tenant_id=tenant_id,
+                user_id=user_id,
                 resource_id=resource_id,
                 visit_count=1,
                 viewed_at=now,
             )
             db.add(entry)
-        await db.commit()
+        await db.flush()
     except IntegrityError:
         # Race: another concurrent request inserted the same row. Roll
         # back, re-fetch the winner, and apply the visit bump to it so
@@ -165,9 +176,9 @@ async def record_view(
         entry = (
             await db.execute(
                 select(ReadingHistory).where(
-                    ReadingHistory.user_id == current_user.id,
+                    ReadingHistory.user_id == user_id,
                     ReadingHistory.resource_id == resource_id,
-                    ReadingHistory.tenant_id == current_user.tenant_id,
+                    ReadingHistory.tenant_id == tenant_id,
                 )
             )
         ).scalar_one_or_none()
@@ -175,7 +186,8 @@ async def record_view(
             entry.viewed_at = now
             entry.last_read_at = now
             entry.visit_count = (entry.visit_count or 1) + 1
-            await db.commit()
+            await db.flush()
+    await db.commit()
     return MessageResponse(message="Added to history")
 
 
@@ -257,11 +269,13 @@ async def update_progress(
     """
     # Reject progress for non-existent resources so the upsert cannot
     # create an orphaned history row pointing at a missing resource.
+    user_id = current_user.id
+    tenant_id = current_user.tenant_id
     resource = (
         await db.execute(
             select(Resource).where(
                 Resource.id == resource_id,
-                Resource.tenant_id == current_user.tenant_id,
+                Resource.tenant_id == tenant_id,
             )
         )
     ).scalar_one_or_none()
@@ -271,20 +285,22 @@ async def update_progress(
         )
 
     now = utcnow()
+    # 用 flush 而不是 commit 触发 IntegrityError（详见 record_view 的注释）。
+    # user_id / tenant_id 缓存为局部变量，原因同 record_view。
     try:
         entry = (
             await db.execute(
                 select(ReadingHistory).where(
-                    ReadingHistory.user_id == current_user.id,
+                    ReadingHistory.user_id == user_id,
                     ReadingHistory.resource_id == resource_id,
-                    ReadingHistory.tenant_id == current_user.tenant_id,
+                    ReadingHistory.tenant_id == tenant_id,
                 )
             )
         ).scalar_one_or_none()
         if entry is None:
             entry = ReadingHistory(
-                tenant_id=current_user.tenant_id,
-                user_id=current_user.id,
+                tenant_id=tenant_id,
+                user_id=user_id,
                 resource_id=resource_id,
                 visit_count=1,
                 duration_sec=0,
@@ -293,8 +309,7 @@ async def update_progress(
             )
             db.add(entry)
         _apply_progress(entry, body, now)
-        await db.commit()
-        await db.refresh(entry)
+        await db.flush()
     except IntegrityError:
         # Race: another concurrent INSERT won the (user, resource) slot.
         # Re-fetch and re-apply so the update is not lost.
@@ -302,9 +317,9 @@ async def update_progress(
         entry = (
             await db.execute(
                 select(ReadingHistory).where(
-                    ReadingHistory.user_id == current_user.id,
+                    ReadingHistory.user_id == user_id,
                     ReadingHistory.resource_id == resource_id,
-                    ReadingHistory.tenant_id == current_user.tenant_id,
+                    ReadingHistory.tenant_id == tenant_id,
                 )
             )
         ).scalar_one_or_none()
@@ -316,8 +331,9 @@ async def update_progress(
                 detail="History entry disappeared after race; please retry",
             ) from None
         _apply_progress(entry, body, now)
-        await db.commit()
-        await db.refresh(entry)
+        await db.flush()
+    await db.commit()
+    await db.refresh(entry)
     return ReadingProgressResponse.model_validate(entry)
 
 

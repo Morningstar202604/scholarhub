@@ -38,11 +38,14 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 })
 
 function RootLayout() {
+  // Playwright 跑 E2E 时 navigator.webdriver === true；
+  // 这种情况下隐藏 Router Devtools 浮层，避免它拦截页面右下角按钮的点击
+  const showDevtools = import.meta.env.DEV && !navigator.webdriver
   return (
     <>
       <AppShell />
       <Toaster position="top-right" richColors closeButton />
-      {import.meta.env.DEV && <TanStackRouterDevtools />}
+      {showDevtools && <TanStackRouterDevtools />}
     </>
   )
 }

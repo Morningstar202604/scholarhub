@@ -52,22 +52,45 @@ function ReaderPage() {
   const [localDuration, setLocalDuration] = useState(0)
   const [removeOpen, setRemoveOpen] = useState(false)
 
-  // 从服务端进度初始化本地状态（仅首次加载时）
+  // 标记是否已从服务端同步过进度。
+  // React StrictMode 在 dev 下会 mount→unmount→mount：第一次 unmount 时
+  // stateRef 还是初始值（page=1, progress=0），如果此时 flush 会把 server
+  // 端的真实进度覆盖成 1/0。加这个 guard 避免首次同步前上报。
+  const hasSyncedRef = useRef(false)
+
+  // 从服务端进度初始化本地状态（仅首次加载时）。
+  // 用 isFetched 而非 isLoading 判断 query 完成：React Query v5 中 isLoading
+  // 在 query pending 时为 true，但对于 404 + retry=1 的场景，retry 期间 isLoading
+  // 仍是 true。如果用户在 retry 期间点击保存进度，useEffect 还没把 hasSyncedRef
+  // 设为 true，flush 会 early-return，PUT 永远不发。isFetched 在 query 第一次
+  // 完成（无论成功失败）后变 true 且不会被 retry 重置，更稳健。
+  // 新用户在服务端没有 history，GET /progress 返回 404，progress.data 为
+  // undefined，但 hasSyncedRef 仍需设为 true，否则用户的输入永远无法上报。
+  // hasSyncedRef 同时作为"已初始化"标志：PUT 成功后 onSuccess 会更新
+  // progress.data，触发 useEffect 重新执行，但此时不应再用 server 数据覆盖
+  // 本地 state（用户可能正在继续修改）。
   useEffect(() => {
+    if (!progress.isFetched) return
+    if (hasSyncedRef.current) return
     if (progress.data) {
       setPage(progress.data.page ?? 1)
       setProgressPercent(progress.data.progress_percent ?? 0)
       setCompleted(progress.data.completed)
     }
-  }, [progress.data])
+    hasSyncedRef.current = true
+  }, [progress.isFetched, progress.data])
 
   // 用 ref 持有最新值，让 setInterval 回调读取时不被闭包冻结
   const stateRef = useRef({ page, progressPercent, completed, localDuration })
   stateRef.current = { page, progressPercent, completed, localDuration }
 
   const flush = async () => {
+    // 首次 mount 未同步完成前不 flush，避免 StrictMode 双挂载时
+    // 用初始值覆盖服务端的真实进度。
+    if (!hasSyncedRef.current) return
     const s = stateRef.current
-    if (s.localDuration === 0) return
+    // 即使 localDuration=0 也可能 page/progress/completed 已变更，
+    // 所以无条件上报（duration=0 后端 no-op）。
     try {
       await updateMut.mutateAsync({
         resourceId: id,
@@ -107,8 +130,31 @@ function ReaderPage() {
   }
 
   const onManualUpdate = async () => {
-    await flush()
-    toast.success('进度已保存')
+    // 用户手动点击"保存进度"：绕过 flush 的 hasSyncedRef guard。
+    // 原因：GET /progress 在新用户上返回 404 + retry=1，整个 query 完成需要
+    // ~1.5s。如果用户在这期间点击保存进度，hasSyncedRef.current 还是 false，
+    // flush 会 early-return，PUT 永远不发，进度丢失。手动点击是显式用户意图，
+    // 应该立即上报当前 stateRef 的值。
+    const s = stateRef.current
+    try {
+      await updateMut.mutateAsync({
+        resourceId: id,
+        body: {
+          page: s.page,
+          progress_percent: s.progressPercent,
+          duration_sec: s.localDuration,
+          completed: s.completed,
+        },
+      })
+      setLocalDuration(0)
+      // 手动 PUT 成功后，把 hasSyncedRef 设为 true：后续 unmount 时的 flush
+      // 可以正常工作（不会再 early-return）。如果 useEffect 在 query 完成
+      // 后已经设过，这里是无害的赋值。
+      hasSyncedRef.current = true
+      toast.success('进度已保存')
+    } catch {
+      toast.error('保存失败')
+    }
   }
 
   const onRemove = async () => {

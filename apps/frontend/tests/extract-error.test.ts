@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { AxiosError, AxiosHeaders } from 'axios'
+import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { extractError } from '@/lib/utils'
 
 describe('extractError', () => {
@@ -14,8 +15,8 @@ describe('extractError', () => {
         status: 409,
         statusText: 'Conflict',
         headers: {},
-        config: { headers: new AxiosHeaders() },
-      } as any,
+        config: { headers: new AxiosHeaders() } as InternalAxiosRequestConfig,
+      } as AxiosResponse,
     )
     expect(extractError(err, '默认')).toBe('邮箱已被占用')
   })

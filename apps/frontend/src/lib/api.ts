@@ -11,6 +11,10 @@ export const api = axios.create({
   withCredentials: true, // refresh_token lives in an httpOnly cookie; credentials are required
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000, // global guard against stalled requests piling up
+  // 默认 axios 把数组参数序列化成 ids[]=1&ids[]=2（PHP/Rails 风格），
+  // 但 FastAPI 的 list[int] = Query() 期望 ids=1&ids=2（重复参数风格）。
+  // indexes:null 让 axios 用重复参数风格，与后端约定一致。
+  paramsSerializer: { indexes: null },
 })
 
 // Inject access_token from the zustand store (read directly, no React coupling).

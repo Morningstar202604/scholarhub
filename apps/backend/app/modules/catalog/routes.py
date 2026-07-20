@@ -173,6 +173,8 @@ async def create_resource(
 ) -> ResourceResponse:
     """Create a new resource (admin only)."""
     tenant_id = require_tenant_id()
+    # AnyHttpUrl → str：SQLite 默认 DBAPI 不识别 Pydantic 的 Url 类型，
+    # PostgreSQL 那边 asyncpg 倒是接受，但为保持两库行为一致统一转 str。
     resource = Resource(
         tenant_id=tenant_id,
         slug=payload.slug,
@@ -186,8 +188,8 @@ async def create_resource(
         tags=payload.tags,
         abstract=payload.abstract,
         preview=payload.preview,
-        download_url=payload.download_url,
-        external_url=payload.external_url,
+        download_url=str(payload.download_url) if payload.download_url else None,
+        external_url=str(payload.external_url) if payload.external_url else None,
         doi=payload.doi,
         volume=payload.volume,
         issue=payload.issue,
@@ -243,6 +245,10 @@ async def update_resource(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
     update_data: dict[str, Any] = payload.model_dump(exclude_unset=True)
+    # AnyHttpUrl → str（同 create_resource 的处理）
+    for url_field in ("download_url", "external_url"):
+        if url_field in update_data and update_data[url_field] is not None:
+            update_data[url_field] = str(update_data[url_field])
     for field, value in update_data.items():
         setattr(resource, field, value)
 
