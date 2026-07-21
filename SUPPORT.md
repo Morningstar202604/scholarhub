@@ -36,11 +36,10 @@ ScholarHUB 仍处于 pre-alpha 阶段,以下是获取帮助与反馈问题的几
 - 环境(OS、Python / Node 版本、Docker 版本、是否生产部署)
 - 相关日志或截图
 
-## 4. 商业授权
+## 4. 授权与商用
 
-本仓库采用 [PolyForm Noncommercial License 1.0.0](LICENSE),
-**非商业用途**无需单独授权。商业用途需书面授权,请联系:
-**badhope@noreply.gitcode.com**。
+本仓库采用 [MIT License](LICENSE),允许商业与非商业用途,无需单独授权。
+如需深度合作(定制开发、SLA、培训),请联系:**badhope@noreply.gitcode.com**。
 
 ## 5. 镜像仓库说明
 

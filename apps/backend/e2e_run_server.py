@@ -38,7 +38,7 @@ os.environ["SCHOLARHUB_LOG_LEVEL"] = "WARNING"
 os.environ["SCHOLARHUB_JSON_LOGS"] = "false"
 os.environ["SCHOLARHUB_EMAIL_BACKEND"] = "console"
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core import email as email_module
@@ -122,7 +122,6 @@ def _install_dev_routes() -> None:
     (development mode + e2e_run_server.py). The main app factory never
     registers them, so production deployments cannot expose them.
     """
-    from fastapi import Request
     from sqlalchemy import select, update
 
     from app.core.db import async_session_factory
@@ -144,13 +143,13 @@ def _install_dev_routes() -> None:
         return {"ok": True}
 
     @router.post("/verify-email-by-email")
-    async def verify_email_by_email(req: Request) -> dict:
+    async def verify_email_by_email(request: Request) -> dict:
         """Mark a user's email as verified directly (skip the email flow).
 
         E2E tests use this as a fallback when extracting the token from
         the email body is impractical.
         """
-        payload = await req.json()
+        payload = await request.json()
         email = (payload or {}).get("email")
         if not email:
             raise HTTPException(status_code=400, detail="email required")
