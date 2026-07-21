@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ScholarHUB 投稿-审稿-发表 主流程图。
+  设计意图：用 mermaid-style 的状态机描述作者 / 编辑 / 审稿人 / 读者 四类角色
+  如何在同一篇文章的生命周期上协作。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 360" width="900" height="360" role="img" aria-label="投稿审稿主流程">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .lane-label { font: 600 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #0F172A; }
+      .lane-sub  { font: 400 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #475569; }
+      .node      { font: 600 12px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #FFFFFF; }
+      .title     { font: 700 16px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #0F172A; }
+      .edge      { font: 500 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #64748B; }
+    </style>
+  </defs>
+
+  <text x="450" y="24" text-anchor="middle" class="title">投稿 → 审稿 → 录用 → 发表 → 阅读</text>
+
+  <!-- 角色泳道 -->
+  <g>
+    <rect x="10"  y="50" width="220" height="48" rx="8" fill="#EEF2FF" stroke="#C7D2FE"/>
+    <text x="20"  y="78" class="lane-label">作者 Author</text>
+    <text x="20"  y="92" class="lane-sub">投递 / 上传稿件 / 重投</text>
+
+    <rect x="240" y="50" width="220" height="48" rx="8" fill="#FEF3C7" stroke="#FDE68A"/>
+    <text x="250" y="78" class="lane-label">编辑 Editor</text>
+    <text x="250" y="92" class="lane-sub">分配审稿人 / 录用 / 拒稿</text>
+
+    <rect x="470" y="50" width="220" height="48" rx="8" fill="#DCFCE7" stroke="#BBF7D0"/>
+    <text x="480" y="78" class="lane-label">审稿人 Reviewer</text>
+    <text x="480" y="92" class="lane-sub">接稿 / 撰写意见 / 提交</text>
+
+    <rect x="700" y="50" width="190" height="48" rx="8" fill="#E0F2FE" stroke="#BAE6FD"/>
+    <text x="710" y="78" class="lane-label">读者 Reader</text>
+    <text x="710" y="92" class="lane-sub">阅读 / 订阅 / 收藏</text>
+  </g>
+
+  <!-- 节点 -->
+  <g>
+    <!-- 作者泳道 -->
+    <rect x="40"  y="130" width="140" height="40" rx="8" fill="#4F46E5"/>
+    <text x="110" y="155" text-anchor="middle" class="node">投递稿件</text>
+
+    <rect x="40"  y="200" width="140" height="40" rx="8" fill="#4F46E5"/>
+    <text x="110" y="225" text-anchor="middle" class="node">上传修改稿</text>
+
+    <rect x="40"  y="270" width="140" height="40" rx="8" fill="#10B981"/>
+    <text x="110" y="295" text-anchor="middle" class="node">已发表</text>
+
+    <!-- 编辑泳道 -->
+    <rect x="260" y="130" width="140" height="40" rx="8" fill="#F59E0B"/>
+    <text x="330" y="155" text-anchor="middle" class="node">分配审稿人</text>
+
+    <rect x="260" y="200" width="140" height="40" rx="8" fill="#F59E0B"/>
+    <text x="330" y="225" text-anchor="middle" class="node">录用 / 拒稿</text>
+
+    <rect x="260" y="270" width="140" height="40" rx="8" fill="#F59E0B"/>
+    <text x="330" y="295" text-anchor="middle" class="node">推到发表</text>
+
+    <!-- 审稿人泳道 -->
+    <rect x="510" y="130" width="140" height="40" rx="8" fill="#22C55E"/>
+    <text x="580" y="155" text-anchor="middle" class="node">接稿 / 拒稿</text>
+
+    <rect x="510" y="200" width="140" height="40" rx="8" fill="#22C55E"/>
+    <text x="580" y="225" text-anchor="middle" class="node">提交审稿报告</text>
+
+    <!-- 读者泳道 -->
+    <rect x="725" y="270" width="140" height="40" rx="8" fill="#0EA5E9"/>
+    <text x="795" y="295" text-anchor="middle" class="node">阅读 / 收藏</text>
+  </g>
+
+  <!-- 边 -->
+  <g fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)">
+    <line x1="180" y1="150" x2="258" y2="150"/>
+    <line x1="400" y1="150" x2="508" y2="150"/>
+    <line x1="510" y1="170" x2="402" y2="200"/>
+    <line x1="260" y1="220" x2="182" y2="220"/>
+    <line x1="180" y1="240" x2="258" y2="270"/>
+    <line x1="400" y1="290" x2="182" y2="290"/>
+    <line x1="180" y1="310" x2="723" y2="290"/>
+  </g>
+
+  <!-- 边上的标签 -->
+  <g>
+    <text x="219" y="143" text-anchor="middle" class="edge">提交</text>
+    <text x="454" y="143" text-anchor="middle" class="edge">分配</text>
+    <text x="456" y="190" text-anchor="middle" class="edge">报告</text>
+    <text x="221" y="213" text-anchor="middle" class="edge">大修</text>
+    <text x="219" y="263" text-anchor="middle" class="edge">录用</text>
+    <text x="291" y="283" text-anchor="middle" class="edge">出版</text>
+    <text x="450" y="304" text-anchor="middle" class="edge">发表后公开</text>
+  </g>
+</svg>

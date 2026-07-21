@@ -100,8 +100,8 @@ async def _run_bootstrap_manual() -> None:
     有 bootstrap admin；这里手动调底层函数复用同一份逻辑。
     """
     from app.core.bootstrap import (
-        _ensure_admin_user,
         _ensure_admin_roles,
+        _ensure_admin_user,
         _ensure_bootstrap_tenant,
         _ensure_review_roles,
     )
@@ -123,10 +123,10 @@ def _install_dev_routes() -> None:
     registers them, so production deployments cannot expose them.
     """
     from fastapi import Request
+    from sqlalchemy import select, update
 
     from app.core.db import async_session_factory
     from app.models import User
-    from sqlalchemy import select, update
 
     router = APIRouter(prefix="/api/dev", tags=["dev-e2e-only"])
 

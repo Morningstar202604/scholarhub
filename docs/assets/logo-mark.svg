@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ScholarHUB Logo Mark —— 只保留标志符号（无文字），用于 favicon / 头像。 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="ScholarHUB mark">
+  <defs>
+    <linearGradient id="sh-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="240" height="240" rx="48" ry="48" fill="url(#sh-grad)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.95">
+    <circle cx="120" cy="78" r="26"/>
+    <line x1="120" y1="44" x2="120" y2="56"/>
+    <line x1="120" y1="100" x2="120" y2="112"/>
+    <line x1="86" y1="78" x2="98" y2="78"/>
+    <line x1="142" y1="78" x2="154" y2="78"/>
+  </g>
+  <path d="M 56 130 Q 56 122 64 122 L 116 122 L 116 196 L 64 196 Q 56 196 56 188 Z" fill="#0F172A" opacity="0.85"/>
+  <path d="M 124 122 L 176 122 Q 184 122 184 130 L 184 188 Q 184 196 176 196 L 124 196 Z" fill="#FFFFFF"/>
+  <line x1="120" y1="120" x2="120" y2="198" stroke="#0F172A" stroke-width="2" opacity="0.4"/>
+  <g stroke="#4F46E5" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <line x1="134" y1="138" x2="174" y2="138"/>
+    <line x1="134" y1="150" x2="174" y2="150"/>
+    <line x1="134" y1="162" x2="162" y2="162"/>
+    <line x1="134" y1="174" x2="170" y2="174"/>
+  </g>
+  <rect x="56" y="206" width="128" height="4" rx="2" fill="#FFFFFF" opacity="0.9"/>
+</svg>

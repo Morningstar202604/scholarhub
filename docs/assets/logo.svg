@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ScholarHUB Logo — 一本翻开的书 + 学术引文圆环。
+  设计意图：
+    - 左侧书脊 + 右侧翻开的书页 = "开放学术"
+    - 顶部圆环 + 四道刻度 = "同行评审 / 引文"
+    - 主色靛蓝 (#4F46E5) 与 React 19 / Tailwind v4 风格协调
+  设计矢量、可无损缩放，黑白打印也能保持识别（用 currentColor 描边）。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="ScholarHUB logo">
+  <defs>
+    <linearGradient id="sh-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="sh-page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 背景圆角方块 -->
+  <rect x="8" y="8" width="224" height="224" rx="48" ry="48" fill="url(#sh-grad)"/>
+
+  <!-- 顶部引文圆环：4 道刻度象征同行评审 -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.95">
+    <circle cx="120" cy="78" r="26"/>
+    <line x1="120" y1="44" x2="120" y2="56"/>
+    <line x1="120" y1="100" x2="120" y2="112"/>
+    <line x1="86" y1="78" x2="98" y2="78"/>
+    <line x1="142" y1="78" x2="154" y2="78"/>
+  </g>
+
+  <!-- 翻开的书：左页（书脊）+ 右页 -->
+  <g>
+    <!-- 左页（书脊侧，略带阴影） -->
+    <path d="M 56 130 Q 56 122 64 122 L 116 122 L 116 196 L 64 196 Q 56 196 56 188 Z"
+          fill="#0F172A" opacity="0.85"/>
+    <!-- 右页（翻开） -->
+    <path d="M 124 122 L 176 122 Q 184 122 184 130 L 184 188 Q 184 196 176 196 L 124 196 Z"
+          fill="url(#sh-page)"/>
+    <!-- 中缝 -->
+    <line x1="120" y1="120" x2="120" y2="198" stroke="#0F172A" stroke-width="2" opacity="0.4"/>
+
+    <!-- 右页上的文字行（象征内容） -->
+    <g stroke="#4F46E5" stroke-width="3" stroke-linecap="round" opacity="0.85">
+      <line x1="134" y1="138" x2="174" y2="138"/>
+      <line x1="134" y1="150" x2="174" y2="150"/>
+      <line x1="134" y1="162" x2="162" y2="162"/>
+      <line x1="134" y1="174" x2="170" y2="174"/>
+    </g>
+  </g>
+
+  <!-- 底部基线（象征"基础"） -->
+  <rect x="56" y="206" width="128" height="4" rx="2" fill="#FFFFFF" opacity="0.9"/>
+</svg>

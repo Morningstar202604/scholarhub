@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ScholarHUB 架构图：前端 SPA + 后端模块化 API + PostgreSQL (RLS)。
+  突出"双层租户隔离"和"模块注册表"两件事。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 480" width="900" height="480" role="img" aria-label="ScholarHUB 架构">
+  <defs>
+    <linearGradient id="be-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EEF2FF"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <linearGradient id="fe-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FEF3C7"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .h1   { font: 700 16px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #0F172A; }
+      .h2   { font: 600 13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1E293B; }
+      .small{ font: 400 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #475569; }
+      .mod  { font: 500 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1E293B; }
+      .tag  { font: 600 10px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #FFFFFF; }
+    </style>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="450" y="22" text-anchor="middle" class="h1">ScholarHUB 系统架构</text>
+  <text x="450" y="40" text-anchor="middle" class="small">前端 SPA · 模块化后端 API · 双层租户隔离的 PostgreSQL</text>
+
+  <!-- 前端层 -->
+  <g>
+    <rect x="30" y="60" width="840" height="100" rx="12" fill="url(#fe-grad)" stroke="#FDE68A"/>
+    <text x="46" y="84" class="h2">前端 SPA · apps/frontend</text>
+    <text x="46" y="100" class="small">React 19 · TypeScript 5.7 · Vite 7 · TanStack Router + Query · Tailwind v4 · shadcn/ui</text>
+
+    <g>
+      <rect x="46"  y="112" width="98" height="36" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="95"  y="134" text-anchor="middle" class="mod">路由 / 鉴权</text>
+
+      <rect x="154" y="112" width="98" height="36" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="203" y="134" text-anchor="middle" class="mod">作者工作台</text>
+
+      <rect x="262" y="112" width="98" height="36" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="311" y="134" text-anchor="middle" class="mod">审稿工作台</text>
+
+      <rect x="370" y="112" width="98" height="36" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="419" y="134" text-anchor="middle" class="mod">阅读器</text>
+
+      <rect x="478" y="112" width="98" height="36" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="527" y="134" text-anchor="middle" class="mod">阅读列表</text>
+
+      <rect x="586" y="112" width="98" height="36" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="635" y="134" text-anchor="middle" class="mod">通知 / 推荐</text>
+
+      <rect x="694" y="112" width="160" height="36" rx="6" fill="#1E293B"/>
+      <text x="774" y="134" text-anchor="middle" class="tag">admin 后台</text>
+    </g>
+  </g>
+
+  <!-- 中间连接 -->
+  <g fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr2)">
+    <line x1="450" y1="160" x2="450" y2="186"/>
+  </g>
+  <text x="464" y="178" class="small">HTTP + httpOnly Cookie</text>
+
+  <!-- 后端层 -->
+  <g>
+    <rect x="30" y="186" width="840" height="200" rx="12" fill="url(#be-grad)" stroke="#C7D2FE"/>
+    <text x="46" y="208" class="h2">后端 API · apps/backend</text>
+    <text x="46" y="224" class="small">FastAPI 0.115 · SQLAlchemy 2 (async) · Pydantic 2 · JWT + refresh · structlog</text>
+
+    <!-- core 层 -->
+    <rect x="46" y="234" width="808" height="34" rx="8" fill="#1E293B"/>
+    <text x="56" y="256" class="tag">core: 租户 · 身份 · 角色 · 模块注册表 · 中间件 · 邮件 · 启动</text>
+
+    <!-- 模块网格 -->
+    <g>
+      <rect x="46"  y="278" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="55"  y="296" class="mod">catalog</text>
+      <text x="55"  y="312" class="small">资源 · 学科 · 作者</text>
+
+      <rect x="212" y="278" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="221" y="296" class="mod">submission</text>
+      <text x="221" y="312" class="small">投稿 · 编辑决策</text>
+
+      <rect x="378" y="278" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="387" y="296" class="mod">review</text>
+      <text x="387" y="312" class="small">审稿 · 接稿 · 报告</text>
+
+      <rect x="544" y="278" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="553" y="296" class="mod">reader</text>
+      <text x="553" y="312" class="small">阅读历史 · 进度同步</text>
+
+      <rect x="710" y="278" width="146" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="719" y="296" class="mod">export</text>
+      <text x="719" y="312" class="small">BibTeX/RIS/CSV/JSON</text>
+
+      <rect x="46"  y="332" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="55"  y="350" class="mod">library</text>
+      <text x="55"  y="366" class="small">用户阅读列表</text>
+
+      <rect x="212" y="332" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="221" y="350" class="mod">follows</text>
+      <text x="221" y="366" class="small">作者 / 学科订阅</text>
+
+      <rect x="378" y="332" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="387" y="350" class="mod">notifications</text>
+      <text x="387" y="366" class="small">站内通知 · fan-out</text>
+
+      <rect x="544" y="332" width="160" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="553" y="350" class="mod">ingest</text>
+      <text x="553" y="366" class="small">批量导入 · Crossref</text>
+
+      <rect x="710" y="332" width="146" height="46" rx="6" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="719" y="350" class="mod">recommendations</text>
+      <text x="719" y="366" class="small">基于阅读历史</text>
+    </g>
+  </g>
+
+  <!-- 到数据库的连接 -->
+  <g fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr2)">
+    <line x1="450" y1="386" x2="450" y2="412"/>
+  </g>
+  <text x="464" y="404" class="small">SQLAlchemy 2 async</text>
+
+  <!-- 数据库层 -->
+  <g>
+    <rect x="30" y="412" width="600" height="56" rx="12" fill="#FFFFFF" stroke="#94A3B8"/>
+    <text x="46" y="434" class="h2">PostgreSQL 17 · 主库 + Row Level Security</text>
+    <text x="46" y="452" class="small">SET LOCAL app.current_tenant_id → 即便应用层漏写过滤，DB 也会拒掉跨租户行</text>
+
+    <rect x="640" y="412" width="230" height="56" rx="12" fill="#FEF3C7" stroke="#FDE68A" stroke-dasharray="4 3"/>
+    <text x="656" y="434" class="h2">Redis（规划中）</text>
+    <text x="656" y="452" class="small">缓存 + 分布式限流</text>
+  </g>
+</svg>
