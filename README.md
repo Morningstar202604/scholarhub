@@ -4,11 +4,11 @@
 
 # ScholarHUB
 
+[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)
+
 **A modular, multi-tenant platform for running academic journals, preprint servers, and peer-review workflows.**
 
-Ship a working journal site in an afternoon — submissions, peer review, publication, catalog, reader, and subscription, all out of the box.
-
-**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja-JP.md)
+Submissions, peer review, publication, catalog, reader, and subscriptions are included out of the box.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white&style=flat-square)](https://www.python.org/)
@@ -61,7 +61,7 @@ It is built for the teams who keep rebuilding the same journal scaffold from scr
 
 ### End-to-end workflow
 
-Every step from a manuscript's birth to a reader's bookmark is closed-loop on a single platform:
+From manuscript submission to a reader's bookmark, every step runs on a single platform:
 
 <div align="center">
 <img src="docs/assets/workflow.svg" alt="Submit → review → publish workflow" width="900" />
@@ -217,8 +217,8 @@ docker compose -f infra/docker-compose.prod.yml \
 ```
 scholarhub/
 ├── README.md                      # This file (English, default)
-├── README.zh-CN.md                # 简体中文版
-├── README.ja-JP.md                # 日本語版
+├── README.zh.md                   # 简体中文版
+├── README.ja.md                   # 日本語版
 ├── CHANGELOG.md                   # Visible change log
 ├── CONTRIBUTING.md                # Contribution workflow
 ├── CODE_OF_CONDUCT.md             # Code of conduct
