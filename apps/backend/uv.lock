@@ -1722,7 +1722,7 @@ dev = [
     { name = "aiosqlite", specifier = ">=0.20,<1.0.0" },
     { name = "asgi-lifespan", specifier = ">=2.1,<3.0.0" },
     { name = "bandit", extras = ["toml"], specifier = ">=1.7,<2.0.0" },
-    { name = "mypy", specifier = ">=1.13,<2.0.0" },
+    { name = "mypy", specifier = ">=1.13,<3.0.0" },
     { name = "pip-audit", specifier = ">=2.7,<3.0.0" },
     { name = "pip-licenses", specifier = ">=5.0,<6.0.0" },
     { name = "pytest", specifier = ">=8.3,<10.0.0" },

@@ -23,7 +23,7 @@ from tenacity import (
 )
 
 from app import __version__
-from app.api import admin, auth, health, modules, users
+from app.api import admin, auth, health, modules, two_factor, users
 from app.api.oidc import router as oidc_router
 from app.core.bootstrap import run_bootstrap
 from app.core.config import settings
@@ -170,6 +170,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(two_factor.router, prefix="/api")
 app.include_router(modules.router, prefix="/api")
 # OIDC routes always mount; each endpoint 503s when OIDC is not configured
 # (default). This avoids a shape change when an operator flips the env flag.

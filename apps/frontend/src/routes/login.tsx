@@ -4,6 +4,9 @@ import { AxiosError } from 'axios'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { useLogin } from '@/hooks/api/use-auth'
+import { useAuthenticateTwoFactor } from '@/hooks/api/use-two-factor'
+import { useAuthStore } from '@/lib/auth'
+import type { TokenResponse } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -14,24 +17,65 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
 })
 
+type TwoFactorStage =
+  | { kind: 'idle' }
+  | { kind: 'awaiting'; twoFactorToken: string; username: string }
+
 function LoginPage() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as { redirect?: string }
   const loginMut = useLogin()
+  const authMut = useAuthenticateTwoFactor()
+  const setAuth = useAuthStore((s) => s.setAuth)
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [twoFaCode, setTwoFaCode] = useState('')
+  const [stage, setStage] = useState<TwoFactorStage>({ kind: 'idle' })
+
+  const finishLogin = (data: TokenResponse) => {
+    if (data.requires_2fa) return // handled by stage transition
+    setAuth(data.access_token, {
+      id: data.user_id,
+      username: data.username,
+      is_admin: data.is_admin,
+    })
+    toast.success('登录成功')
+    void navigate({ to: search.redirect ?? '/dashboard' })
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await loginMut.mutateAsync({ username, password })
-      toast.success('登录成功')
-      void navigate({ to: search.redirect ?? '/dashboard' })
+      const data = await loginMut.mutateAsync({ username, password })
+      if (data.requires_2fa && data.two_factor_token) {
+        setStage({ kind: 'awaiting', twoFactorToken: data.two_factor_token, username })
+        return
+      }
+      finishLogin(data)
     } catch (err) {
       const msg =
         err instanceof AxiosError
           ? (err.response?.data as { detail?: string })?.detail ?? '登录失败'
           : '登录失败'
+      toast.error(msg)
+    }
+  }
+
+  const onTwoFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (stage.kind !== 'awaiting') return
+    try {
+      const data = await authMut.mutateAsync({
+        two_factor_token: stage.twoFactorToken,
+        code: twoFaCode,
+      })
+      finishLogin(data)
+    } catch (err) {
+      const msg =
+        err instanceof AxiosError
+          ? (err.response?.data as { detail?: string })?.detail ?? '两步验证失败'
+          : '两步验证失败'
       toast.error(msg)
     }
   }
@@ -50,6 +94,52 @@ function LoginPage() {
   }
 
   const oidcEnabled = import.meta.env.VITE_OIDC_ENABLED === 'true'
+
+  if (stage.kind === 'awaiting') {
+    return (
+      <div className="mx-auto flex min-h-[80vh] max-w-md items-center">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl">两步验证</CardTitle>
+            <CardDescription>
+              {stage.username}，请输入身份验证器中显示的 6 位代码。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onTwoFactorSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="totp">6 位验证码</Label>
+                <Input
+                  id="totp"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  value={twoFaCode}
+                  onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={authMut.isPending}>
+                {authMut.isPending ? '验证中…' : '验证'}
+              </Button>
+              <button
+                type="button"
+                className="block w-full text-center text-xs text-muted-foreground hover:text-primary"
+                onClick={() => {
+                  setStage({ kind: 'idle' })
+                  setTwoFaCode('')
+                }}
+              >
+                返回登录
+              </button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md items-center">

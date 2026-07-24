@@ -87,6 +87,8 @@ function CatalogDetailPage() {
     return () => {
       viewRecordedRef.current = false
     }
+    // recordView is a stable mutation fn from TanStack Query — safe to omit from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const [editOpen, setEditOpen] = useState(false)

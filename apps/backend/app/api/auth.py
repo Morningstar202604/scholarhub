@@ -23,6 +23,7 @@ from app.core.email import get_email_sender
 from app.core.logging import get_logger
 from app.core.schemas import MessageResponse
 from app.core.security import (
+    create_2fa_pending_token,
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
@@ -170,6 +171,23 @@ async def login(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
+        )
+
+    # M2 2FA: if the account has TOTP enabled, the password step alone is
+    # NOT enough to issue tokens. Return a short-lived 2FA-pending token
+    # that the client redeems via POST /auth/2fa/authenticate. Tokens are
+    # empty strings in this branch so a careless client that ignores the
+    # requires_2fa flag still cannot use them as a bearer.
+    if user.totp_enabled_at is not None:
+        pending = create_2fa_pending_token(user.id)
+        return TokenResponse(
+            access_token="",
+            refresh_token="",
+            user_id=user.id,
+            username=user.username,
+            is_admin=user.is_admin,
+            requires_2fa=True,
+            two_factor_token=pending,
         )
 
     return _issue_tokens(user, response)

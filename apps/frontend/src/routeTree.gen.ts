@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as RecommendationsRouteImport } from './routes/recommendations'
@@ -36,6 +37,11 @@ import { Route as AuthOidcCallbackRouteImport } from './routes/auth/oidc/callbac
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
   path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/recommendations': typeof RecommendationsRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/settings': typeof SettingsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/recommendations': typeof RecommendationsRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/settings': typeof SettingsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/recommendations': typeof RecommendationsRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/settings': typeof SettingsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/recommendations'
     | '/register'
     | '/reset-password'
+    | '/settings'
     | '/verify-email'
     | '/admin/audit-logs'
     | '/admin/users'
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/recommendations'
     | '/register'
     | '/reset-password'
+    | '/settings'
     | '/verify-email'
     | '/admin/audit-logs'
     | '/admin/users'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/recommendations'
     | '/register'
     | '/reset-password'
+    | '/settings'
     | '/verify-email'
     | '/admin/audit-logs'
     | '/admin/users'
@@ -312,6 +324,7 @@ export interface RootRouteChildren {
   RecommendationsRoute: typeof RecommendationsRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SettingsRoute: typeof SettingsRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   AdminAuditLogsRoute: typeof AdminAuditLogsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -336,6 +349,13 @@ declare module '@tanstack/react-router' {
       path: '/verify-email'
       fullPath: '/verify-email'
       preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -504,6 +524,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecommendationsRoute: RecommendationsRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SettingsRoute: SettingsRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   AdminAuditLogsRoute: AdminAuditLogsRoute,
   AdminUsersRoute: AdminUsersRoute,

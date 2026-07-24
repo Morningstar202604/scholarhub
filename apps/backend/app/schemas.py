@@ -36,6 +36,64 @@ class TokenResponse(BaseModel):
     user_id: int
     username: str
     is_admin: bool
+    # M2 2FA: when 2FA is required but not yet completed, access/refresh
+    # are empty strings and ``requires_2fa`` is True with a short-lived
+    # ``two_factor_token`` to redeem via POST /auth/2fa/authenticate.
+    # Fields are optional with defaults so non-2FA callers keep working.
+    requires_2fa: bool = False
+    two_factor_token: str | None = None
+
+
+class TwoFactorSetupResponse(BaseModel):
+    """Returned by GET/POST /auth/2fa/setup - the secret + 10 backup codes.
+
+    ``secret`` is the raw base32 secret. The client renders it as a QR
+    code via the otpauth URI. It is the LAST time the secret is exposed:
+    once the user verifies and enables, it lives only in the encrypted
+    column on the server. ``backup_codes`` is similarly one-shot: the
+    cleartext list is returned exactly once, never persisted.
+    """
+
+    secret: str
+    otpauth_uri: str
+    backup_codes: list[str]
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=10)
+
+
+class TwoFactorAuthenticateRequest(BaseModel):
+    """Body for POST /auth/2fa/authenticate.
+
+    Exactly one of ``code`` (TOTP) or ``backup_code`` is required.
+    """
+
+    two_factor_token: str = Field(min_length=1)
+    code: str | None = Field(default=None, min_length=6, max_length=10)
+    backup_code: str | None = Field(default=None, min_length=4, max_length=20)
+
+
+class TwoFactorStatusResponse(BaseModel):
+    """Returned by GET /auth/2fa/status - tells the SPA whether 2FA is on."""
+
+    enabled: bool
+    # Count of remaining un-used backup codes. 0 means the user should
+    # regenerate; the SPA can prompt accordingly.
+    backup_codes_remaining: int
+
+
+class TwoFactorDisableRequest(BaseModel):
+    """Body for POST /auth/2fa/disable.
+
+    Require both the user's current password AND a fresh TOTP code OR
+    a backup code - so a stolen device / hijacked session alone cannot
+    turn off 2FA. A bare password is not enough.
+    """
+
+    password: str = Field(min_length=1)
+    code: str | None = Field(default=None, min_length=6, max_length=10)
+    backup_code: str | None = Field(default=None, min_length=4, max_length=20)
 
 
 # --- Email verification + password reset ---

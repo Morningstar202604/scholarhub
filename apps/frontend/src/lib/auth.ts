@@ -40,7 +40,14 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       token: null,
       user: null,
-      setAuth: (token, user) => set({ token, user }),
+      setAuth: (token, user) => {
+        // 拒绝空 token：M2 2FA 中途态或后端异常时防止清理过的 token 覆盖会话
+        if (!token) {
+          set({ token: null, user: null })
+          return
+        }
+        set({ token, user })
+      },
       setUser: (user) => set({ user }),
       logout: () => {
         set({ token: null, user: null })

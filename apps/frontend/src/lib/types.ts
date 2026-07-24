@@ -21,6 +21,23 @@ export interface TokenResponse {
   user_id: number
   username: string
   is_admin: boolean
+  // M2 2FA: when the account requires 2FA, access/refresh are empty
+  // strings and the client must redeem ``two_factor_token`` via
+  // ``POST /auth/2fa/authenticate`` before storing any tokens.
+  requires_2fa?: boolean
+  two_factor_token?: string | null
+}
+
+// --- 2FA ---
+export interface TwoFactorSetupResponse {
+  secret: string
+  otpauth_uri: string
+  backup_codes: string[]
+}
+
+export interface TwoFactorStatusResponse {
+  enabled: boolean
+  backup_codes_remaining: number
 }
 
 export interface UserResponse {

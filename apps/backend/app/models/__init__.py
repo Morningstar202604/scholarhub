@@ -1,4 +1,4 @@
-"""ORM models for the base spine.
+﻿"""ORM models for the base spine.
 
 All models inherit from ``Base`` (defined here). Domain-specific tables
 (submissions, publications, etc.) live in module packages under
@@ -6,7 +6,7 @@ All models inherit from ``Base`` (defined here). Domain-specific tables
 via the module registry.
 
 Every multi-tenant table MUST carry ``tenant_id`` (UUID, non-null, indexed)
-and rely on PostgreSQL RLS for isolation. See ARCHITECTURE.md §Tenancy.
+and rely on PostgreSQL RLS for isolation. See ARCHITECTURE.md 搂Tenancy.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ class Tenant(Base):
     # Type enables future expansion: 'journal' | 'press' | 'server' | 'institution'.
     tenant_type: Mapped[str] = mapped_column(String(32), default="journal")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    # Arbitrary key/value settings — replaces OJS-style ``*_settings`` tables.
+    # Arbitrary key/value settings  - replaces OJS-style ``*_settings`` tables.
     settings: Mapped[dict[str, Any] | None] = mapped_column(JSONBVariant, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
@@ -85,8 +85,7 @@ class User(Base):
 
     ``refresh_token_version`` is a separate counter bumped on each
     ``/auth/refresh`` call. It invalidates only the consumed refresh
-    token (and any other refresh tokens issued before this refresh) —
-    access tokens and the user's other devices are not affected.
+    token (and any other refresh tokens issued before this refresh)  -     access tokens and the user's other devices are not affected.
     This is OAuth2-standard refresh token rotation: a stolen refresh
     token becomes useless the moment the legitimate holder refreshes.
     """
@@ -114,6 +113,18 @@ class User(Base):
     # Independent from token_version so refresh rotation does not log out
     # every device the way logout / password change do.
     refresh_token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # TOTP 2FA (RFC 6238) - secret encrypted at rest with Fernet (server-side
+    # key from SCHOLARHUB_FERNET_KEY). The raw secret is NEVER returned after
+    # setup; only used to verify the user-entered 6-digit code. enabled_at is
+    # set when verify-setup succeeds; NULL means 2FA is off.
+    totp_secret_encrypted: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    totp_enabled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # JSON list of bcrypt hashes for one-time backup codes. The cleartext codes
+    # are shown to the user ONCE at enrollment/regeneration and never stored.
+    # Length 2048 to fit 12 codes of ~60 chars each.
+    totp_backup_codes_hashed: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
@@ -131,8 +142,7 @@ class User(Base):
 
 
 class Role(Base):
-    """Pre-defined role labels per tenant. Roles are NOT user-defined yet —
-    a fixed enum is enough for the base spine.
+    """Pre-defined role labels per tenant. Roles are NOT user-defined yet  -     a fixed enum is enough for the base spine.
 
     The base ships with: editor / section_editor / author / reviewer /
     reader. Modules may add their own roles by inserting rows here.
