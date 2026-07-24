@@ -23,13 +23,14 @@ from tenacity import (
 )
 
 from app import __version__
-from app.api import admin, auth, health, modules, two_factor, users
+from app.api import admin, auth, gdpr, health, modules, two_factor, users
 from app.api.oidc import router as oidc_router
 from app.core.bootstrap import run_bootstrap
 from app.core.config import settings
 from app.core.db import check_db_connection, dispose_engine
 from app.core.logging import configure_logging, get_logger
 from app.core.modules import load_all, registry
+from app.core.rate_limit_store import close_rate_limiter_store
 from app.core.tenant import TenantContextMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
@@ -74,6 +75,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not settings.is_test:
         await dispose_engine()
         logger.info("database_engine_disposed")
+    await close_rate_limiter_store()
 
 
 app = FastAPI(
@@ -170,6 +172,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(gdpr.router, prefix="/api")
 app.include_router(two_factor.router, prefix="/api")
 app.include_router(modules.router, prefix="/api")
 # OIDC routes always mount; each endpoint 503s when OIDC is not configured

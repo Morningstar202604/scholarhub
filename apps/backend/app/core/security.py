@@ -10,6 +10,15 @@ bumps it on the User row, so the consumed refresh token (and any older
 ones) become invalid the next time they are presented. This is OAuth2-
 standard refresh token rotation; access tokens and the user's other
 devices are NOT affected.
+
+Signing key rotation (M3 hardening): JWT signing + verification lives
+in ``app.core.key_rotation``. ``encode_jwt`` always signs with the
+*current* key (``settings.secret_key``); ``decode_jwt`` tries the
+current key then every entry in ``settings.previous_secret_keys``.
+Operators rotate by setting a new ``SCHOLARHUB_SECRET_KEY`` and the
+old one in ``SCHOLARHUB_PREVIOUS_SECRET_KEYS`` (comma-separated,
+newest first) and then calling ``POST /api/admin/security/reload``
+or ``app.core.key_rotation.reload_settings()``.
 """
 
 from __future__ import annotations
@@ -18,10 +27,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, TypedDict
 
 import bcrypt
-import jwt
-from jwt import PyJWTError
 
-from app.core.config import settings
+from app.core.key_rotation import decode_jwt, encode_jwt
 
 
 class TokenClaims(TypedDict):
@@ -43,13 +50,13 @@ def _create_token(data: dict[str, Any], expires_delta: timedelta, token_type: Li
     to_encode = data.copy()
     expire = datetime.now(UTC) + expires_delta
     to_encode.update({"exp": expire, "type": token_type})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    return encode_jwt(to_encode)
 
 
 def create_access_token(data: dict[str, Any]) -> str:
     return _create_token(
         data,
-        timedelta(minutes=settings.access_token_expire_minutes),
+        timedelta(minutes=_get_access_token_expire_minutes()),
         "access",
     )
 
@@ -57,9 +64,24 @@ def create_access_token(data: dict[str, Any]) -> str:
 def create_refresh_token(data: dict[str, Any]) -> str:
     return _create_token(
         data,
-        timedelta(days=settings.refresh_token_expire_days),
+        timedelta(days=_get_refresh_token_expire_days()),
         "refresh",
     )
+
+
+def _get_access_token_expire_minutes() -> int:
+    """Read access-token TTL from settings at call time (so a hot reload
+    picks up the new TTL without restarting the process)."""
+    from app.core.config import get_settings
+
+    return get_settings().access_token_expire_minutes
+
+
+def _get_refresh_token_expire_days() -> int:
+    """Read refresh-token TTL from settings at call time."""
+    from app.core.config import get_settings
+
+    return get_settings().refresh_token_expire_days
 
 
 # Short-lived (5 min) JWT that proves the holder has just completed the
@@ -91,15 +113,8 @@ def decode_2fa_pending_token(token: str) -> int | None:
     surface a single generic 'verification failed' error to the
     client without leaking which check failed.
     """
-    try:
-        payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=[settings.algorithm],
-        )
-    except jwt.PyJWTError:
-        return None
-    if payload.get("type") != "2fa_pending":
+    payload = decode_jwt(token, expected_type="2fa_pending")
+    if payload is None:
         return None
     sub = payload.get("sub")
     try:
@@ -127,17 +142,7 @@ def refresh_token_version_matches(payload: dict[str, Any] | None, expected_versi
 
 
 def decode_token(token: str, expected_type: Literal["access", "refresh"] | None = None) -> dict[str, Any] | None:
-    try:
-        payload: dict[str, Any] = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=[settings.algorithm],
-        )
-    except PyJWTError:
-        return None
-    if expected_type and payload.get("type") != expected_type:
-        return None
-    return payload
+    return decode_jwt(token, expected_type=expected_type)
 
 
 def decode_access_token(token: str) -> dict[str, Any] | None:

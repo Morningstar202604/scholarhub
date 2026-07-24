@@ -88,6 +88,12 @@ class Settings(BaseSettings):
 
     # --- JWT / Auth ---
     secret_key: str = Field(default="")
+    # M3 hardening: comma-separated list of *previous* signing keys (newest
+    # first). Tokens minted before a rotation verify against this list so
+    # existing sessions keep working until they expire. Set via
+    # ``SCHOLARHUB_PREVIOUS_SECRET_KEYS``. Empty string is fine when no
+    # rotation is in flight.
+    previous_secret_keys: str = Field(default="")
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     algorithm: str = "HS256"
@@ -235,6 +241,25 @@ class Settings(BaseSettings):
                 "SCHOLARHUB_SECRET_KEY must be at least 32 characters long. "
                 "Generate with: openssl rand -hex 32"
             )
+
+        # M3 rotation: every entry in previous_secret_keys must be a real,
+        # non-weak key. We reject weak values and enforce length so a typo
+        # in the rotation env var cannot silently disable the verification
+        # fallback.
+        for raw in self.previous_secret_keys.split(","):
+            chunk = raw.strip()
+            if not chunk:
+                continue
+            if chunk in _WEAK_SECRET_KEYS:
+                raise ValueError(
+                    "SCHOLARHUB_PREVIOUS_SECRET_KEYS contains a weak value. "
+                    "Rotate only with real keys generated via: openssl rand -hex 32"
+                )
+            if len(chunk) < 32:
+                raise ValueError(
+                    "Every entry in SCHOLARHUB_PREVIOUS_SECRET_KEYS must be "
+                    "at least 32 characters."
+                )
 
         if self.admin_password in _WEAK_ADMIN_PASSWORDS:
             raise ValueError(

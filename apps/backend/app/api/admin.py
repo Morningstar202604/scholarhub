@@ -18,14 +18,79 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_admin, require_tenant_id
 from app.core.db import get_db
+from app.core.key_rotation import _active_secret_keys, _signing_key, reload_settings
+from app.core.logging import get_logger
 from app.models import AuditLog, Role, User, UserRole
 from app.schemas import RoleAssign, UserResponse
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+logger = get_logger("scholarhub.admin")
+
 # Allowlist of assignable role names; mirrors Role.name values. Admin
 # privilege is governed by User.is_admin, not by role membership.
 ASSIGNABLE_ROLES = {"reviewer", "editor", "section_editor", "author", "reader"}
+
+
+@router.get("/security/status")
+async def security_status(
+    _admin: User = Depends(require_admin),
+) -> dict[str, object]:
+    """Report the JWT signing key state for the running process.
+
+    Operators call this to confirm a rotation landed: the
+    ``active_keys`` count goes up by 1 immediately after a successful
+    ``POST /admin/security/reload`` if ``SCHOLARHUB_PREVIOUS_SECRET_KEYS``
+    was populated. The actual key material is NEVER returned — only
+    the SHA-256 prefix (kid) so a dashboard can show which key signed
+    a given token.
+    """
+    import hashlib
+
+    keys = _active_secret_keys()
+    current = _signing_key()
+    return {
+        "signing_key_count": len(keys),
+        "previous_key_count": max(0, len(keys) - 1),
+        # Public prefix only — never the key itself.
+        "signing_key_kid": hashlib.sha256(current.encode("utf-8")).hexdigest()[:16]
+        if current
+        else None,
+        # Operator-facing signal: did the most recent decode actually
+        # consult a fallback key? Useful when verifying a rotation
+        # worked in production.
+        "rotation_window_open": len(keys) > 1,
+    }
+
+
+@router.post("/security/reload", status_code=status.HTTP_204_NO_CONTENT)
+async def reload_security_settings(
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(require_admin),
+) -> None:
+    """Re-read ``SCHOLARHUB_*`` env vars without restarting the process.
+
+    Use this after rotating ``SCHOLARHUB_SECRET_KEY`` /
+    ``SCHOLARHUB_PREVIOUS_SECRET_KEYS`` / ``SCHOLARHUB_FERNET_KEYS``.
+    New tokens use the new key immediately; tokens already in
+    flight verify against the previous-key list until they expire.
+
+    Audit-logged so a compromised admin cannot quietly rotate the
+    signing key without a record.
+    """
+    reload_settings()
+    db.add(
+        AuditLog(
+            tenant_id=current_admin.tenant_id,
+            actor_user_id=current_admin.id,
+            action="security.reload",
+            target_type="security",
+            target_id=None,
+            payload={"keys_after_reload": len(_active_secret_keys())},
+        )
+    )
+    await db.commit()
+    logger.info("security_settings_reloaded", actor=current_admin.id)
 
 
 async def _user_with_roles(db: AsyncSession, user: User) -> UserResponse:

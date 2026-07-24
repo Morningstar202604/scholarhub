@@ -125,6 +125,13 @@ class User(Base):
     # are shown to the user ONCE at enrollment/regeneration and never stored.
     # Length 2048 to fit 12 codes of ~60 chars each.
     totp_backup_codes_hashed: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    # M5 GDPR: when the user requests account deletion, we soft-delete the
+    # row by anonymising PII fields and setting this timestamp. A scheduled
+    # job hard-deletes the row after 30 days (see app.api.gdpr for the
+    # grace-window logic). NULL means the account is alive.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
