@@ -2,65 +2,125 @@
 
 ## Supported Versions
 
-Only the latest release on `main` receives security updates.
+Only the latest release on `main` receives security updates. Older tags are
+not patched in-place; please upgrade.
+
+| Branch  | Supported |
+|---------|-----------|
+| `main`  | ✅ Active  |
+| older   | ❌ No      |
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, **do not open a public issue**.
+**Do not open a public GitHub issue for security reports.** Use one of the
+private channels below:
 
-Report it privately:
-
-- Email: **badhope@noreply.gitcode.com**
-- Or use the repository's private security advisory feature
+1. **GitHub Security Advisories** (preferred) — open a draft at
+   <https://github.com/weed33834/scholarhub/security/advisories/new>.
+   The repo owner is automatically CC'd and the report stays private
+   until disclosure is agreed.
+2. **Email** — reach the maintainer via the address listed on the
+   GitHub profile. (Avoid pasting secrets in the issue title.)
 
 Please include:
 
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if any)
+- Description of the vulnerability + attack scenario
+- Steps to reproduce (PoC script / curl trace preferred)
+- Potential impact (auth bypass? RCE? data exfiltration?)
+- Suggested fix (if you have one)
 
-You will receive a response within 72 hours. Please allow up to 30 days for a
-fix before public disclosure.
+You should receive a first response within **72 hours**. Fixes are
+typically shipped within **30 days** for high-severity issues, coordinated
+with the reporter for responsible disclosure.
 
-## Built-in Security Measures
+## Built-in Security Layers
 
-ScholarHub ships with the following defense-in-depth layers:
+### Authentication & session
 
-- **Two-layer tenant isolation** — every domain table carries `tenant_id`; the
-  application layer appends the filter to every query, and PostgreSQL Row Level
-  Security (RLS) enforces it again at the database level via
-  `SET LOCAL app.current_tenant_id`.
-- **JWT auth with refresh token rotation** — short-lived access tokens, httpOnly
-  refresh cookies, rotation version on every refresh.
-- **OIDC SSO** via authlib (Google / GitHub / Generic / Keycloak).
-- **Rate limiting** — sliding-window in-memory limiter per client IP and route.
-- **Security headers middleware** — CSP, HSTS, X-Frame-Options, X-Content-Type,
-  Referrer-Policy, Permissions-Policy.
-- **Password hashing** — bcrypt with per-row salt.
-- **Audit log** — every privileged admin action is recorded per tenant.
+| Layer | Implementation |
+|-------|---------------|
+| Password hashing | bcrypt with per-row salt, cost factor 12 |
+| Access tokens | JWT (HS256) — short-lived, signed with the **current** key from the rotation chain |
+| Refresh tokens | JWT in `httpOnly`, `Secure`, `SameSite=strict` cookie; version counter (`token_version`) on the user model lets admins force a global re-login |
+| 2FA | TOTP (RFC 6238) per-user secret encrypted at rest with Fernet; 10 single-use backup codes hashed with bcrypt |
+| OIDC SSO | PKCE required by default; `state` parameter is a short-lived JWT (defence against CSRF on the callback) |
+| Rate-limit | Sliding window per IP + route, pluggable store (in-memory default, Redis backend for multi-node) |
+
+### Authorisation
+
+- App-layer query filter by `tenant_id` + PostgreSQL RLS as a second
+  enforcement layer.
+- `get_current_user` rejects `is_active=False` users with **401** before
+  leaking any account state.
+- Admin-only endpoints (`/api/admin/*`) check the `is_admin` flag after
+  token validation.
+- GDPR endpoints (`/api/users/me/export|delete|restore`) use a
+  *soft-delete-aware* dependency so users in the 30-day grace window
+  can still call `restore`.
+
+### Secrets & rotation
+
+- All secrets live in environment variables — never in the repo
+  (`.gitleaks.toml` blocks them).
+- JWT secret rotation is online: `POST /api/admin/reload-secret-keys`
+  rebuilds the active key list without restarting the process.
+  New tokens are signed with the newest key; old tokens remain
+  verifiable during the rotation window.
+- On user-initiated account deletion, `token_version` is incremented,
+  immediately invalidating every active session.
+
+### Transport & headers
+
+- `SecurityHeadersMiddleware` ships: `CSP`, `HSTS`,
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy`.
+- CORS allowlist, `TrustedProxies` for `X-Forwarded-For`.
+- Cookies are `SameSite=strict`; `Secure` is auto-enabled in production.
+
+### Audit & monitoring
+
+- Every privileged admin action is recorded per tenant in the audit
+  log table.
+- GitHub Actions run **gitleaks** + **CodeQL** + **pip-audit** on every
+  push and PR.
+- Dependabot opens weekly PRs for vulnerable dependencies; patch &
+  minor updates are auto-squash-merged.
 
 ## Local Security Tooling
 
-Optional, run manually:
-
 ```bash
+# Backend
 cd apps/backend
-uv run bandit -r app
-uv run pip-audit
-uv run ruff check .
-uv run mypy app
-```
+uv run bandit -r app                 # static security lint
+uv run pip-audit                     # PyPI dependency CVE scan
+uv run ruff check .                  # style + bug categories
+uv run mypy app                      # type-based bug detection
+uv run pytest                        # includes security regression tests
 
-The frontend has its own checks:
-
-```bash
+# Frontend
 cd apps/frontend
 npm run lint
 npm run typecheck
+npm audit                            # npm dependency CVE scan
+
+# Repo-wide secret scan
+python scan_secrets.py
 ```
+
+## Incident Response
+
+If a secret or vulnerability is exposed:
+
+1. **Rotate immediately** (treat the leaked value as public).
+2. For JWT keys: update `SCHOLARHUB_SECRET_KEY` and
+   `SCHOLARHUB_PREVIOUS_SECRET_KEYS` in every environment, then
+   call `POST /api/admin/reload-secret-keys`.
+3. **Audit access** via `GET /api/audit-logs` (admin).
+4. **Notify** through a GitHub Security Advisory.
+5. **Force re-auth** by bumping `token_version` on affected users via
+   `PATCH /api/admin/users/{id}`.
 
 ## Disclaimer
 
-This software is provided "as is" without warranty. The maintainer is not
-liable for any damages arising from the use of this software.
+This software is provided "as is" without warranty. The maintainer is
+not liable for damages arising from its use.

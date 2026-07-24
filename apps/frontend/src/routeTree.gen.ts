@@ -9,69 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VerifyEmailRouteImport } from './routes/verify-email'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as RecommendationsRouteImport } from './routes/recommendations'
-import { Route as NotificationsRouteImport } from './routes/notifications'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SubmissionsIndexRouteImport } from './routes/submissions/index'
-import { Route as LibraryIndexRouteImport } from './routes/library/index'
-import { Route as IngestIndexRouteImport } from './routes/ingest/index'
-import { Route as FollowsIndexRouteImport } from './routes/follows/index'
-import { Route as CatalogIndexRouteImport } from './routes/catalog/index'
-import { Route as SubmissionsPendingRouteImport } from './routes/submissions/pending'
-import { Route as ReviewAssignmentsRouteImport } from './routes/review/assignments'
-import { Route as ReaderResourceIdRouteImport } from './routes/reader/$resourceId'
-import { Route as LibraryListIdRouteImport } from './routes/library/$listId'
-import { Route as CatalogNewRouteImport } from './routes/catalog/new'
-import { Route as CatalogResourceIdRouteImport } from './routes/catalog/$resourceId'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as RecommendationsRouteImport } from './routes/recommendations'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as CatalogIndexRouteImport } from './routes/catalog/index'
+import { Route as CatalogResourceIdRouteImport } from './routes/catalog/$resourceId'
+import { Route as CatalogNewRouteImport } from './routes/catalog/new'
+import { Route as FollowsIndexRouteImport } from './routes/follows/index'
+import { Route as IngestIndexRouteImport } from './routes/ingest/index'
+import { Route as LibraryIndexRouteImport } from './routes/library/index'
+import { Route as LibraryListIdRouteImport } from './routes/library/$listId'
+import { Route as ReaderResourceIdRouteImport } from './routes/reader/$resourceId'
+import { Route as ReviewAssignmentsRouteImport } from './routes/review/assignments'
+import { Route as SubmissionsIndexRouteImport } from './routes/submissions/index'
+import { Route as SubmissionsPendingRouteImport } from './routes/submissions/pending'
 import { Route as AuthOidcCallbackRouteImport } from './routes/auth/oidc/callback'
 
-const VerifyEmailRoute = VerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecommendationsRoute = RecommendationsRouteImport.update({
-  id: '/recommendations',
-  path: '/recommendations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotificationsRoute = NotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -79,64 +44,49 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SubmissionsIndexRoute = SubmissionsIndexRouteImport.update({
-  id: '/submissions/',
-  path: '/submissions/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LibraryIndexRoute = LibraryIndexRouteImport.update({
-  id: '/library/',
-  path: '/library/',
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IngestIndexRoute = IngestIndexRouteImport.update({
-  id: '/ingest/',
-  path: '/ingest/',
+const RecommendationsRoute = RecommendationsRouteImport.update({
+  id: '/recommendations',
+  path: '/recommendations',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FollowsIndexRoute = FollowsIndexRouteImport.update({
-  id: '/follows/',
-  path: '/follows/',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CatalogIndexRoute = CatalogIndexRouteImport.update({
-  id: '/catalog/',
-  path: '/catalog/',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SubmissionsPendingRoute = SubmissionsPendingRouteImport.update({
-  id: '/submissions/pending',
-  path: '/submissions/pending',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReviewAssignmentsRoute = ReviewAssignmentsRouteImport.update({
-  id: '/review/assignments',
-  path: '/review/assignments',
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReaderResourceIdRoute = ReaderResourceIdRouteImport.update({
-  id: '/reader/$resourceId',
-  path: '/reader/$resourceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LibraryListIdRoute = LibraryListIdRouteImport.update({
-  id: '/library/$listId',
-  path: '/library/$listId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CatalogNewRoute = CatalogNewRouteImport.update({
-  id: '/catalog/new',
-  path: '/catalog/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CatalogResourceIdRoute = CatalogResourceIdRouteImport.update({
-  id: '/catalog/$resourceId',
-  path: '/catalog/$resourceId',
+const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
+  id: '/admin/audit-logs',
+  path: '/admin/audit-logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -144,9 +94,59 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
-  id: '/admin/audit-logs',
-  path: '/admin/audit-logs',
+const CatalogIndexRoute = CatalogIndexRouteImport.update({
+  id: '/catalog/',
+  path: '/catalog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogResourceIdRoute = CatalogResourceIdRouteImport.update({
+  id: '/catalog/$resourceId',
+  path: '/catalog/$resourceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogNewRoute = CatalogNewRouteImport.update({
+  id: '/catalog/new',
+  path: '/catalog/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FollowsIndexRoute = FollowsIndexRouteImport.update({
+  id: '/follows/',
+  path: '/follows/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IngestIndexRoute = IngestIndexRouteImport.update({
+  id: '/ingest/',
+  path: '/ingest/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryIndexRoute = LibraryIndexRouteImport.update({
+  id: '/library/',
+  path: '/library/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryListIdRoute = LibraryListIdRouteImport.update({
+  id: '/library/$listId',
+  path: '/library/$listId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReaderResourceIdRoute = ReaderResourceIdRouteImport.update({
+  id: '/reader/$resourceId',
+  path: '/reader/$resourceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewAssignmentsRoute = ReviewAssignmentsRouteImport.update({
+  id: '/review/assignments',
+  path: '/review/assignments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubmissionsIndexRoute = SubmissionsIndexRouteImport.update({
+  id: '/submissions/',
+  path: '/submissions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubmissionsPendingRoute = SubmissionsPendingRouteImport.update({
+  id: '/submissions/pending',
+  path: '/submissions/pending',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthOidcCallbackRoute = AuthOidcCallbackRouteImport.update({
@@ -344,60 +344,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/verify-email': {
-      id: '/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof VerifyEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recommendations': {
-      id: '/recommendations'
-      path: '/recommendations'
-      fullPath: '/recommendations'
-      preLoaderRoute: typeof RecommendationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -407,88 +358,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/submissions/': {
-      id: '/submissions/'
-      path: '/submissions'
-      fullPath: '/submissions/'
-      preLoaderRoute: typeof SubmissionsIndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/library/': {
-      id: '/library/'
-      path: '/library'
-      fullPath: '/library/'
-      preLoaderRoute: typeof LibraryIndexRouteImport
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ingest/': {
-      id: '/ingest/'
-      path: '/ingest'
-      fullPath: '/ingest/'
-      preLoaderRoute: typeof IngestIndexRouteImport
+    '/recommendations': {
+      id: '/recommendations'
+      path: '/recommendations'
+      fullPath: '/recommendations'
+      preLoaderRoute: typeof RecommendationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/follows/': {
-      id: '/follows/'
-      path: '/follows'
-      fullPath: '/follows/'
-      preLoaderRoute: typeof FollowsIndexRouteImport
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/catalog/': {
-      id: '/catalog/'
-      path: '/catalog'
-      fullPath: '/catalog/'
-      preLoaderRoute: typeof CatalogIndexRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/submissions/pending': {
-      id: '/submissions/pending'
-      path: '/submissions/pending'
-      fullPath: '/submissions/pending'
-      preLoaderRoute: typeof SubmissionsPendingRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/review/assignments': {
-      id: '/review/assignments'
-      path: '/review/assignments'
-      fullPath: '/review/assignments'
-      preLoaderRoute: typeof ReviewAssignmentsRouteImport
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reader/$resourceId': {
-      id: '/reader/$resourceId'
-      path: '/reader/$resourceId'
-      fullPath: '/reader/$resourceId'
-      preLoaderRoute: typeof ReaderResourceIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/library/$listId': {
-      id: '/library/$listId'
-      path: '/library/$listId'
-      fullPath: '/library/$listId'
-      preLoaderRoute: typeof LibraryListIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/catalog/new': {
-      id: '/catalog/new'
-      path: '/catalog/new'
-      fullPath: '/catalog/new'
-      preLoaderRoute: typeof CatalogNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/catalog/$resourceId': {
-      id: '/catalog/$resourceId'
-      path: '/catalog/$resourceId'
-      fullPath: '/catalog/$resourceId'
-      preLoaderRoute: typeof CatalogResourceIdRouteImport
+    '/admin/audit-logs': {
+      id: '/admin/audit-logs'
+      path: '/admin/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AdminAuditLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -498,11 +428,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/audit-logs': {
-      id: '/admin/audit-logs'
-      path: '/admin/audit-logs'
-      fullPath: '/admin/audit-logs'
-      preLoaderRoute: typeof AdminAuditLogsRouteImport
+    '/catalog/': {
+      id: '/catalog/'
+      path: '/catalog'
+      fullPath: '/catalog/'
+      preLoaderRoute: typeof CatalogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog/$resourceId': {
+      id: '/catalog/$resourceId'
+      path: '/catalog/$resourceId'
+      fullPath: '/catalog/$resourceId'
+      preLoaderRoute: typeof CatalogResourceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog/new': {
+      id: '/catalog/new'
+      path: '/catalog/new'
+      fullPath: '/catalog/new'
+      preLoaderRoute: typeof CatalogNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/follows/': {
+      id: '/follows/'
+      path: '/follows'
+      fullPath: '/follows/'
+      preLoaderRoute: typeof FollowsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ingest/': {
+      id: '/ingest/'
+      path: '/ingest'
+      fullPath: '/ingest/'
+      preLoaderRoute: typeof IngestIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/': {
+      id: '/library/'
+      path: '/library'
+      fullPath: '/library/'
+      preLoaderRoute: typeof LibraryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/$listId': {
+      id: '/library/$listId'
+      path: '/library/$listId'
+      fullPath: '/library/$listId'
+      preLoaderRoute: typeof LibraryListIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reader/$resourceId': {
+      id: '/reader/$resourceId'
+      path: '/reader/$resourceId'
+      fullPath: '/reader/$resourceId'
+      preLoaderRoute: typeof ReaderResourceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review/assignments': {
+      id: '/review/assignments'
+      path: '/review/assignments'
+      fullPath: '/review/assignments'
+      preLoaderRoute: typeof ReviewAssignmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/submissions/': {
+      id: '/submissions/'
+      path: '/submissions'
+      fullPath: '/submissions/'
+      preLoaderRoute: typeof SubmissionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/submissions/pending': {
+      id: '/submissions/pending'
+      path: '/submissions/pending'
+      fullPath: '/submissions/pending'
+      preLoaderRoute: typeof SubmissionsPendingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/oidc/callback': {

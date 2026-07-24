@@ -1,0 +1,137 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pin a known-good Python so CI behaviour matches the project README.
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1. Backend lint + typecheck + unit tests (SQLite in-memory).
+  # ---------------------------------------------------------------
+  backend:
+    name: backend (lint + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.5.10
+          enable-cache: true
+          cache-dependency-glob: 'apps/backend/uv.lock'
+
+      - name: Set up Python
+        run: uv python install $PYTHON_VERSION
+
+      - name: Sync dependencies
+        run: uv sync --frozen --all-extras --dev
+
+      - name: Ruff (lint)
+        run: uv run ruff check .
+
+      - name: Ruff (format check)
+        run: uv run ruff format --check .
+
+      - name: Mypy (typecheck)
+        run: uv run mypy app
+
+      - name: Pytest
+        env:
+          # Avoid loading any real .env so CI uses the defaults in conftest.
+          SCHOLARHUB_ENVIRONMENT: test
+          SCHOLARHUB_SECRET_KEY: ci-test-secret-key-must-be-at-least-32-chars-long
+          SCHOLARHUB_ADMIN_PASSWORD: ci-test-admin-pass-at-least-12-chars
+        run: uv run pytest --maxfail=1 --tb=short -q
+
+      - name: pip-audit (dependency vuln scan)
+        if: always()
+        run: uv run pip-audit -r <(uv pip freeze)
+
+  # ---------------------------------------------------------------
+  # 2. Frontend lint + typecheck + build + unit tests.
+  # ---------------------------------------------------------------
+  frontend:
+    name: frontend (lint + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+  # ---------------------------------------------------------------
+  # 3. Secret scanning (gitleaks) - runs on every push & PR.
+  # ---------------------------------------------------------------
+  secrets-scan:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------
+  # 4. CodeQL - vulnerability detection (JavaScript + Python).
+  # ---------------------------------------------------------------
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

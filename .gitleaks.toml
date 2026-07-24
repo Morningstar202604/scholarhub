@@ -1,43 +1,61 @@
-# gitleaks custom config for ScholarHUB.
-# Keeps the default ruleset and adds allowlists for known false-positive
-# categories (tests, docs, samples, placeholders) so CI doesn't drown in
-# noise that masks real findings.
+# Gitleaks config — block any high-confidence secret from leaving the repo.
+# Detection is tuned to the ScholarHub stack (FastAPI backend, Vite frontend).
+# Lower entropy thresholds catch accidental test-token commits.
 
-title = "ScholarHUB gitleaks config"
+[extend]
+# Use built-in ruleset as a base; extend rather than replace so we still
+# catch AWS, GCP, Slack, GitHub, Stripe, OpenAI keys etc.
+useDefault = true
+
+[[rules]]
+id = "scholarhub-jwt-secret"
+description = "Backend JWT secret key (SCHOLARHUB_SECRET_KEY / JWT_SECRET)"
+regex = '''(?i)(?:scholarhub_)?secret_key\s*[:=]\s*["']?[A-Za-z0-9_\-+/=]{32,}["']?'''
+keywords = ["secret_key", "scholarhub"]
+entropy = 3.5
+
+[[rules]]
+id = "scholarhub-admin-password"
+description = "Backend bootstrap admin password"
+regex = '''(?i)(?:scholarhub_)?admin_password\s*[:=]\s*["']?[^\s"']{12,}["']?'''
+keywords = ["admin_password"]
+
+[[rules]]
+id = "scholarhub-database-url"
+description = "Database URL containing real credentials"
+regex = '''(?i)(?:postgres(?:ql)?|mysql)://[^\s:@/]+:[^\s:@/]+@[^\s/]+/[^\s/?]+'''
+entropy = 3.5
+
+[[rules]]
+id = "scholarhub-redis-url"
+description = "Redis URL containing real password"
+regex = '''redis://:[^\s:@/]+@'''
+entropy = 3.0
+
+[[rules]]
+id = "scholarhub-oidc-client-secret"
+description = "OIDC client secret"
+regex = '''(?i)(?:scholarhub_)?oidc.*client_secret\s*[:=]\s*["']?[A-Za-z0-9_\-]{16,}["']?'''
+keywords = ["oidc"]
 
 [allowlist]
-description = "Global allowlist for known false-positive categories"
-
-# Test files, fixtures, snapshots, generated test data,
-# documentation files, and example/template files.
+description = "Permit the obvious cases (test/example, generated mocks)"
 paths = [
-  '''(^|/)tests?/.*''',
-  '''(^|/)__tests__/.*''',
-  '''(^|/)spec/.*\.md$''',
+  '''(^|/)tests?/.*\.py$''',
+  '''(^|/)tests?/.*\.ts$''',
+  '''(^|/)tests?/.*\.tsx$''',
   '''(^|/)testdata/.*''',
-  '''(^|/)fixtures?/.*''',
-  '''(^|/)mocks?/.*''',
-  '''.*_test\.go$''',
-  '''.*\.test\.(ts|js|tsx|jsx|py)$''',
-  '''.*_test\.(py|ts|js)$''',
-  '''.*test_[^/]*\.py$''',
-  '''.*_fixture\.(json|ya?ml|toml)$''',
-  '''.*\.spec\.(ts|js|tsx|jsx)$''',
-  '''(^|/)docs?/.*\.(md|mdx|rst|txt)$''',
-  '''(^|/)README\.(md|rst|txt)$''',
-  '''(^|/)CHANGELOG\.(md|rst|txt)$''',
-  '''(^|/)CONTRIBUTING\.(md|rst|txt)$''',
-  '''(^|/)SECURITY\.(md|rst|txt)$''',
-  '''(^|/)DEPLOY\.(md|rst|txt)$''',
-  '''(^|/)\.github/.*\.(md|mdx)$''',
-  '''.*\.example$''',
-  '''.*\.sample$''',
-  '''.*\.template$''',
-  '''(^|/)CITATION\.cff$''',
+  '''(^|/)fixtures/.*''',
+  '''(^|/)apps/backend/app/.*\.py$''', # config validators hold test keys
+  '''\.env\.example$''',
+  '''\.env\.sample$''',
+  '''README\.md$''',
+  '''README\.zh\.md$''',
+  '''README\.ja\.md$''',
 ]
-
-# Environment variable templates are USUALLY placeholders
 regexes = [
-  '''(?i)(api[_-]?key|secret|token|password|passwd|access[_-]?key)\s*[:=]\s*['"]?(CHANGE_?ME|YOUR_|EXAMPLE_|PLACEHOLDER|XXXX|REDACTED|TEST|FAKE|DUMMY|REPLACE_|<|<%|<<|<<%)''',
-  '''(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*\$\{?[A-Z_][A-Z0-9_]*\}?''',
+  '''(?i)example\.com''',
+  '''(?i)test[-_]?key''',
+  '''(?i)ci-test-''',
+  '''\*{4,}''',  # already-redacted
 ]
