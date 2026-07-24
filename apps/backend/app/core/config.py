@@ -135,6 +135,17 @@ class Settings(BaseSettings):
     # After OIDC callback, where to redirect the browser. We append
     # ``?access_token=...&refresh_token=...`` (refresh also set as cookie).
     oidc_redirect_url: str = ""  # e.g. https://app.example.com/auth/oidc/callback
+    # PKCE (RFC 7636) is REQUIRED on every deployment by default. The
+    # one-shot code_verifier is stored in an httpOnly cookie and
+    # exchanged for the auth code in /callback. Disabling this setting
+    # is only for legacy IdPs that don't implement S256; do not turn
+    # it off in production.
+    oidc_pkce_required: bool = True
+    # Human-readable label shown on the login button (e.g. "Google" /
+    # "GitHub" / "University SSO"). Empty string falls back to the
+    # provider slug capitalized at the API boundary, so the SPA never
+    # has to guess at a label.
+    oidc_provider_label: str = ""
 
     # --- Bibliographic metadata ---
     # Used by the ingest module to identify itself to Crossref (their API
