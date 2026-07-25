@@ -284,6 +284,29 @@ async def me(current_user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(current_user)
 
 
+@router.post("/revoke-all", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_all(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Revoke every outstanding token for the caller.
+
+    Bumps both ``token_version`` (kills access tokens) and
+    ``refresh_token_version`` (kills refresh tokens) so even a stolen
+    refresh token already in flight cannot be used.
+
+    After this endpoint returns, the user must log in again — but
+    doing so on this device still works, because login issues a
+    fresh token pair.
+    """
+    current_user.token_version += 1
+    current_user.refresh_token_version += 1
+    await db.commit()
+    _clear_refresh_cookie(response)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 def _issue_tokens(user: User, response: Response) -> TokenResponse:
     """Helper: build access+refresh tokens and set the refresh cookie.
 
