@@ -56,6 +56,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.logging import get_logger
+from app.core.retention import USER_DELETION_GRACE_DAYS
 from app.core.security import (
     decode_access_token,
     hash_password,
@@ -73,7 +74,7 @@ logger = get_logger("scholarhub.gdpr")
 # 30-day grace period between soft delete and hard delete. Operators
 # can tune this via env if their jurisdiction requires a different
 # window (some sectors mandate 90 days for audit trails).
-_DELETION_GRACE_DAYS = 30
+_DELETION_GRACE_DAYS = USER_DELETION_GRACE_DAYS
 
 
 # --- Auth dependency that allows soft-deleted callers ----------------------

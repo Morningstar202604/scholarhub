@@ -107,6 +107,19 @@ class Settings(BaseSettings):
     refresh_token_cookie_secure: bool | None = None
     refresh_token_cookie_samesite: str = "strict"
 
+    # --- CSRF ---
+    # Double-submit-cookie protection for state-changing requests on
+    # cookie-authenticated endpoints. Off by default for backward
+    # compatibility; flip on once the SPA echoes ``X-CSRF-Token``.
+    csrf_enabled: bool = False
+
+    # --- Admin 2FA policy ---
+    # When True, callers reaching /api/admin/* must have TOTP enabled
+    # on their account. Off by default so existing admin accounts do
+    # not get locked out at deploy time; flip on once the operator
+    # has rolled out 2FA to all admins.
+    require_2fa_for_admin: bool = False
+
     # --- Email ---
     # ``console`` logs to stdout (dev/test). ``smtp`` uses the relay below.
     # Mailgun / SendGrid / SES / Postmark all expose an SMTP relay, so this

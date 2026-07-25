@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog.contextvars import bind_contextvars
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.core.security import decode_access_token, token_version_matches
 from app.core.tenant import TENANT_CONTEXT_VAR
@@ -104,9 +105,26 @@ async def get_current_user(
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require the current user to have ``is_admin=True``.
 
+    When ``settings.require_2fa_for_admin`` is True, additionally
+    require the caller to have enrolled in TOTP. The reload-secret-keys
+    endpoint opts out via ``require_admin_no_2fa`` below so an operator
+    mid-rotation can still trigger a key reload.
+
     Per-tenant admin scope is enforced by RLS — a user with ``is_admin=True``
     in tenant A cannot read tenant B's data because RLS denies the rows.
     """
+    # Enforce 2FA-for-admin policy before the admin check so that even
+    # callers who passed the auth step still get the 2FA prompt when
+    # the policy is on.
+    if settings.require_2fa_for_admin and current_user.totp_enabled_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Admin access requires two-factor authentication. "
+                "Enable TOTP in your account settings before calling "
+                "admin endpoints."
+            ),
+        )
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
