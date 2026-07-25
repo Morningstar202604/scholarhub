@@ -20,6 +20,7 @@ from app.api.deps import get_current_tenant_id, get_current_user, require_tenant
 from app.core.config import settings
 from app.core.db import get_db
 from app.core.email import get_email_sender
+from app.core.captcha import require_captcha_for_registration, verify_captcha_token
 from app.core.logging import get_logger
 from app.core.schemas import MessageResponse
 from app.core.security import (
@@ -116,6 +117,9 @@ async def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tenant context not resolved",
         )
+    # Verify CAPTCHA token when the deployment has the policy on.
+    # When off this is a cheap no-op (settings check inside).
+    await verify_captcha_token(request, payload.captcha_token)
     user = User(
         tenant_id=tenant_id,
         email=payload.email,

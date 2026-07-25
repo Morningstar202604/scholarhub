@@ -18,6 +18,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=8, max_length=128)
+    # Optional CAPTCHA token. Required when the deployment has
+    # captcha_required_for_registration=True; ignored otherwise.
+    captcha_token: str | None = None
 
 
 class UserLogin(BaseModel):

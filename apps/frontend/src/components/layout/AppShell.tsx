@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { CookieBanner } from '@/components/common/cookie-banner'
 
 interface NavItem {
   to: string
@@ -239,6 +240,7 @@ export function AppShell() {
           </div>
         </main>
       </div>
+      <CookieBanner />
     </div>
   )
 }

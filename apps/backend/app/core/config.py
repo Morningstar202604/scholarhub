@@ -120,6 +120,15 @@ class Settings(BaseSettings):
     # has rolled out 2FA to all admins.
     require_2fa_for_admin: bool = False
 
+    # --- CAPTCHA policy ---
+    # When True, /api/auth/register demands a captcha_token field and
+    # runs it through the verifier at ``captcha_verifier``. Default
+    # off so dev / CI / unit tests do not need an external provider.
+    captcha_required_for_registration: bool = False
+    # Dotted path to a verifier. Empty -> a dev passthrough that
+    # accepts everything (with a single warning log).
+    captcha_verifier: str = ""
+
     # --- Email ---
     # ``console`` logs to stdout (dev/test). ``smtp`` uses the relay below.
     # Mailgun / SendGrid / SES / Postmark all expose an SMTP relay, so this
