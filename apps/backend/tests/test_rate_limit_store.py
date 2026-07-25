@@ -137,3 +137,185 @@ async def test_store_factory_returns_redis_when_url_set(monkeypatch):
     # Reset for other tests
     mod._store = None
     monkeypatch.setattr(settings, "redis_url", "")
+
+
+# ---------------------------------------------------------------------------
+# RedisRateLimiterStore via fakeredis (no live Redis required in CI).
+# ---------------------------------------------------------------------------
+
+async def _advance_clock() -> None:
+    """Yield once so each call gets a distinct ``now_ms`` wall clock.
+
+    Real Redis doesn't ZADD-dedupe by score, but fakeredis's Lua ZADD
+    sometimes collapses two ``ZADD`` calls with the same integer score
+    because of how it stores scores in a Python dict. The production
+    store already adds a monotonic_ns suffix to the sorted-set member
+    so the bucket key is unique; in tests we just need to bump the wall
+    clock by a millisecond between hits to keep fakeredis honest.
+    """
+    await asyncio.sleep(0.002)
+
+
+async def test_redis_store_allows_under_limit(monkeypatch):
+    """Redis path: fills a bucket under the limit, then denies over the limit."""
+    import fakeredis.aioredis as faio
+
+    from app.core.rate_limit_store import RedisRateLimiterStore
+
+    fake_client = faio.FakeRedis(decode_responses=True)
+    store = RedisRateLimiterStore(redis_url="redis://test:6379/0")
+
+    # Bypass the real ``from_url`` connect: inject the fakeredis client.
+    async def _fake_get_client():
+        return fake_client
+
+    monkeypatch.setattr(store, "_get_client", _fake_get_client)
+
+    for _ in range(5):
+        allowed, depth = await store.hit_and_check(
+            bucket_key="ip1|/api/auth/login",
+            limit=10,
+            window_seconds=60.0,
+        )
+        assert allowed is True
+        await _advance_clock()
+    allowed, depth = await store.hit_and_check(
+        bucket_key="ip1|/api/auth/login",
+        limit=10,
+        window_seconds=60.0,
+    )
+    assert allowed is True
+    assert depth == 6
+
+
+async def test_redis_store_denies_over_limit(monkeypatch):
+    import fakeredis.aioredis as faio
+
+    from app.core.rate_limit_store import RedisRateLimiterStore
+
+    fake_client = faio.FakeRedis(decode_responses=True)
+    store = RedisRateLimiterStore(redis_url="redis://test:6379/0")
+
+    async def _fake_get_client():
+        return fake_client
+
+    monkeypatch.setattr(store, "_get_client", _fake_get_client)
+
+    for _ in range(5):
+        allowed, _ = await store.hit_and_check(
+            bucket_key="ip2|/api/auth/login",
+            limit=5,
+            window_seconds=60.0,
+        )
+        assert allowed is True
+        await _advance_clock()
+    allowed, depth = await store.hit_and_check(
+        bucket_key="ip2|/api/auth/login",
+        limit=5,
+        window_seconds=60.0,
+    )
+    assert allowed is False
+    assert depth == 5
+
+
+async def test_redis_store_independent_buckets(monkeypatch):
+    """Two distinct bucket_keys must not share counters in Redis either."""
+    import fakeredis.aioredis as faio
+
+    from app.core.rate_limit_store import RedisRateLimiterStore
+
+    fake_client = faio.FakeRedis(decode_responses=True)
+    store = RedisRateLimiterStore(redis_url="redis://test:6379/0")
+
+    async def _fake_get_client():
+        return fake_client
+
+    monkeypatch.setattr(store, "_get_client", _fake_get_client)
+
+    for _ in range(3):
+        allowed, _ = await store.hit_and_check(
+            bucket_key="ip3|a", limit=3, window_seconds=60.0
+        )
+        assert allowed is True
+        await _advance_clock()
+    allowed_a, _ = await store.hit_and_check(
+        bucket_key="ip3|a", limit=3, window_seconds=60.0
+    )
+    assert allowed_a is False
+
+    # ip3|b starts fresh.
+    allowed_b, depth_b = await store.hit_and_check(
+        bucket_key="ip3|b", limit=3, window_seconds=60.0
+    )
+    assert allowed_b is True
+    assert depth_b == 1
+
+
+async def test_redis_store_window_recovery(monkeypatch):
+    """After the window slides forward, denied hits become allowed again."""
+    import fakeredis.aioredis as faio
+
+    from app.core.rate_limit_store import RedisRateLimiterStore
+
+    fake_client = faio.FakeRedis(decode_responses=True)
+    store = RedisRateLimiterStore(redis_url="redis://test:6379/0")
+
+    async def _fake_get_client():
+        return fake_client
+
+    monkeypatch.setattr(store, "_get_client", _fake_get_client)
+
+    for _ in range(3):
+        allowed, _ = await store.hit_and_check(
+            bucket_key="ip4|x", limit=3, window_seconds=1.0
+        )
+        assert allowed is True
+        await _advance_clock()
+    allowed, _ = await store.hit_and_check(
+        bucket_key="ip4|x", limit=3, window_seconds=1.0
+    )
+    assert allowed is False
+
+    # Wait out the window.
+    await asyncio.sleep(1.1)
+
+    allowed, depth = await store.hit_and_check(
+        bucket_key="ip4|x", limit=3, window_seconds=1.0
+    )
+    assert allowed is True
+    assert depth == 1
+
+
+async def test_redis_store_fails_open_when_unreachable(monkeypatch):
+    """When Redis raises, the store falls back to memory (fail-open).
+
+    The result must be (allowed, depth) — never a crash. After a
+    transient outage the breaker resets and the next request uses
+    Redis again.
+    """
+    from app.core.rate_limit_store import RedisRateLimiterStore
+
+    store = RedisRateLimiterStore(redis_url="redis://nonexistent:6379/0")
+
+    # Force _get_client to raise on every call.
+    async def _broken():
+        raise ConnectionError("simulated Redis outage")
+
+    monkeypatch.setattr(store, "_get_client", _broken)
+
+    # First call: should succeed via memory fallback.
+    allowed, depth = await store.hit_and_check(
+        bucket_key="ip5|/api/auth/login",
+        limit=10,
+        window_seconds=60.0,
+    )
+    assert allowed is True
+    assert depth == 1
+
+    # Circuit-breaker is now tripped: subsequent calls bypass Redis.
+    allowed, _ = await store.hit_and_check(
+        bucket_key="ip5|/api/auth/login",
+        limit=10,
+        window_seconds=60.0,
+    )
+    assert allowed is True
