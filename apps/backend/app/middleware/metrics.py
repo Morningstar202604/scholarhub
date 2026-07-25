@@ -26,12 +26,12 @@ from typing import Any
 from starlette.routing import Match
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from app.core.db import engine as _engine
 from app.core.metrics import (
     HTTP_REQUESTS_IN_PROGRESS,
     observe_request,
     update_db_pool_metrics,
 )
-from app.core.db import engine as _engine
 
 
 def _resolve_template_path(scope: Scope) -> str:
@@ -48,10 +48,10 @@ def _resolve_template_path(scope: Scope) -> str:
     """
     route: Any = scope.get("route")
     if route is not None:
-        template = getattr(route, "path", None)
+        template: Any = getattr(route, "path", None)
         if template:
-            return template
-    return scope.get("path", "/")
+            return str(template)
+    return str(scope.get("path", "/"))
 
 
 class HTTPMetricsMiddleware:

@@ -68,9 +68,7 @@ DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
 
 
-async def _get_or_404(
-    db: AsyncSession, submission_id: int
-) -> Submission:
+async def _get_or_404(db: AsyncSession, submission_id: int) -> Submission:
     """Fetch a submission by id (scoped to current tenant) or raise 404."""
     tenant_id = require_tenant_id()
     entry = (
@@ -251,12 +249,9 @@ async def list_pending_submissions(
     包含 pending（待分配审稿人）与 under_review（已分配审稿人但未出决定）。
     """
     tenant_id = require_tenant_id()
-    query = (
-        select(Submission)
-        .where(
-            Submission.status.in_(("pending", "under_review")),
-            Submission.tenant_id == tenant_id,
-        )
+    query = select(Submission).where(
+        Submission.status.in_(("pending", "under_review")),
+        Submission.tenant_id == tenant_id,
     )
     return await _list_submissions(db, query, page, page_size)
 
@@ -545,19 +540,23 @@ async def list_assignments(
     """列出 submission 的所有审稿分配（编辑视角，含审稿人身份）。"""
     entry = await _get_or_404(db, submission_id)
     rows = (
-        await db.execute(
-            select(ReviewAssignment)
-            .where(
-                ReviewAssignment.submission_id == entry.id,
-                ReviewAssignment.tenant_id == entry.tenant_id,
+        (
+            await db.execute(
+                select(ReviewAssignment)
+                .where(
+                    ReviewAssignment.submission_id == entry.id,
+                    ReviewAssignment.tenant_id == entry.tenant_id,
+                )
+                .options(
+                    selectinload(ReviewAssignment.reviewer),
+                    selectinload(ReviewAssignment.submission),
+                )
+                .order_by(ReviewAssignment.invited_at.desc())
             )
-            .options(
-                selectinload(ReviewAssignment.reviewer),
-                selectinload(ReviewAssignment.submission),
-            )
-            .order_by(ReviewAssignment.invited_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     from app.core.schemas import PaginationMeta
 
     total = len(rows)
@@ -579,9 +578,7 @@ async def list_assignments(
             )
             for a in rows
         ],
-        meta=PaginationMeta(
-            total=total, page=1, page_size=page_size, total_pages=1
-        ),
+        meta=PaginationMeta(total=total, page=1, page_size=page_size, total_pages=1),
     )
 
 
@@ -652,9 +649,7 @@ async def list_review_reports(
     # 作者只看 comments_to_author；其他人无权限
     from app.api.deps import ROLE_EDITOR, _user_has_role
 
-    is_editor = current_user.is_admin or await _user_has_role(
-        db, current_user, ROLE_EDITOR
-    )
+    is_editor = current_user.is_admin or await _user_has_role(db, current_user, ROLE_EDITOR)
     is_author = entry.submitted_by == current_user.id
     if not is_editor and not is_author:
         raise HTTPException(
@@ -663,16 +658,20 @@ async def list_review_reports(
         )
 
     rows = (
-        await db.execute(
-            select(ReviewReport)
-            .join(ReviewAssignment, ReviewReport.assignment_id == ReviewAssignment.id)
-            .where(
-                ReviewAssignment.submission_id == entry.id,
-                ReviewReport.tenant_id == entry.tenant_id,
-                ReviewAssignment.status == "completed",
+        (
+            await db.execute(
+                select(ReviewReport)
+                .join(ReviewAssignment, ReviewReport.assignment_id == ReviewAssignment.id)
+                .where(
+                    ReviewAssignment.submission_id == entry.id,
+                    ReviewReport.tenant_id == entry.tenant_id,
+                    ReviewAssignment.status == "completed",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     out: list[ReviewReportResponse] = []
     for r in rows:
@@ -859,19 +858,23 @@ async def author_resubmit(
     await db.refresh(entry)
     # 通知编辑：作者已重投
     editors = (
-        await db.execute(
-            select(User)
-            .join(UserRole, UserRole.user_id == User.id)
-            .join(Role, Role.id == UserRole.role_id)
-            .where(
-                User.tenant_id == entry.tenant_id,
-                Role.tenant_id == entry.tenant_id,
-                Role.name == "editor",
-                User.is_active.is_(True),
+        (
+            await db.execute(
+                select(User)
+                .join(UserRole, UserRole.user_id == User.id)
+                .join(Role, Role.id == UserRole.role_id)
+                .where(
+                    User.tenant_id == entry.tenant_id,
+                    Role.tenant_id == entry.tenant_id,
+                    Role.name == "editor",
+                    User.is_active.is_(True),
+                )
+                .distinct()
             )
-            .distinct()
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for editor in editors:
         await notifications.create(
             db,

@@ -96,9 +96,7 @@ def downgrade() -> None:
             op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table};")
             op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY;")
             op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;")
-    op.drop_index(
-        "ix_notifications_user_id_created_at", table_name="notifications"
-    )
+    op.drop_index("ix_notifications_user_id_created_at", table_name="notifications")
     op.drop_index("ix_notifications_is_read", table_name="notifications")
     op.drop_index("ix_notifications_type", table_name="notifications")
     op.drop_index("ix_notifications_user_id", table_name="notifications")

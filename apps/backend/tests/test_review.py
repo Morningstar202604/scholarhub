@@ -36,20 +36,14 @@ _PAYLOAD = {
 }
 
 
-async def _create_submission(
-    client: AsyncClient, user: dict, payload: dict | None = None
-) -> dict:
+async def _create_submission(client: AsyncClient, user: dict, payload: dict | None = None) -> dict:
     body = payload if payload is not None else _PAYLOAD
-    response = await client.post(
-        "/api/submissions", json=body, headers=auth_headers(user)
-    )
+    response = await client.post("/api/submissions", json=body, headers=auth_headers(user))
     response.raise_for_status()
     return response.json()
 
 
-async def _grant_reviewer_role(
-    db_session: AsyncSession, tenant: Tenant, user_id: int
-) -> None:
+async def _grant_reviewer_role(db_session: AsyncSession, tenant: Tenant, user_id: int) -> None:
     """把 reviewer 角色授给一个普通用户（绕开 bootstrap；测试环境跳过 bootstrap）。"""
     role = (
         await db_session.execute(
@@ -94,20 +88,14 @@ async def _grant_reviewer_role(
 
 async def test_reviewer_endpoints_require_role(client: AsyncClient, test_user: dict) -> None:
     """普通用户（无 reviewer 角色、非 admin）不能访问审稿人端点。"""
-    resp = await client.get(
-        "/api/review/assignments/me", headers=auth_headers(test_user)
-    )
+    resp = await client.get("/api/review/assignments/me", headers=auth_headers(test_user))
     assert resp.status_code == 403
     assert "Reviewer role required" in resp.json()["detail"]
 
 
-async def test_admin_bypasses_reviewer_role(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_admin_bypasses_reviewer_role(client: AsyncClient, admin_user: dict) -> None:
     """admin 通过 is_admin=True 绕过 role 检查，能直接访问审稿人端点。"""
-    resp = await client.get(
-        "/api/review/assignments/me", headers=auth_headers(admin_user)
-    )
+    resp = await client.get("/api/review/assignments/me", headers=auth_headers(admin_user))
     assert resp.status_code == 200
     body = resp.json()
     assert body["data"] == []
@@ -121,14 +109,10 @@ async def test_reviewer_role_grants_access(
     """显式授予 reviewer 角色后，普通用户也能访问。"""
     # Warm tenant + fetch it
     await client.get("/api/health")
-    tenant = (
-        await db_session.execute(select(Tenant).where(Tenant.slug == "default"))
-    ).scalar_one()
+    tenant = (await db_session.execute(select(Tenant).where(Tenant.slug == "default"))).scalar_one()
     await _grant_reviewer_role(db_session, tenant, int(test_user["user_id"]))
 
-    resp = await client.get(
-        "/api/review/assignments/me", headers=auth_headers(test_user)
-    )
+    resp = await client.get("/api/review/assignments/me", headers=auth_headers(test_user))
     assert resp.status_code == 200
 
 
@@ -214,9 +198,7 @@ async def test_list_assignments_for_submission(
     assert body["data"][0]["reviewer_username"] == "adminuser"
 
 
-async def test_cancel_assignment(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_cancel_assignment(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     submission = await _create_submission(client, test_user)
     assignment = (
         await client.post(
@@ -243,9 +225,7 @@ async def test_cancel_assignment(
 # ---------------------------------------------------------------------------
 
 
-async def _setup_assignment(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> dict:
+async def _setup_assignment(client: AsyncClient, admin_user: dict, test_user: dict) -> dict:
     """Helper: 创建 submission + 分配 admin 作为审稿人。"""
     submission = await _create_submission(client, test_user)
     resp = await client.post(
@@ -483,9 +463,7 @@ async def test_decision_invalid_state_400(
     assert resp.status_code == 400
 
 
-async def test_decision_requires_editor_role(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_decision_requires_editor_role(client: AsyncClient, test_user: dict) -> None:
     submission = await _create_submission(client, test_user)
     resp = await client.patch(
         f"/api/submissions/{submission['id']}/decision",
@@ -496,9 +474,7 @@ async def test_decision_requires_editor_role(
     assert "Editor role required" in resp.json()["detail"]
 
 
-async def test_resubmit_only_author(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_resubmit_only_author(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     """非作者不能重投。"""
     submission = await _create_submission(client, test_user)
     await client.patch(
@@ -514,9 +490,7 @@ async def test_resubmit_only_author(
     assert resp.status_code == 403
 
 
-async def test_resubmit_invalid_state_400(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_resubmit_invalid_state_400(client: AsyncClient, test_user: dict) -> None:
     """pending 状态的稿件不能 resubmit。"""
     submission = await _create_submission(client, test_user)
     resp = await client.post(
@@ -618,9 +592,7 @@ async def test_reports_list_empty_when_no_completed(
 # ---------------------------------------------------------------------------
 
 
-async def test_upload_file_pdf(
-    client: AsyncClient, test_user: dict, tmp_path
-) -> None:
+async def test_upload_file_pdf(client: AsyncClient, test_user: dict, tmp_path) -> None:
     """作者上传合法 PDF → file_path 入库。"""
     submission = await _create_submission(client, test_user)
     pdf_bytes = b"%PDF-1.4\n%test content\n%%EOF"
@@ -642,9 +614,7 @@ async def test_upload_file_pdf(
     assert body["file_path"].endswith(".pdf")
 
 
-async def test_upload_file_invalid_mime(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_upload_file_invalid_mime(client: AsyncClient, test_user: dict) -> None:
     """非法 MIME 应 400。"""
     submission = await _create_submission(client, test_user)
     resp = await client.post(
@@ -725,9 +695,7 @@ async def test_reviewer_list_my_assignments_filter(
     assignment_id = setup["assignment"]["id"]
 
     # 默认列表
-    resp = await client.get(
-        "/api/review/assignments/me", headers=auth_headers(admin_user)
-    )
+    resp = await client.get("/api/review/assignments/me", headers=auth_headers(admin_user))
     assert resp.status_code == 200
     body = resp.json()
     assert body["meta"]["total"] >= 1
@@ -798,9 +766,7 @@ async def test_reviewer_view_submission_other_reviewer_403(
 
     # 给 test_user 授 reviewer 角色（但 assignment 不是给他的）
     await client.get("/api/health")
-    tenant = (
-        await db_session.execute(select(Tenant).where(Tenant.slug == "default"))
-    ).scalar_one()
+    tenant = (await db_session.execute(select(Tenant).where(Tenant.slug == "default"))).scalar_one()
     await _grant_reviewer_role(db_session, tenant, int(test_user["user_id"]))
 
     resp = await client.get(

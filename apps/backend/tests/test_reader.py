@@ -68,9 +68,7 @@ async def test_record_view_creates_entry(
     client: AsyncClient, admin_user: dict, test_user: dict
 ) -> None:
     rid = await _create_resource(client, admin_user)
-    response = await client.post(
-        f"/api/reader/history/{rid}", headers=auth_headers(test_user)
-    )
+    response = await client.post(f"/api/reader/history/{rid}", headers=auth_headers(test_user))
     assert response.status_code == 201
     assert response.json()["message"] == "Added to history"
 
@@ -95,37 +93,27 @@ async def test_record_view_bumps_visit_count(
     assert entry["visit_count"] == 3
 
 
-async def test_record_view_404_on_missing_resource(
-    client: AsyncClient, test_user: dict
-) -> None:
-    response = await client.post(
-        "/api/reader/history/99999", headers=auth_headers(test_user)
-    )
+async def test_record_view_404_on_missing_resource(client: AsyncClient, test_user: dict) -> None:
+    response = await client.post("/api/reader/history/99999", headers=auth_headers(test_user))
     assert response.status_code == 404
 
 
-async def test_remove_from_history(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_remove_from_history(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     rid = await _create_resource(client, admin_user)
     await client.post(f"/api/reader/history/{rid}", headers=auth_headers(test_user))
-    assert (
-        await client.get("/api/reader/history", headers=auth_headers(test_user))
-    ).json()["meta"]["total"] == 1
+    assert (await client.get("/api/reader/history", headers=auth_headers(test_user))).json()[
+        "meta"
+    ]["total"] == 1
 
     delete = await client.delete(f"/api/reader/history/{rid}", headers=auth_headers(test_user))
     assert delete.status_code == 200
-    assert (
-        await client.get("/api/reader/history", headers=auth_headers(test_user))
-    ).json()["meta"]["total"] == 0
+    assert (await client.get("/api/reader/history", headers=auth_headers(test_user))).json()[
+        "meta"
+    ]["total"] == 0
 
 
-async def test_remove_from_history_404_when_absent(
-    client: AsyncClient, test_user: dict
-) -> None:
-    response = await client.delete(
-        "/api/reader/history/99999", headers=auth_headers(test_user)
-    )
+async def test_remove_from_history_404_when_absent(client: AsyncClient, test_user: dict) -> None:
+    response = await client.delete("/api/reader/history/99999", headers=auth_headers(test_user))
     assert response.status_code == 404
 
 
@@ -210,9 +198,7 @@ async def test_put_progress_marks_completed(
     assert response.json()["completed"] is True
 
 
-async def test_put_progress_404_on_missing_resource(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_put_progress_404_on_missing_resource(client: AsyncClient, test_user: dict) -> None:
     response = await client.put(
         "/api/reader/history/99999/progress",
         json={"page": 1},
@@ -279,9 +265,7 @@ async def test_file_assets_requireauth_headers(client: AsyncClient) -> None:
     assert response.status_code == 401
 
 
-async def test_create_file_asset(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_create_file_asset(client: AsyncClient, admin_user: dict) -> None:
     response = await client.post(
         "/api/reader/file-assets",
         json=_FILE_ASSET,
@@ -297,13 +281,9 @@ async def test_create_file_asset(
     assert body["uploaded_by"] == admin_user["user_id"]
 
 
-async def test_list_file_assets(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_list_file_assets(client: AsyncClient, admin_user: dict) -> None:
     # Start empty.
-    empty = await client.get(
-        "/api/reader/file-assets", headers=auth_headers(admin_user)
-    )
+    empty = await client.get("/api/reader/file-assets", headers=auth_headers(admin_user))
     assert empty.status_code == 200
     assert empty.json() == []
 
@@ -313,18 +293,14 @@ async def test_list_file_assets(
         json=_FILE_ASSET,
         headers=auth_headers(admin_user),
     )
-    listed = await client.get(
-        "/api/reader/file-assets", headers=auth_headers(admin_user)
-    )
+    listed = await client.get("/api/reader/file-assets", headers=auth_headers(admin_user))
     assert listed.status_code == 200
     body = listed.json()
     assert len(body) == 1
     assert body[0]["filename"] == "abc123.pdf"
 
 
-async def test_get_file_asset(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_get_file_asset(client: AsyncClient, admin_user: dict) -> None:
     create = await client.post(
         "/api/reader/file-assets",
         json=_FILE_ASSET,
@@ -340,9 +316,7 @@ async def test_get_file_asset(
 
 
 async def test_get_file_asset_404(client: AsyncClient, admin_user: dict) -> None:
-    response = await client.get(
-        "/api/reader/file-assets/99999", headers=auth_headers(admin_user)
-    )
+    response = await client.get("/api/reader/file-assets/99999", headers=auth_headers(admin_user))
     assert response.status_code == 404
 
 
@@ -365,9 +339,7 @@ async def test_create_file_asset_rejects_duplicate_sha256(
     assert second.status_code == 409
 
 
-async def test_create_file_asset_allows_null_sha256(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_create_file_asset_allows_null_sha256(client: AsyncClient, admin_user: dict) -> None:
     """Multiple FileAssets with NULL sha256 are allowed (no dedup when hash unknown)."""
     no_hash = {**_FILE_ASSET, "sha256": None}
     first = await client.post(
@@ -385,9 +357,7 @@ async def test_create_file_asset_allows_null_sha256(
     assert second.status_code == 201
 
 
-async def test_delete_file_asset(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_delete_file_asset(client: AsyncClient, admin_user: dict) -> None:
     create = await client.post(
         "/api/reader/file-assets",
         json=_FILE_ASSET,

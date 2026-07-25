@@ -1,4 +1,4 @@
-﻿"""TOTP 2FA route tests (M2 hardening).
+"""TOTP 2FA route tests (M2 hardening).
 
 Coverage:
 - Setup returns a secret + otpauth URI + 10 backup codes
@@ -56,9 +56,7 @@ async def auth_client(client: AsyncClient, db_session):
     from app.core.tokens import create_email_verification_token
     from app.models import User
 
-    result = await db_session.execute(
-        select(User).where(User.username == username)
-    )
+    result = await db_session.execute(select(User).where(User.username == username))
     u = result.scalar_one()
     token = create_email_verification_token(u.id, u.token_version)
 
@@ -109,6 +107,7 @@ def _current_totp(secret: str) -> str:
 
 # --- Setup flow -----------------------------------------------------------
 
+
 async def test_setup_returns_secret_and_codes(auth_client) -> None:
     """Setup returns the secret + otpauth URI + 10 backup codes."""
     response = await auth_client["client"].post(
@@ -134,16 +133,11 @@ async def test_setup_requires_auth(client: AsyncClient) -> None:
 
 async def test_setup_twice_returns_409(auth_client) -> None:
     """Cannot re-setup after 2FA is enabled."""
-    await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     # Enable it.
-    from app.core.totp import generate_secret
 
     # Need the secret from the response - redo and grab it
-    r1 = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r1 = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     body = r1.json()
     code = _current_totp(body["secret"])
     v = await auth_client["client"].post(
@@ -153,19 +147,16 @@ async def test_setup_twice_returns_409(auth_client) -> None:
     )
     assert v.status_code == 200
     # Now re-setup should 409.
-    r2 = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r2 = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     assert r2.status_code == 409
 
 
 # --- verify-setup ---------------------------------------------------------
 
+
 async def test_verify_setup_wrong_code_does_not_enable(auth_client) -> None:
     """Wrong code leaves totp_enabled_at null."""
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     secret = r.json()["secret"]
     # Use a code that is guaranteed not to match: zero code in wrong window.
     # The verifier checks T and T-1 with 1 min apart - 000000 is not the
@@ -177,9 +168,7 @@ async def test_verify_setup_wrong_code_does_not_enable(auth_client) -> None:
     )
     assert v.status_code == 400
     # Status should still be disabled.
-    s = await auth_client["client"].get(
-        "/api/auth/2fa/status", headers=auth_client["headers"]
-    )
+    s = await auth_client["client"].get("/api/auth/2fa/status", headers=auth_client["headers"])
     assert s.json()["enabled"] is False
     # Suppress unused-secret warning.
     assert secret
@@ -187,9 +176,7 @@ async def test_verify_setup_wrong_code_does_not_enable(auth_client) -> None:
 
 async def test_verify_setup_correct_code_enables(auth_client) -> None:
     """Correct code flips totp_enabled_at."""
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     body = r.json()
     code = _current_totp(body["secret"])
     v = await auth_client["client"].post(
@@ -199,21 +186,18 @@ async def test_verify_setup_correct_code_enables(auth_client) -> None:
     )
     assert v.status_code == 200
     assert v.json()["enabled"] is True
-    s = await auth_client["client"].get(
-        "/api/auth/2fa/status", headers=auth_client["headers"]
-    )
+    s = await auth_client["client"].get("/api/auth/2fa/status", headers=auth_client["headers"])
     assert s.json()["enabled"] is True
     assert s.json()["backup_codes_remaining"] == 10
 
 
 # --- login short-circuit --------------------------------------------------
 
+
 async def test_login_returns_requires_2fa_when_enabled(auth_client) -> None:
     """When 2FA is on, /login does NOT issue tokens - it returns a pending token."""
     # Enable 2FA.
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     secret = r.json()["secret"]
     code = _current_totp(secret)
     await auth_client["client"].post(
@@ -237,11 +221,10 @@ async def test_login_returns_requires_2fa_when_enabled(auth_client) -> None:
 
 # --- /authenticate --------------------------------------------------------
 
+
 async def test_authenticate_with_correct_totp(auth_client) -> None:
     """After enable, /authenticate with correct TOTP returns full tokens."""
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     secret = r.json()["secret"]
     code = _current_totp(secret)
     await auth_client["client"].post(
@@ -266,9 +249,7 @@ async def test_authenticate_with_correct_totp(auth_client) -> None:
 
 
 async def test_authenticate_with_wrong_totp(auth_client) -> None:
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     secret = r.json()["secret"]
     await auth_client["client"].post(
         "/api/auth/2fa/verify-setup",
@@ -289,9 +270,7 @@ async def test_authenticate_with_wrong_totp(auth_client) -> None:
 
 async def test_authenticate_with_backup_code(auth_client) -> None:
     """Backup code completes login and is consumed (single use)."""
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     body = r.json()
     backup_code = body["backup_codes"][3]
     await auth_client["client"].post(
@@ -310,9 +289,7 @@ async def test_authenticate_with_backup_code(auth_client) -> None:
     )
     assert auth.status_code == 200
     # Backup codes remaining: 9 (one consumed).
-    s = await auth_client["client"].get(
-        "/api/auth/2fa/status", headers=auth_client["headers"]
-    )
+    s = await auth_client["client"].get("/api/auth/2fa/status", headers=auth_client["headers"])
     assert s.json()["backup_codes_remaining"] == 9
     # Re-login and reuse the SAME backup code -> 401.
     login2 = await auth_client["client"].post(
@@ -329,15 +306,14 @@ async def test_authenticate_with_backup_code(auth_client) -> None:
 
 async def test_authenticate_expired_pending_token(auth_client, db_session) -> None:
     """Pending token older than 5 minutes is rejected."""
-    import jwt as pyjwt
     from datetime import UTC, datetime, timedelta
+
+    import jwt as pyjwt
 
     from app.core.config import settings
 
     # Enable 2FA first.
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     secret = r.json()["secret"]
     await auth_client["client"].post(
         "/api/auth/2fa/verify-setup",
@@ -349,9 +325,7 @@ async def test_authenticate_expired_pending_token(auth_client, db_session) -> No
 
     from app.models import User
 
-    result = await db_session.execute(
-        select(User).where(User.username == auth_client["username"])
-    )
+    result = await db_session.execute(select(User).where(User.username == auth_client["username"]))
     uid = result.scalar_one().id
 
     expired = pyjwt.encode(
@@ -372,12 +346,11 @@ async def test_authenticate_expired_pending_token(auth_client, db_session) -> No
 
 # --- disable --------------------------------------------------------------
 
+
 async def test_disable_requires_password_and_code(auth_client) -> None:
     """Disable with only password fails; password + TOTP succeeds and
     bumps token_version so any in-flight sessions are invalidated."""
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     secret = r.json()["secret"]
     await auth_client["client"].post(
         "/api/auth/2fa/verify-setup",
@@ -402,17 +375,13 @@ async def test_disable_requires_password_and_code(auth_client) -> None:
     # call is now invalid. A subsequent /status call with the SAME
     # headers must be 401. This is the security behaviour we want -
     # downgrade invalidates every active session.
-    s = await auth_client["client"].get(
-        "/api/auth/2fa/status", headers=auth_client["headers"]
-    )
+    s = await auth_client["client"].get("/api/auth/2fa/status", headers=auth_client["headers"])
     assert s.status_code == 401
 
 
 async def test_disable_with_backup_code(auth_client) -> None:
     """Disable works with backup code instead of TOTP."""
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     body = r.json()
     await auth_client["client"].post(
         "/api/auth/2fa/verify-setup",
@@ -430,11 +399,10 @@ async def test_disable_with_backup_code(auth_client) -> None:
 
 # --- regenerate backup codes ---------------------------------------------
 
+
 async def test_regenerate_backup_codes(auth_client) -> None:
     """Regenerate issues 10 fresh codes and invalidates old ones."""
-    r = await auth_client["client"].post(
-        "/api/auth/2fa/setup", headers=auth_client["headers"]
-    )
+    r = await auth_client["client"].post("/api/auth/2fa/setup", headers=auth_client["headers"])
     body = r.json()
     old_codes = body["backup_codes"]
     await auth_client["client"].post(

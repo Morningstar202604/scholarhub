@@ -235,9 +235,7 @@ def _clear_pkce_cookie(response: Response) -> None:
     )
 
 
-async def _exchange_code_for_userinfo(
-    code: str, code_verifier: str | None
-) -> dict[str, Any]:
+async def _exchange_code_for_userinfo(code: str, code_verifier: str | None) -> dict[str, Any]:
     """Exchange the auth code for an access token, then call userinfo.
 
     Uses ``authlib`` for both steps (token endpoint with client_secret_basic
@@ -284,9 +282,7 @@ async def _exchange_code_for_userinfo(
         return result
 
 
-async def _upsert_oidc_user(
-    db: AsyncSession, userinfo: dict[str, Any]
-) -> User:
+async def _upsert_oidc_user(db: AsyncSession, userinfo: dict[str, Any]) -> User:
     """Find or create the local user for an OIDC userinfo payload.
 
     Binding rule (login-CSRF / account-takeover defense): only bind the
@@ -385,7 +381,6 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         max_age=settings.refresh_token_expire_days * 86400,
         path="/api/auth",
     )
-
 
 
 @router.get("/providers", response_model=OIDCProvidersResponse)

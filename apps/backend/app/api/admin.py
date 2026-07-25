@@ -182,9 +182,7 @@ async def set_user_active(
     return await _user_with_roles(db, user)
 
 
-async def _get_or_create_role(
-    db: AsyncSession, tenant_id: UUID, role_name: str
-) -> Role:
+async def _get_or_create_role(db: AsyncSession, tenant_id: UUID, role_name: str) -> Role:
     """Get or create a role row (name is unique per tenant)."""
     role = (
         await db.execute(
@@ -229,9 +227,7 @@ async def assign_role(
         )
     ).scalar_one_or_none()
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     role = await _get_or_create_role(db, tenant_id, body.role)
     # Idempotent: if already assigned, return without re-inserting.
     existing = (
@@ -292,9 +288,7 @@ async def revoke_role(
         )
     ).scalar_one_or_none()
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     role = (
         await db.execute(
             select(Role).where(

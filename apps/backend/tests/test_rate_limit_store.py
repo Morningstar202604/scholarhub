@@ -75,9 +75,7 @@ async def test_window_recovery(memory_store):
             window_seconds=1.0,
         )
         assert allowed is True
-    allowed, _ = await memory_store.hit_and_check(
-        bucket_key="ip1|x", limit=3, window_seconds=1.0
-    )
+    allowed, _ = await memory_store.hit_and_check(bucket_key="ip1|x", limit=3, window_seconds=1.0)
     assert allowed is False
 
     # Wait out the window.
@@ -142,6 +140,7 @@ async def test_store_factory_returns_redis_when_url_set(monkeypatch):
 # ---------------------------------------------------------------------------
 # RedisRateLimiterStore via fakeredis (no live Redis required in CI).
 # ---------------------------------------------------------------------------
+
 
 async def _advance_clock() -> None:
     """Yield once so each call gets a distinct ``now_ms`` wall clock.
@@ -233,20 +232,14 @@ async def test_redis_store_independent_buckets(monkeypatch):
     monkeypatch.setattr(store, "_get_client", _fake_get_client)
 
     for _ in range(3):
-        allowed, _ = await store.hit_and_check(
-            bucket_key="ip3|a", limit=3, window_seconds=60.0
-        )
+        allowed, _ = await store.hit_and_check(bucket_key="ip3|a", limit=3, window_seconds=60.0)
         assert allowed is True
         await _advance_clock()
-    allowed_a, _ = await store.hit_and_check(
-        bucket_key="ip3|a", limit=3, window_seconds=60.0
-    )
+    allowed_a, _ = await store.hit_and_check(bucket_key="ip3|a", limit=3, window_seconds=60.0)
     assert allowed_a is False
 
     # ip3|b starts fresh.
-    allowed_b, depth_b = await store.hit_and_check(
-        bucket_key="ip3|b", limit=3, window_seconds=60.0
-    )
+    allowed_b, depth_b = await store.hit_and_check(bucket_key="ip3|b", limit=3, window_seconds=60.0)
     assert allowed_b is True
     assert depth_b == 1
 
@@ -266,22 +259,16 @@ async def test_redis_store_window_recovery(monkeypatch):
     monkeypatch.setattr(store, "_get_client", _fake_get_client)
 
     for _ in range(3):
-        allowed, _ = await store.hit_and_check(
-            bucket_key="ip4|x", limit=3, window_seconds=1.0
-        )
+        allowed, _ = await store.hit_and_check(bucket_key="ip4|x", limit=3, window_seconds=1.0)
         assert allowed is True
         await _advance_clock()
-    allowed, _ = await store.hit_and_check(
-        bucket_key="ip4|x", limit=3, window_seconds=1.0
-    )
+    allowed, _ = await store.hit_and_check(bucket_key="ip4|x", limit=3, window_seconds=1.0)
     assert allowed is False
 
     # Wait out the window.
     await asyncio.sleep(1.1)
 
-    allowed, depth = await store.hit_and_check(
-        bucket_key="ip4|x", limit=3, window_seconds=1.0
-    )
+    allowed, depth = await store.hit_and_check(bucket_key="ip4|x", limit=3, window_seconds=1.0)
     assert allowed is True
     assert depth == 1
 

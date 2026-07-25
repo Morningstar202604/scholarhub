@@ -116,14 +116,12 @@ async def paginate[T](
     Module list endpoints use this to keep pagination math + count query
     in one place; the response-model conversion stays at the call site.
     """
-    total: int = (
-        await db.execute(select(func.count()).select_from(stmt.subquery()))
-    ).scalar_one()
+    total: int = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
     rows = (
-        await db.execute(
-            stmt.order_by(*order_by).offset((page - 1) * page_size).limit(page_size)
-        )
-    ).scalars().all()
+        (await db.execute(stmt.order_by(*order_by).offset((page - 1) * page_size).limit(page_size)))
+        .scalars()
+        .all()
+    )
     return list(rows), PaginationMeta(
         total=total,
         page=page,

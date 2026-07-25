@@ -30,7 +30,6 @@ from prometheus_client import (
     generate_latest,
 )
 
-
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -157,15 +156,15 @@ def render_metrics() -> tuple[bytes, str]:
 
 
 __all__ = [
-    "REGISTRY",
-    "HTTP_REQUESTS_TOTAL",
-    "HTTP_REQUEST_DURATION_SECONDS",
-    "HTTP_REQUESTS_IN_PROGRESS",
-    "DB_POOL_SIZE",
     "DB_POOL_CHECKED_OUT",
     "DB_POOL_OVERFLOW",
+    "DB_POOL_SIZE",
+    "HTTP_REQUESTS_IN_PROGRESS",
+    "HTTP_REQUESTS_TOTAL",
+    "HTTP_REQUEST_DURATION_SECONDS",
     "RATE_LIMIT_REJECTIONS_TOTAL",
+    "REGISTRY",
     "observe_request",
-    "update_db_pool_metrics",
     "render_metrics",
+    "update_db_pool_metrics",
 ]

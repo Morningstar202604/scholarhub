@@ -54,16 +54,12 @@ def _to_assignment_response(
         completed_at=a.completed_at,
         reviewer_username=a.reviewer.username if a.reviewer else None,
         submission_title=(
-            a.submission.title
-            if include_submission_title and a.submission
-            else None
+            a.submission.title if include_submission_title and a.submission else None
         ),
     )
 
 
-async def _get_assignment_or_404(
-    db: AsyncSession, assignment_id: int
-) -> ReviewAssignment:
+async def _get_assignment_or_404(db: AsyncSession, assignment_id: int) -> ReviewAssignment:
     tenant_id = require_tenant_id()
     a = (
         await db.execute(
@@ -130,9 +126,7 @@ async def list_my_assignments(
         order_by=(desc(ReviewAssignment.invited_at), ReviewAssignment.id.asc()),
     )
     return AssignmentListResponse(
-        data=[
-            _to_assignment_response(r, include_submission_title=True) for r in rows
-        ],
+        data=[_to_assignment_response(r, include_submission_title=True) for r in rows],
         meta=meta,
     )
 
@@ -282,9 +276,7 @@ async def submit_review_report(
             detail=f"Assignment must be 'accepted' to submit (currently '{a.status}')",
         )
     existing = (
-        await db.execute(
-            select(ReviewReport).where(ReviewReport.assignment_id == a.id)
-        )
+        await db.execute(select(ReviewReport).where(ReviewReport.assignment_id == a.id))
     ).scalar_one_or_none()
     if existing is not None:
         raise HTTPException(

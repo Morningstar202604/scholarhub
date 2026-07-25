@@ -147,6 +147,7 @@ def normalize_backup_code(code: str) -> str:
 
 # --- Fernet at-rest encryption --------------------------------------------
 
+
 def _fernet() -> Fernet:
     """Build a Fernet instance from the active settings.
 
@@ -196,12 +197,12 @@ def otpauth_uri(secret_b32: str, account: str, issuer: str) -> str:
 
 
 __all__ = [
-    "generate_secret",
-    "verify_totp",
+    "decrypt_secret",
+    "encrypt_secret",
     "generate_backup_codes",
+    "generate_secret",
     "hash_backup_code",
     "normalize_backup_code",
-    "encrypt_secret",
-    "decrypt_secret",
     "otpauth_uri",
+    "verify_totp",
 ]

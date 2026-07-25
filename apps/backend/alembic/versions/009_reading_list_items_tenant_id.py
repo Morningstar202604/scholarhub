@@ -68,7 +68,9 @@ def upgrade() -> None:
     )
 
     # Now make it NOT NULL — every row must have a tenant.
-    op.alter_column(_TABLE, "tenant_id", existing_type=postgresql.UUID(as_uuid=True), nullable=False)
+    op.alter_column(
+        _TABLE, "tenant_id", existing_type=postgresql.UUID(as_uuid=True), nullable=False
+    )
 
     op.create_index(f"ix_{_TABLE}_tenant_id", _TABLE, ["tenant_id"])
 

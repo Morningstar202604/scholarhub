@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Iterable
+from typing import Any
 
 import jwt
 from jwt import PyJWTError
@@ -138,7 +139,7 @@ def decode_jwt(token: str, expected_type: str | None = None) -> dict[str, object
     parameter.
     """
     keys: Iterable[str] = _active_secret_keys()
-    kwargs = _build_decode_kwargs()
+    kwargs: dict[str, Any] = _build_decode_kwargs()
     for key in keys:
         try:
             decoded = jwt.decode(token, key, **kwargs)

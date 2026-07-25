@@ -125,9 +125,7 @@ async def test_export_preserves_request_order(client: AsyncClient, admin_user: d
     id1 = r1.json()["id"]
     id2 = r2.json()["id"]
 
-    response = await client.get(
-        f"/api/export?ids={id2}&ids={id1}&format=json"
-    )
+    response = await client.get(f"/api/export?ids={id2}&ids={id1}&format=json")
     import json
 
     records = json.loads(response.text)

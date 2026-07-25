@@ -107,16 +107,14 @@ async def get_soft_delete_aware_user(
     token = parts[1]
     payload = decode_access_token(token)
     if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     sub = payload.get("sub")
     try:
         user_id = int(sub)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
-        )
+        ) from exc
     tenant_id = TENANT_CONTEXT_VAR.get()
     stmt = select(User).where(User.id == user_id)
     if tenant_id is not None:
@@ -124,9 +122,7 @@ async def get_soft_delete_aware_user(
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not token_version_matches(payload, user.token_version):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked"
@@ -224,15 +220,9 @@ async def export_my_data(
         "is_admin": current_user.is_admin,
         "is_email_verified": current_user.is_email_verified,
         "totp_enabled": current_user.totp_enabled_at is not None,
-        "created_at": current_user.created_at.isoformat()
-        if current_user.created_at
-        else None,
-        "updated_at": current_user.updated_at.isoformat()
-        if current_user.updated_at
-        else None,
-        "deleted_at": current_user.deleted_at.isoformat()
-        if current_user.deleted_at
-        else None,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+        "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None,
+        "deleted_at": current_user.deleted_at.isoformat() if current_user.deleted_at else None,
     }
     return {
         "exported_at": datetime.now(UTC).isoformat(),

@@ -52,9 +52,7 @@ class ScoredResource:
     reason: str
 
 
-async def _load_read_resources(
-    db: AsyncSession, user_id: int, tenant_id: UUID
-) -> list[Resource]:
+async def _load_read_resources(db: AsyncSession, user_id: int, tenant_id: UUID) -> list[Resource]:
     """Return the resources the user has reading history for (tenant-scoped)."""
     rows = (
         (
@@ -114,9 +112,7 @@ def _score_candidate(candidate: Resource, profile: UserProfile) -> ScoredResourc
     return ScoredResource(resource=candidate, score=score, reason=reason)
 
 
-async def _fallback_latest(
-    db: AsyncSession, limit: int, tenant_id: UUID
-) -> list[ScoredResource]:
+async def _fallback_latest(db: AsyncSession, limit: int, tenant_id: UUID) -> list[ScoredResource]:
     """Return the most recently created resources when there is no history."""
     rows = (
         (

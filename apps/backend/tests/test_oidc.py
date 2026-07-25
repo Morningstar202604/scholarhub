@@ -1,4 +1,4 @@
-﻿"""OIDC SSO route tests.
+"""OIDC SSO route tests.
 
 We don't run a full OIDC round-trip in tests (would need a fake IdP).
 The behaviors that matter for the API contract are:
@@ -77,9 +77,7 @@ async def test_oidc_login_wrong_provider_404(
 async def test_oidc_login_redirects_to_provider(
     oidc_enabled_client: AsyncClient,
 ) -> None:
-    response = await oidc_enabled_client.get(
-        "/api/auth/oidc/google/login", follow_redirects=False
-    )
+    response = await oidc_enabled_client.get("/api/auth/oidc/google/login", follow_redirects=False)
     assert response.status_code in (302, 307)
     location = response.headers["location"]
     assert "accounts.google.com" in location
@@ -106,6 +104,7 @@ async def test_oidc_callback_bad_state_400(
 # reports which providers are actually configured on this deployment so the
 # SPA can render zero or one SSO button without hardcoding env vars.
 # Added 2026-07-24 hardening.
+
 
 async def test_providers_disabled_returns_empty_list(client: AsyncClient) -> None:
     """When OIDC is not configured, /providers returns an empty list.
@@ -168,6 +167,7 @@ async def test_providers_endpoint_is_public(
 # even if an attacker captures the redirect, they can't redeem the code
 # without the one-shot code_verifier stored in the user's browser cookie.
 
+
 async def test_login_sets_pkce_cookie_and_challenge(
     oidc_enabled_client: AsyncClient,
 ) -> None:
@@ -177,9 +177,7 @@ async def test_login_sets_pkce_cookie_and_challenge(
     The IdP will recompute the SHA-256 of the verifier at /callback and
     reject if it doesn't match.
     """
-    response = await oidc_enabled_client.get(
-        "/api/auth/oidc/google/login", follow_redirects=False
-    )
+    response = await oidc_enabled_client.get("/api/auth/oidc/google/login", follow_redirects=False)
     assert response.status_code in (302, 307)
     location = response.headers["location"]
     assert "code_challenge=" in location
@@ -201,8 +199,10 @@ async def test_callback_without_pkce_cookie_400(
     """
     # Build a fake-but-decodable state JWT so we get past state validation
     # (the PKCE check happens after state validation succeeds).
-    import jwt as pyjwt
     from datetime import UTC, datetime, timedelta
+
+    import jwt as pyjwt
+
     from app.core.config import settings
 
     nonce = "test-nonce"

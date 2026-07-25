@@ -17,7 +17,6 @@ Sensitive auth endpoints get a stricter limit than the global default.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
@@ -72,7 +71,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         ip = self._client_ip(request)
         bucket_key = f"{ip}|{self._path_key(path)}"
         store = get_rate_limiter_store()
-        allowed, depth = await store.hit_and_check(
+        allowed, _depth = await store.hit_and_check(
             bucket_key=bucket_key,
             limit=limit,
             window_seconds=_RATE_WINDOW_SECONDS,

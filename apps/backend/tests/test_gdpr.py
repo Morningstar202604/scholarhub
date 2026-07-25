@@ -21,7 +21,6 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -186,9 +185,7 @@ async def test_restore_brings_account_back(auth_client, db_session):
     await db_session.refresh(user)
     # Original token is invalidated by the bump; mint a fresh one for
     # the (anonymised) user so we can test the restore path.
-    fresh = create_access_token(
-        {"sub": str(user.id), "token_version": user.token_version}
-    )
+    fresh = create_access_token({"sub": str(user.id), "token_version": user.token_version})
     fresh_headers = {"Authorization": f"Bearer {fresh}"}
 
     resp = await client.post(
@@ -227,9 +224,7 @@ async def test_restore_outside_grace_returns_410(auth_client, db_session):
     user.deleted_at = datetime.now(UTC) - timedelta(days=31)
     await db_session.commit()
 
-    fresh = create_access_token(
-        {"sub": str(user.id), "token_version": user.token_version}
-    )
+    fresh = create_access_token({"sub": str(user.id), "token_version": user.token_version})
     fresh_headers = {"Authorization": f"Bearer {fresh}"}
 
     resp = await client.post(

@@ -46,7 +46,11 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("ascii"))
 
 
-def _create_token(data: dict[str, Any], expires_delta: timedelta, token_type: Literal["access", "refresh"]) -> str:
+def _create_token(
+    data: dict[str, Any],
+    expires_delta: timedelta,
+    token_type: Literal["access", "refresh", "2fa_pending"],
+) -> str:
     to_encode = data.copy()
     expire = datetime.now(UTC) + expires_delta
     to_encode.update({"exp": expire, "type": token_type})
@@ -118,7 +122,7 @@ def decode_2fa_pending_token(token: str) -> int | None:
         return None
     sub = payload.get("sub")
     try:
-        return int(sub)  # type: ignore[arg-type]
+        return int(str(sub))
     except (TypeError, ValueError):
         return None
 
@@ -141,7 +145,9 @@ def refresh_token_version_matches(payload: dict[str, Any] | None, expected_versi
     return payload.get("rtv") == expected_version
 
 
-def decode_token(token: str, expected_type: Literal["access", "refresh"] | None = None) -> dict[str, Any] | None:
+def decode_token(
+    token: str, expected_type: Literal["access", "refresh"] | None = None
+) -> dict[str, Any] | None:
     return decode_jwt(token, expected_type=expected_type)
 
 

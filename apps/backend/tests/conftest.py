@@ -205,9 +205,7 @@ class FakeEmailSender:
         body: str,
         html: str | None = None,
     ) -> None:
-        self.outbox.append(
-            {"to": to, "subject": subject, "body": body, "html": html or ""}
-        )
+        self.outbox.append({"to": to, "subject": subject, "body": body, "html": html or ""})
 
     def reset(self) -> None:
         self.outbox.clear()

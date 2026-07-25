@@ -15,12 +15,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.schemas import MessageResponse, PaginationMeta
 
-AssignmentStatus = Literal[
-    "pending", "accepted", "declined", "completed", "cancelled"
-]
-Recommendation = Literal[
-    "accept", "minor_revision", "major_revision", "reject"
-]
+AssignmentStatus = Literal["pending", "accepted", "declined", "completed", "cancelled"]
+Recommendation = Literal["accept", "minor_revision", "major_revision", "reject"]
 
 
 class AssignmentCreate(BaseModel):

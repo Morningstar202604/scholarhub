@@ -315,9 +315,7 @@ def export_resources(format_: str, resources: list[Exportable]) -> str:
     fmt = format_.strip().lower()
     exporter = EXPORTERS.get(fmt)
     if exporter is None:
-        raise ValueError(
-            f"Unsupported export format: {format_!r} (bibtex/ris/csv/json)"
-        )
+        raise ValueError(f"Unsupported export format: {format_!r} (bibtex/ris/csv/json)")
     return exporter(resources)
 
 

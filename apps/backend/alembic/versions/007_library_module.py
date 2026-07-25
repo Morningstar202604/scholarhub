@@ -102,12 +102,8 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.ForeignKeyConstraint(
-            ["reading_list_id"], ["reading_lists.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["resource_id"], ["resources.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["reading_list_id"], ["reading_lists.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["resource_id"], ["resources.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "reading_list_id",
@@ -139,12 +135,8 @@ def downgrade() -> None:
             op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table};")
             op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY;")
             op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;")
-    op.drop_index(
-        "ix_reading_list_items_resource_id", table_name="reading_list_items"
-    )
-    op.drop_index(
-        "ix_reading_list_items_reading_list_id", table_name="reading_list_items"
-    )
+    op.drop_index("ix_reading_list_items_resource_id", table_name="reading_list_items")
+    op.drop_index("ix_reading_list_items_reading_list_id", table_name="reading_list_items")
     op.drop_table("reading_list_items")
     op.drop_index("ix_reading_lists_user_id", table_name="reading_lists")
     op.drop_index("ix_reading_lists_tenant_id", table_name="reading_lists")

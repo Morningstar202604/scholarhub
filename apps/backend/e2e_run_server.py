@@ -11,6 +11,7 @@
 Usage:
     uv run python e2e_run_server.py
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,7 +31,9 @@ os.environ["SCHOLARHUB_SECRET_KEY"] = secrets.token_hex(32)
 os.environ["SCHOLARHUB_ADMIN_PASSWORD"] = "e2e_admin_pw_12345678"
 os.environ["SCHOLARHUB_ADMIN_EMAIL"] = "admin@e2e.test"
 os.environ["SCHOLARHUB_ADMIN_USERNAME"] = "admin"
-os.environ["SCHOLARHUB_CORS_ORIGINS"] = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173"
+os.environ["SCHOLARHUB_CORS_ORIGINS"] = (
+    "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173"
+)
 os.environ["SCHOLARHUB_ALLOWED_HOSTS"] = "localhost,127.0.0.1"
 os.environ["SCHOLARHUB_RATE_LIMIT_PER_MINUTE"] = "600"
 os.environ["SCHOLARHUB_DEBUG"] = "true"
@@ -59,9 +62,7 @@ class MemoryEmailSender:
         body: str,
         html: str | None = None,
     ) -> None:
-        self.outbox.append(
-            {"to": to, "subject": subject, "body": body, "html": html or ""}
-        )
+        self.outbox.append({"to": to, "subject": subject, "body": body, "html": html or ""})
 
     def reset(self) -> None:
         self.outbox.clear()
@@ -160,9 +161,7 @@ def _install_dev_routes() -> None:
                 raise HTTPException(status_code=404, detail="user not found")
             if not user.is_email_verified:
                 await session.execute(
-                    update(User)
-                    .where(User.id == user.id)
-                    .values(is_email_verified=True)
+                    update(User).where(User.id == user.id).values(is_email_verified=True)
                 )
                 await session.commit()
             return {"ok": True, "user_id": user.id, "email": user.email}

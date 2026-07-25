@@ -27,11 +27,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user
+from app.core.db import get_db
 from app.core.logging import get_logger
 from app.core.security import (
     decode_2fa_pending_token,
-    hash_password,
     verify_password,
 )
 from app.core.totp import (
@@ -60,6 +60,7 @@ router = APIRouter(prefix="/auth/2fa", tags=["two-factor"])
 
 
 # --- helpers --------------------------------------------------------------
+
 
 def _issuer() -> str:
     """Issuer label baked into otpauth:// URIs (shown in Authenticator apps).
@@ -123,6 +124,7 @@ def _hashes_to_json(values: set[str]) -> str:
 
 # --- endpoints -------------------------------------------------------------
 
+
 @router.post("/setup", response_model=TwoFactorSetupResponse)
 async def setup_2fa(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -184,11 +186,11 @@ async def verify_setup(
         )
     try:
         secret = decrypt_secret(current_user.totp_secret_encrypted)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="2FA secret cannot be decrypted - encryption key may have rotated",
-        )
+        ) from exc
     counter = verify_totp(secret, payload.code)
     if counter is None:
         raise HTTPException(
@@ -256,11 +258,11 @@ async def authenticate_2fa(
     if payload.code is not None:
         try:
             secret = decrypt_secret(user.totp_secret_encrypted)
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="2FA secret cannot be decrypted",
-            )
+            ) from exc
         counter = verify_totp(secret, payload.code)
         ok = counter is not None
     else:
@@ -322,11 +324,11 @@ async def disable_2fa(
     if payload.code is not None:
         try:
             secret = decrypt_secret(current_user.totp_secret_encrypted or "")
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="2FA secret cannot be decrypted",
-            )
+            ) from exc
         ok = verify_totp(secret, payload.code) is not None
     else:
         assert payload.backup_code is not None
@@ -369,11 +371,11 @@ async def regenerate_backup_codes(
         )
     try:
         secret = decrypt_secret(current_user.totp_secret_encrypted or "")
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="2FA secret cannot be decrypted",
-        )
+        ) from exc
     backup_codes = generate_backup_codes()
     backup_hashes = {hash_backup_code(c) for c in backup_codes}
     current_user.totp_backup_codes_hashed = _hashes_to_json(backup_hashes)

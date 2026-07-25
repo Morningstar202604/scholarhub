@@ -28,9 +28,7 @@ async def test_list_users_includes_roles_field(
         assert isinstance(u["roles"], list)
 
 
-async def test_assign_reviewer_role(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_assign_reviewer_role(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     """admin 给普通用户分配 reviewer 角色；返回的 roles 列表应包含 'reviewer'。"""
     user_id = int(test_user["user_id"])
     resp = await client.post(
@@ -59,9 +57,7 @@ async def test_assign_role_idempotent(
         assert body["roles"].count("editor") == 1
 
 
-async def test_assign_role_to_nonexistent_user_404(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_assign_role_to_nonexistent_user_404(client: AsyncClient, admin_user: dict) -> None:
     resp = await client.post(
         "/api/admin/users/99999/roles",
         json={"role": "reviewer"},
@@ -83,9 +79,7 @@ async def test_assign_role_invalid_role_400(
     assert resp.status_code == 422  # pydantic Literal 校验失败
 
 
-async def test_revoke_role(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_revoke_role(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     """分配 + 撤销：撤销后 roles 中不应再包含该角色名。"""
     user_id = int(test_user["user_id"])
     # 先分配
@@ -117,9 +111,7 @@ async def test_revoke_role_not_assigned_404(
     assert resp.status_code == 404
 
 
-async def test_revoke_role_nonexistent_user_404(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_revoke_role_nonexistent_user_404(client: AsyncClient, admin_user: dict) -> None:
     resp = await client.delete(
         "/api/admin/users/99999/roles/reviewer",
         headers=auth_headers(admin_user),
@@ -127,9 +119,7 @@ async def test_revoke_role_nonexistent_user_404(
     assert resp.status_code == 404
 
 
-async def test_non_admin_cannot_assign_role(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_non_admin_cannot_assign_role(client: AsyncClient, test_user: dict) -> None:
     """非 admin 用户调用应 403。"""
     user_id = int(test_user["user_id"])
     resp = await client.post(
@@ -140,9 +130,7 @@ async def test_non_admin_cannot_assign_role(
     assert resp.status_code == 403
 
 
-async def test_non_admin_cannot_list_users(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_non_admin_cannot_list_users(client: AsyncClient, test_user: dict) -> None:
     """非 admin 调 list_users 应 403。"""
     resp = await client.get("/api/admin/users", headers=auth_headers(test_user))
     assert resp.status_code == 403

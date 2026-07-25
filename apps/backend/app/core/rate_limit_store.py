@@ -28,9 +28,12 @@ from __future__ import annotations
 import math
 import time
 from collections import defaultdict
-from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    pass
 
 logger = get_logger("scholarhub.rate_limit_store")
 
@@ -141,18 +144,18 @@ class RedisRateLimiterStore(RateLimiterStore):
 
     def __init__(self, redis_url: str) -> None:
         self._redis_url = redis_url
-        self._client = None  # lazy-init: keep import cheap when unused
+        self._client: Any | None = None  # lazy-init: keep import cheap when unused
         self._script_sha: str | None = None
         self._memory_fallback = MemoryRateLimiterStore()
         self._redis_failed = False  # circuit-breaker hint
 
-    async def _get_client(self):  # type: ignore[no-untyped-def]
+    async def _get_client(self) -> Any:
         if self._client is not None:
             return self._client
         # Imported lazily so production builds without redis still
         # import-time (we don't want a hard dep on redis-py).
         try:
-            import redis.asyncio as redis_async  # type: ignore[import-not-found]
+            import redis.asyncio as redis_async
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError(
                 "redis package is required for RedisRateLimiterStore; "
@@ -186,15 +189,13 @@ class RedisRateLimiterStore(RateLimiterStore):
         try:
             client = await self._get_client()
             now_ms = int(time.time() * 1000)
-            window_ms = max(1, int(math.ceil(window_seconds * 1000)))
+            window_ms = max(1, math.ceil(window_seconds * 1000))
             # Unique member so two hits in the same millisecond don't
             # collide and get deduplicated by ZADD.
             member = f"{now_ms}:{id(self)}:{time.monotonic_ns()}"
             sha = await self._ensure_script_loaded(client)
             try:
-                result = await client.evalsha(
-                    sha, 1, bucket_key, now_ms, window_ms, limit, member
-                )
+                result = await client.evalsha(sha, 1, bucket_key, now_ms, window_ms, limit, member)
             except Exception as exc:  # NOSCRIPT -> reload script once
                 if "NOSCRIPT" in str(exc):
                     self._script_sha = None
@@ -224,7 +225,7 @@ class RedisRateLimiterStore(RateLimiterStore):
                 window_seconds=window_seconds,
             )
 
-    async def _ensure_script_loaded(self, client) -> str:
+    async def _ensure_script_loaded(self, client: Any) -> str:
         if self._script_sha is not None:
             return self._script_sha
         self._script_sha = await client.script_load(self._LUA_SCRIPT)

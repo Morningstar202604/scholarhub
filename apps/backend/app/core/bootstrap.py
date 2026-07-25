@@ -157,13 +157,17 @@ async def _ensure_admin_roles(session: AsyncSession, tenant: Tenant) -> None:
     if admin is None:
         return
     roles = (
-        await session.execute(
-            select(Role).where(
-                Role.tenant_id == tenant.id,
-                Role.name.in_((ROLE_EDITOR, ROLE_REVIEWER)),
+        (
+            await session.execute(
+                select(Role).where(
+                    Role.tenant_id == tenant.id,
+                    Role.name.in_((ROLE_EDITOR, ROLE_REVIEWER)),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for role in roles:
         existing = (
             await session.execute(

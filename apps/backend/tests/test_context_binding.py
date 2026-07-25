@@ -6,13 +6,12 @@ with request_id, tenant_id, user_id, is_admin tags attached.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from io import StringIO
 
 import pytest
-from structlog.contextvars import bind_contextvars, get_contextvars
+from structlog.contextvars import bind_contextvars
 
 from app.core.logging import configure_logging, get_logger
 
@@ -65,7 +64,7 @@ async def test_user_id_bound_after_get_current_user(log_capture):
     logger.info("logged_in", action="register")
 
     lines = _read_json_lines(log_capture)
-    match = next((l for l in lines if l.get("event") == "logged_in"), None)
+    match = next((ln for ln in lines if ln.get("event") == "logged_in"), None)
     assert match is not None, lines
     assert match.get("user_id") == "42"
     assert match.get("is_admin") is False
@@ -81,7 +80,7 @@ async def test_admin_user_flag_propagates(log_capture):
     logger.info("admin_action", target="reload-secret-keys")
 
     lines = _read_json_lines(log_capture)
-    match = next((l for l in lines if l.get("event") == "admin_action"), None)
+    match = next((ln for ln in lines if ln.get("event") == "admin_action"), None)
     assert match is not None, lines
     assert match.get("user_id") == "1"
     assert match.get("is_admin") is True
@@ -101,7 +100,7 @@ async def test_optional_user_does_not_leak(log_capture):
     logger.info("anonymous_request")
 
     lines = _read_json_lines(log_capture)
-    match = next((l for l in lines if l.get("event") == "anonymous_request"), None)
+    match = next((ln for ln in lines if ln.get("event") == "anonymous_request"), None)
     assert match is not None, lines
     assert "user_id" not in match
 
@@ -123,7 +122,7 @@ async def test_context_isolated_between_requests(log_capture):
     clear_contextvars()
 
     lines = _read_json_lines(log_capture)
-    by_event = {l["event"]: l for l in lines if l.get("event") in {"request_a", "request_b"}}
+    by_event = {ln["event"]: ln for ln in lines if ln.get("event") in {"request_a", "request_b"}}
     assert by_event["request_a"]["user_id"] == "100"
     assert by_event["request_a"]["request_id"] == "rid-A"
     assert by_event["request_b"]["user_id"] == "200"

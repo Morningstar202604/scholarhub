@@ -1,4 +1,4 @@
-﻿"""ORM models for the base spine.
+"""ORM models for the base spine.
 
 All models inherit from ``Base`` (defined here). Domain-specific tables
 (submissions, publications, etc.) live in module packages under
@@ -72,9 +72,7 @@ class Tenant(Base):
         nullable=False,
     )
 
-    users: Mapped[list[User]] = relationship(
-        back_populates="tenant", cascade="all, delete-orphan"
-    )
+    users: Mapped[list[User]] = relationship(back_populates="tenant", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -118,9 +116,7 @@ class User(Base):
     # setup; only used to verify the user-entered 6-digit code. enabled_at is
     # set when verify-setup succeeds; NULL means 2FA is off.
     totp_secret_encrypted: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    totp_enabled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    totp_enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # JSON list of bcrypt hashes for one-time backup codes. The cleartext codes
     # are shown to the user ONCE at enrollment/regeneration and never stored.
     # Length 2048 to fit 12 codes of ~60 chars each.
@@ -156,9 +152,7 @@ class Role(Base):
     """
 
     __tablename__ = "roles"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[UUID] = mapped_column(

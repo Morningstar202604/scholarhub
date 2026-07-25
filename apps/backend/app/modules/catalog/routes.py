@@ -58,9 +58,7 @@ async def list_resources(
         stmt = stmt.where(Resource.year == year)
     if q is not None:
         pattern = f"%{q}%"
-        stmt = stmt.where(
-            (Resource.title.ilike(pattern)) | (Resource.abstract.ilike(pattern))
-        )
+        stmt = stmt.where((Resource.title.ilike(pattern)) | (Resource.abstract.ilike(pattern)))
 
     # Sort with deterministic tiebreaker — order_by is applied by paginate.
     sort_col = getattr(Resource, sort, Resource.created_at) if sort else Resource.created_at
@@ -87,13 +85,9 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> ResourceStats:
     """Aggregate stats: total count + breakdowns by type and discipline."""
     tenant_id = require_tenant_id()
     base_filter = Resource.tenant_id == tenant_id
-    total = (
-        await db.execute(select(func.count(Resource.id)).where(base_filter))
-    ).scalar_one()
+    total = (await db.execute(select(func.count(Resource.id)).where(base_filter))).scalar_one()
     by_type_rows = await db.execute(
-        select(Resource.type, func.count(Resource.id))
-        .where(base_filter)
-        .group_by(Resource.type)
+        select(Resource.type, func.count(Resource.id)).where(base_filter).group_by(Resource.type)
     )
     by_discipline_rows = await db.execute(
         select(Resource.discipline, func.count(Resource.id))

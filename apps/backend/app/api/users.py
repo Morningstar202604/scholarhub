@@ -47,9 +47,7 @@ async def update_me(
     Disabling your own account is permitted — it's the closest thing to
     "delete me" we offer without data-loss risk; an admin can re-enable.
     """
-    email_changed = (
-        payload.email is not None and payload.email != current_user.email
-    )
+    email_changed = payload.email is not None and payload.email != current_user.email
     if payload.email is not None:
         current_user.email = payload.email
     if email_changed:
@@ -71,6 +69,7 @@ async def update_me(
     if email_changed:
         try:
             from app.api.auth import _send_verification_email
+
             await _send_verification_email(current_user)
         except Exception:
             logger.warning(

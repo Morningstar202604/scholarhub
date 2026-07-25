@@ -39,8 +39,7 @@ class EmailSender(Protocol):
         subject: str,
         body: str,
         html: str | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class ConsoleEmailSender:
@@ -161,9 +160,7 @@ def get_email_sender() -> EmailSender:
         return _sender
 
     # Unknown backend — fall back to console.
-    logger.warning(
-        "email_unknown_backend_fallback_to_console", backend=settings.email_backend
-    )
+    logger.warning("email_unknown_backend_fallback_to_console", backend=settings.email_backend)
     _sender = ConsoleEmailSender()
     return _sender
 

@@ -118,9 +118,7 @@ async def test_list_my_lists_empty(client: AsyncClient, test_user: dict) -> None
     assert body["meta"]["total"] == 0
 
 
-async def test_list_my_lists_pagination(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_list_my_lists_pagination(client: AsyncClient, test_user: dict) -> None:
     """Lists are returned newest first; pagination meta reflects total."""
     for i in range(3):
         await _create_list(client, test_user, name=f"L{i}")
@@ -147,9 +145,7 @@ async def test_get_list_owner(client: AsyncClient, test_user: dict) -> None:
     assert response.json()["id"] == created["id"]
 
 
-async def test_get_list_other_user_404(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_get_list_other_user_404(client: AsyncClient, test_user: dict) -> None:
     """Another registered user cannot see someone else's list."""
     created = await _create_list(client, test_user)
     # Register a second user
@@ -171,9 +167,7 @@ async def test_get_list_other_user_404(
 
 
 async def test_get_list_404(client: AsyncClient, test_user: dict) -> None:
-    response = await client.get(
-        "/api/reading-lists/99999", headers=auth_headers(test_user)
-    )
+    response = await client.get("/api/reading-lists/99999", headers=auth_headers(test_user))
     assert response.status_code == 404
 
 
@@ -204,9 +198,7 @@ async def test_update_partial(client: AsyncClient, test_user: dict) -> None:
     assert body["description"] == "new desc"
 
 
-async def test_update_to_duplicate_name_409(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_update_to_duplicate_name_409(client: AsyncClient, test_user: dict) -> None:
     await _create_list(client, test_user, name="A")
     b = await _create_list(client, test_user, name="B")
     response = await client.patch(
@@ -225,15 +217,11 @@ async def test_delete_list(client: AsyncClient, test_user: dict) -> None:
     assert response.status_code == 200
     # Subsequent GET → 404
     assert (
-        await client.get(
-            f"/api/reading-lists/{created['id']}", headers=auth_headers(test_user)
-        )
+        await client.get(f"/api/reading-lists/{created['id']}", headers=auth_headers(test_user))
     ).status_code == 404
 
 
-async def test_delete_other_user_404(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_delete_other_user_404(client: AsyncClient, test_user: dict) -> None:
     created = await _create_list(client, test_user)
     second = await client.post(
         "/api/auth/register",
@@ -252,9 +240,7 @@ async def test_delete_other_user_404(
     assert response.status_code == 404
     # Owner can still see the list (delete didn't happen)
     assert (
-        await client.get(
-            f"/api/reading-lists/{created['id']}", headers=auth_headers(test_user)
-        )
+        await client.get(f"/api/reading-lists/{created['id']}", headers=auth_headers(test_user))
     ).status_code == 200
 
 
@@ -263,9 +249,7 @@ async def test_delete_other_user_404(
 # ---------------------------------------------------------------------------
 
 
-async def test_add_item(
-    client: AsyncClient, test_user: dict, admin_user: dict
-) -> None:
+async def test_add_item(client: AsyncClient, test_user: dict, admin_user: dict) -> None:
     rid = await _create_resource(client, admin_user)
     created = await _create_list(client, test_user)
     response = await client.post(
@@ -283,9 +267,7 @@ async def test_add_item(
     assert item["added_at"]
 
 
-async def test_add_item_idempotent(
-    client: AsyncClient, test_user: dict, admin_user: dict
-) -> None:
+async def test_add_item_idempotent(client: AsyncClient, test_user: dict, admin_user: dict) -> None:
     """Re-adding the same resource returns 201 with one item (no dup)."""
     rid = await _create_resource(client, admin_user)
     created = await _create_list(client, test_user)
@@ -305,9 +287,7 @@ async def test_add_item_idempotent(
     assert len(body["items"]) == 1
 
 
-async def test_add_item_unknown_resource_404(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_add_item_unknown_resource_404(client: AsyncClient, test_user: dict) -> None:
     created = await _create_list(client, test_user)
     response = await client.post(
         f"/api/reading-lists/{created['id']}/items",
@@ -341,9 +321,7 @@ async def test_add_item_to_other_user_list_404(
     assert response.status_code == 404
 
 
-async def test_remove_item(
-    client: AsyncClient, test_user: dict, admin_user: dict
-) -> None:
+async def test_remove_item(client: AsyncClient, test_user: dict, admin_user: dict) -> None:
     rid = await _create_resource(client, admin_user)
     created = await _create_list(client, test_user)
     await client.post(
@@ -363,9 +341,7 @@ async def test_remove_item(
     assert detail.json()["items"] == []
 
 
-async def test_remove_item_idempotent(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_remove_item_idempotent(client: AsyncClient, test_user: dict) -> None:
     """Removing an item that isn't in the list is a 204 no-op."""
     rid = 12345  # doesn't need to exist for remove (no resource lookup)
     created = await _create_list(client, test_user)
@@ -419,9 +395,7 @@ async def test_delete_list_cascades_items(
     )
     assert delete.status_code == 200
     assert (
-        await client.get(
-            f"/api/reading-lists/{created['id']}", headers=auth_headers(test_user)
-        )
+        await client.get(f"/api/reading-lists/{created['id']}", headers=auth_headers(test_user))
     ).status_code == 404
 
 
@@ -436,9 +410,7 @@ async def test_item_count_in_list_view(
         json={"resource_id": rid},
         headers=auth_headers(test_user),
     )
-    response = await client.get(
-        "/api/reading-lists", headers=auth_headers(test_user)
-    )
+    response = await client.get("/api/reading-lists", headers=auth_headers(test_user))
     body = response.json()
     assert body["meta"]["total"] == 1
     assert body["data"][0]["item_count"] == 1

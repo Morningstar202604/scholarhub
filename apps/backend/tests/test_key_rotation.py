@@ -33,7 +33,6 @@ import pytest
 from app.core import key_rotation
 from app.core.key_rotation import decode_jwt, encode_jwt
 
-
 pytestmark = pytest.mark.asyncio
 
 

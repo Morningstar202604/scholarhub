@@ -50,9 +50,7 @@ class Resource(Base):
     """
 
     __tablename__ = "resources"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "slug", name="uq_resources_tenant_slug"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_resources_tenant_slug"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[UUID] = mapped_column(
@@ -87,9 +85,7 @@ class Resource(Base):
     isbn: Mapped[str | None] = mapped_column(String(20), nullable=True)
     keywords: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     language: Mapped[str] = mapped_column(String(10), nullable=False, default="en")
-    publication_status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="published"
-    )
+    publication_status: Mapped[str] = mapped_column(String(20), nullable=False, default="published")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
@@ -148,4 +144,3 @@ class ResourceStat(Base):
 
 
 __all__ = ["Resource", "ResourceStat"]
-

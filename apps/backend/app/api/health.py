@@ -73,10 +73,10 @@ async def liveness_legacy() -> HealthResponse:
 async def readiness_legacy(
     db: AsyncSession = Depends(get_db),
 ) -> HealthReadyResponse | JSONResponse:
-    return await readiness_root(db)  # type: ignore[return-value]
+    return await readiness_root(db)
 
 
-__all__ = ["router", "legacy_router"]
+__all__ = ["legacy_router", "router"]
 
 
 # ---------------------------------------------------------------------------

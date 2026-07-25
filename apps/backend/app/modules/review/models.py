@@ -80,31 +80,17 @@ class ReviewAssignment(Base):
 
     # pending=已邀请待回应, accepted=审稿人接受, declined=审稿人拒绝,
     # completed=审稿人已提交报告, cancelled=编辑撤销邀请
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending", index=True
-    )
-    due_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
+    due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     invited_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
-    responded_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    submission = relationship(
-        "Submission", backref="review_assignments"
-    )
-    reviewer = relationship(
-        "User", foreign_keys="ReviewAssignment.reviewer_id"
-    )
-    assigner = relationship(
-        "User", foreign_keys="ReviewAssignment.assigned_by"
-    )
+    submission = relationship("Submission", backref="review_assignments")
+    reviewer = relationship("User", foreign_keys="ReviewAssignment.reviewer_id")
+    assigner = relationship("User", foreign_keys="ReviewAssignment.assigned_by")
     report: Mapped[list[ReviewReport]] = relationship(
         back_populates="assignment", cascade="all, delete-orphan"
     )
@@ -122,9 +108,7 @@ class ReviewReport(Base):
     """
 
     __tablename__ = "review_reports"
-    __table_args__ = (
-        UniqueConstraint("assignment_id", name="uq_review_report_assignment"),
-    )
+    __table_args__ = (UniqueConstraint("assignment_id", name="uq_review_report_assignment"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[UUID] = mapped_column(
@@ -147,9 +131,7 @@ class ReviewReport(Base):
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
-    assignment = relationship(
-        "ReviewAssignment", back_populates="report"
-    )
+    assignment = relationship("ReviewAssignment", back_populates="report")
 
 
 __all__ = ["ReviewAssignment", "ReviewReport"]
