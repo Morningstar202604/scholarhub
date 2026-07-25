@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware import Middleware as StarletteMiddleware
 from tenacity import (
     before_sleep_log,
     retry,
@@ -24,6 +25,7 @@ from tenacity import (
 
 from app import __version__
 from app.api import admin, auth, gdpr, health, modules, two_factor, users
+from app.api.metrics import router as metrics_router
 from app.api.oidc import router as oidc_router
 from app.core.bootstrap import run_bootstrap
 from app.core.config import settings
@@ -32,6 +34,7 @@ from app.core.logging import configure_logging, get_logger
 from app.core.modules import load_all, registry
 from app.core.rate_limit_store import close_rate_limiter_store
 from app.core.tenant import TenantContextMiddleware
+from app.middleware.metrics import HTTPMetricsMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 
@@ -85,6 +88,10 @@ app = FastAPI(
     redoc_url="/redoc" if not settings.is_production else None,
     openapi_url="/openapi.json" if not settings.is_production else None,
     lifespan=lifespan,
+    middleware=[
+        # Outermost wrapper: records Prometheus metrics for every request.
+        StarletteMiddleware(HTTPMetricsMiddleware),
+    ],
 )
 
 
@@ -168,7 +175,11 @@ app.add_middleware(TenantContextMiddleware)
 
 
 # --- Core routers (always present) ---
-app.include_router(health.router, prefix="/api")
+# Health probes at root (Kubernetes convention).
+app.include_router(health.router)
+app.include_router(health.legacy_router, prefix="/api")
+# Prometheus exposition (root, no auth, no rate limit).
+app.include_router(metrics_router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
