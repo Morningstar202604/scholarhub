@@ -16,6 +16,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from structlog.contextvars import bind_contextvars
 
 from app.core.db import get_db
 from app.core.security import decode_access_token, token_version_matches
@@ -93,6 +94,10 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
+    # Bind the resolved user id to the structlog context so that every
+    # log line emitted during this request is automatically tagged.
+    # The middleware clears the context after the request finishes.
+    bind_contextvars(user_id=str(user.id), is_admin=bool(user.is_admin))
     return user
 
 
@@ -142,6 +147,7 @@ async def get_current_user_optional(
     # disabled user. Both collapse to None for the optional variant.
     if not token_version_matches(payload, user.token_version):
         return None
+    bind_contextvars(user_id=str(user.id), is_admin=bool(user.is_admin))
     return user
 
 
