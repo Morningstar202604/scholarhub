@@ -77,6 +77,8 @@ coverage/
 
 # Agent workspace (developer-specific, not part of the project)
 .qclaw/
+.qclaw-*
+.qclaw-*.md
 
 # Diagnostic scripts (keep in scripts/ but never commit into repo)
 scripts/scan_secrets.py
