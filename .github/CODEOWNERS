@@ -13,10 +13,16 @@
 /apps/backend/app/core/key_rotation.py @weed33834
 /apps/backend/app/core/rate_limit_store.py @weed33834
 /apps/backend/app/core/totp.py @weed33834
+/apps/backend/app/core/tokens.py @weed33834
+/apps/backend/app/core/captcha.py @weed33834
+/apps/backend/app/core/orcid.py @weed33834
+/apps/backend/app/core/retention.py @weed33834
 /apps/backend/app/api/auth.py @weed33834
 /apps/backend/app/api/admin.py @weed33834
 /apps/backend/app/api/two_factor.py @weed33834
 /apps/backend/app/api/gdpr.py @weed33834
 /apps/backend/app/api/oidc.py @weed33834
+/apps/backend/app/api/privacy.py @weed33834
+/apps/backend/app/api/metrics.py @weed33834
+/apps/backend/app/middleware/ @weed33834
 /apps/backend/alembic/versions/ @weed33834
-/scan_secrets.py @weed33834

@@ -59,7 +59,9 @@ jobs:
 
       - name: pip-audit (dependency vuln scan)
         if: always()
-        run: uv run pip-audit -r <(uv pip freeze)
+        run: |
+          uv export --no-dev --no-hashes --format requirements-txt > /tmp/ci-requirements.txt
+          uv run pip-audit -r /tmp/ci-requirements.txt
 
   # ---------------------------------------------------------------
   # 2. Frontend lint + typecheck + build + unit tests.

@@ -16,13 +16,14 @@ which is consumed by the registration endpoint when
 from __future__ import annotations
 
 import importlib
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from fastapi import HTTPException, Request, status
 
 from app.core.config import settings
 
 
+@runtime_checkable
 class CaptchaVerifier(Protocol):
     """The contract operators must satisfy when wiring up a provider."""
 
@@ -59,14 +60,10 @@ def _load_verifier() -> CaptchaVerifier:
     try:
         module = importlib.import_module(module_name)
     except ImportError as exc:
-        raise RuntimeError(
-            f"captcha_verifier {dotted!r} could not be imported: {exc}"
-        ) from exc
+        raise RuntimeError(f"captcha_verifier {dotted!r} could not be imported: {exc}") from exc
     obj = getattr(module, attr, None)
     if obj is None:
-        raise RuntimeError(
-            f"captcha_verifier {dotted!r} does not resolve to an attribute"
-        )
+        raise RuntimeError(f"captcha_verifier {dotted!r} does not resolve to an attribute")
     if not callable(obj):
         raise RuntimeError(
             f"captcha_verifier {dotted!r} is not callable; expected a "
@@ -74,19 +71,15 @@ def _load_verifier() -> CaptchaVerifier:
         )
     # Allow either an instance (callable with __call__) or a factory.
     if isinstance(obj, type):
-        return obj()  # type: ignore[abstract]
+        return obj()  # type: ignore[no-any-return]
     if callable(obj):
         result = obj()
         if isinstance(result, CaptchaVerifier):
             return result
-    raise RuntimeError(
-        f"captcha_verifier {dotted!r} must return a CaptchaVerifier"
-    )
+    raise RuntimeError(f"captcha_verifier {dotted!r} must return a CaptchaVerifier")
 
 
-async def verify_captcha_token(
-    request: Request, token: str | None
-) -> None:
+async def verify_captcha_token(request: Request, token: str | None) -> None:
     """Validate the CAPTCHA token against the configured verifier.
 
     Call directly from the endpoint body (NOT a Depends), so the

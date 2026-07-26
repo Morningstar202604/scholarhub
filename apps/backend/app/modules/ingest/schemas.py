@@ -55,6 +55,12 @@ class IngestResource(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=50)
     abstract: str = Field(default="", max_length=20000)
     doi: str | None = Field(default=None, max_length=200)
+    publisher: str | None = Field(default=None, max_length=500)
+    volume: str | None = Field(default=None, max_length=50)
+    issue: str | None = Field(default=None, max_length=50)
+    pages: str | None = Field(default=None, max_length=50)
+    issn: str | None = Field(default=None, max_length=20)
+    short_container_title: str | None = Field(default=None, max_length=200)
 
 
 class ParseRequest(BaseModel):

@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 # --- Auth ---
@@ -131,6 +131,8 @@ class UserResponse(BaseModel):
     is_admin: bool
     is_email_verified: bool
     created_at: datetime
+    # ORCID iD in canonical hyphenated form, or null when not set.
+    orcid: str | None = None
     # 当前用户在本租户内被授予的角色名列表（如 ["reviewer", "editor"]）
     # 默认空列表：未填充时视为"无角色"，向后兼容旧调用点
     roles: list[str] = Field(default_factory=list)
@@ -158,6 +160,7 @@ class UserResponse(BaseModel):
                 "is_admin": data.is_admin,
                 "is_email_verified": data.is_email_verified,
                 "created_at": data.created_at,
+                "orcid": data.orcid,
                 # roles 不在此填：让默认空列表生效；admin 路径用 _user_with_roles 显式覆盖
             }
         return data
@@ -174,6 +177,51 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     username: str | None = Field(default=None, min_length=3, max_length=100)
     is_active: bool | None = None
+    # ORCID iD. Set to empty string to clear; pass None to leave
+    # unchanged. We validate and canonicalise here so the DB layer
+    # never sees a malformed value.
+    orcid: str | None = None
+
+    @field_validator("orcid")
+    @classmethod
+    def _canonicalise_orcid(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if value == "":
+            return None  # explicit clear
+        from app.core.orcid import is_valid_orcid, normalize_orcid
+
+        if not is_valid_orcid(value):
+            raise ValueError(f"Invalid ORCID iD: {value!r}")
+        return normalize_orcid(value)
+
+
+class ORCIDUpdateRequest(BaseModel):
+    """Body for PATCH /me/orcid. Empty string clears; missing field is no-op.
+
+    Separate from ``UserUpdate`` so the /me/orcid endpoint has an
+    explicit, narrow contract: ``{"orcid": "..."}`` (set),
+    ``{"orcid": ""}`` (clear), or ``{}`` (no-op). This keeps the
+    self-service ORCID editing flow decoupled from the admin's
+    ``UserUpdate`` body.
+
+    ``max_length`` is generous because we accept URL forms up to
+    ``https://orcid.org/0000-0002-1825-0097`` (38 chars). The
+    canonical validator truncates the URL to its 19-char iD.
+    """
+
+    orcid: str | None = Field(default=None, max_length=64)
+
+    @field_validator("orcid")
+    @classmethod
+    def _canonicalise_orcid(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return None
+        from app.core.orcid import is_valid_orcid, normalize_orcid
+
+        if not is_valid_orcid(value):
+            raise ValueError(f"Invalid ORCID iD: {value!r}")
+        return normalize_orcid(value)
 
 
 # --- Module ---

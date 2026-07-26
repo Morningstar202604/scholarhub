@@ -42,7 +42,7 @@ with the reporter for responsible disclosure.
 | Password hashing | bcrypt with per-row salt, cost factor 12 |
 | Access tokens | JWT (HS256) — short-lived, signed with the **current** key from the rotation chain |
 | Refresh tokens | JWT in `httpOnly`, `Secure`, `SameSite=strict` cookie; version counter (`token_version`) on the user model lets admins force a global re-login |
-| 2FA | TOTP (RFC 6238) per-user secret encrypted at rest with Fernet; 10 single-use backup codes hashed with bcrypt |
+| 2FA | TOTP (RFC 6238) per-user secret encrypted at rest with Fernet; 10 single-use backup codes hashed with SHA-256 |
 | OIDC SSO | PKCE required by default; `state` parameter is a short-lived JWT (defence against CSRF on the callback) |
 | Rate-limit | Sliding window per IP + route, pluggable store (in-memory default, Redis backend for multi-node) |
 

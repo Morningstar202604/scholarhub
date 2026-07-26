@@ -17,10 +17,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant_id, get_current_user, require_tenant_id
+from app.core.captcha import verify_captcha_token
 from app.core.config import settings
 from app.core.db import get_db
 from app.core.email import get_email_sender
-from app.core.captcha import require_captcha_for_registration, verify_captcha_token
 from app.core.logging import get_logger
 from app.core.schemas import MessageResponse
 from app.core.security import (
@@ -43,6 +43,7 @@ from app.core.tokens import (
 from app.models import User
 from app.schemas import (
     ForgotPasswordRequest,
+    ORCIDUpdateRequest,
     RefreshTokenRequest,
     ResendVerificationRequest,
     ResetPasswordRequest,
@@ -285,6 +286,25 @@ async def logout(
 
 @router.get("/me", response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user)) -> UserResponse:
+    return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me/orcid", response_model=UserResponse)
+async def update_my_orcid(
+    payload: ORCIDUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Set or clear the authenticated user's ORCID iD.
+
+    Body: ``{"orcid": "0000-0002-1825-0097"}`` to set, ``{"orcid": ""}``
+    to clear, or omit the field (``{}``) to leave unchanged.
+    The Pydantic validator canonicalises the input; we only persist
+    what the schema accepted.
+    """
+    current_user.orcid = payload.orcid  # may be None
+    await db.commit()
+    await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
 
 

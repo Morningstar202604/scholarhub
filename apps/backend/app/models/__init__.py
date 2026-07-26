@@ -128,6 +128,11 @@ class User(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
+    # ORCID iD (https://orcid.org/) — 16-digit canonical form, e.g.
+    # "0000-0002-1825-0097". Optional. Used for academic attribution
+    # (e.g. on reviews / submissions). Stored verbatim; UI should
+    # validate against ORCID's checksum before submitting.
+    orcid: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )

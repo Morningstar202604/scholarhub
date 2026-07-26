@@ -143,8 +143,12 @@ null. Adds explicit null check and returns 404 instead.
 
 ## Repository
 
-This repository is hosted on [GitCode](https://gitcode.com/badhope/scholarhub).
-All issues, pull requests, and discussions should be directed there.
+This repository is hosted on two mirrors with identical content:
+
+- **GitCode (primary)**: https://gitcode.com/badhope/scholarhub
+- **GitHub (mirror)**: https://github.com/weed33834/scholarhub
+
+Issues and pull requests are accepted on both platforms.
 
 ## Questions?
 

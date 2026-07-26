@@ -46,7 +46,6 @@ paths = [
   '''(^|/)tests?/.*\.tsx$''',
   '''(^|/)testdata/.*''',
   '''(^|/)fixtures/.*''',
-  '''(^|/)apps/backend/app/.*\.py$''', # config validators hold test keys
   '''\.env\.example$''',
   '''\.env\.sample$''',
   '''README\.md$''',

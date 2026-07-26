@@ -19,6 +19,7 @@ from app.api.deps import require_admin, require_tenant_id
 from app.core.db import get_db, paginate
 from app.models import AuditLog, User
 from app.modules.catalog.models import Resource
+from app.modules.catalog.ontology_routes import router as ontology_router
 from app.modules.catalog.schemas import (
     FacetBucket,
     ResourceCreate,
@@ -30,6 +31,10 @@ from app.modules.catalog.schemas import (
 )
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+# Attach ontology sub-router so static ``/disciplines`` paths are
+# tried before the dynamic ``/{resource_id}`` catch-all below.
+router.include_router(ontology_router)
 
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
@@ -169,6 +174,41 @@ async def create_resource(
     tenant_id = require_tenant_id()
     # AnyHttpUrl → str：SQLite 默认 DBAPI 不识别 Pydantic 的 Url 类型，
     # PostgreSQL 那边 asyncpg 倒是接受，但为保持两库行为一致统一转 str。
+    # Ontology check: discipline must exist; if subdiscipline is
+    # given, it must belong to the chosen discipline. Fails with
+    # HTTP 422 on miss so the client gets a clear, actionable
+    # error instead of a silent typo landing in the DB.
+    from app.modules.catalog.onto import (
+        DisciplineNotFound,
+        SubdisciplineMismatch,
+        assert_discipline_valid,
+        assert_subdiscipline_matches,
+    )
+
+    try:
+        discipline_row = await assert_discipline_valid(
+            db,
+            tenant_id=tenant_id,
+            discipline_name=payload.discipline,
+        )
+        # If ontology is unconfigured (no disciplines registered),
+        # discipline_row is None — skip subdiscipline check too.
+        if payload.subdiscipline and discipline_row is not None:
+            await assert_subdiscipline_matches(
+                db,
+                tenant_id=tenant_id,
+                discipline=discipline_row,
+                subdiscipline_name=payload.subdiscipline,
+            )
+    except DisciplineNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    except SubdisciplineMismatch as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+
     resource = Resource(
         tenant_id=tenant_id,
         slug=payload.slug,
@@ -190,9 +230,16 @@ async def create_resource(
         pages=payload.pages,
         issn=payload.issn,
         isbn=payload.isbn,
+        publisher=payload.publisher,
+        short_container_title=payload.short_container_title,
         keywords=payload.keywords,
         language=payload.language,
         publication_status=payload.publication_status,
+        authors_meta=(
+            [m.model_dump() for m in payload.authors_meta]
+            if payload.authors_meta is not None
+            else None
+        ),
     )
     db.add(resource)
     try:
@@ -243,6 +290,47 @@ async def update_resource(
     for url_field in ("download_url", "external_url"):
         if url_field in update_data and update_data[url_field] is not None:
             update_data[url_field] = str(update_data[url_field])
+
+    # Ontology check on update: if discipline is being changed (or
+    # subdiscipline alone is being changed while discipline is
+    # carried over from the existing row), validate both against
+    # the controlled vocabulary.
+    if "discipline" in update_data or "subdiscipline" in update_data:
+        from app.modules.catalog.onto import (
+            DisciplineNotFound,
+            SubdisciplineMismatch,
+            assert_discipline_valid,
+            assert_subdiscipline_matches,
+        )
+
+        effective_discipline = update_data.get("discipline", resource.discipline)
+        effective_subdiscipline = update_data.get("subdiscipline", resource.subdiscipline)
+        try:
+            discipline_row = await assert_discipline_valid(
+                db,
+                tenant_id=tenant_id,
+                discipline_name=effective_discipline,
+            )
+            # If ontology is unconfigured (no disciplines registered),
+            # discipline_row is None — skip subdiscipline check too.
+            if effective_subdiscipline and discipline_row is not None:
+                await assert_subdiscipline_matches(
+                    db,
+                    tenant_id=tenant_id,
+                    discipline=discipline_row,
+                    subdiscipline_name=effective_subdiscipline,
+                )
+        except DisciplineNotFound as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
+        except SubdisciplineMismatch as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
+
     for field, value in update_data.items():
         setattr(resource, field, value)
 

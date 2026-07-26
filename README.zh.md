@@ -21,7 +21,7 @@
 
 [![Modules](https://img.shields.io/badge/modules-10-6366F1?style=flat-square&logo=modin&logoColor=white)](#模块清单)
 [![E2E Specs](https://img.shields.io/badge/E2E_specs-56-22C55E?style=flat-square&logo=playwright&logoColor=white)](#测试)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-249-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
+[![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#测试)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#项目状态)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
@@ -256,10 +256,12 @@ scholarhub/
 │   └── Caddyfile                  # TLS 模板
 └── .github/
     ├── workflows/
-    │   ├── ci.yml                  # ruff + mypy + pytest + RLS Postgres job + frontend
-    │   └── gitleaks.yml            # 密钥扫描
-    ├── dependabot.yml             # 自动依赖更新
+    │   ├── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
+    │   ├── release.yml             # Tag 驱动 wheel + Docker 镜像 + Release
+    │   └── dependabot-auto-merge.yml
+    ├── dependabot.yml             # 每周 pip + npm + GHA + docker 依赖更新
     ├── CODEOWNERS                 # 代码归属
+    ├── SECURITY-MONITORING.md     # 安全自动化层级文档
     └── ISSUE_TEMPLATE/            # issue 模板
 ```
 
@@ -272,12 +274,15 @@ scholarhub/
 | 环境变量 | 必填 | 说明 |
 |---|:---:|---|
 | `SCHOLARHUB_SECRET_KEY` | ✓ | JWT 签名密钥,至少 32 字符,`openssl rand -hex 32` 生成 |
+| `SCHOLARHUB_PREVIOUS_SECRET_KEYS` | | 密钥轮换窗口内的旧 JWT 密钥,逗号分隔 |
 | `SCHOLARHUB_ADMIN_PASSWORD` | ✓ | 首次启动创建的 admin 账户密码,至少 12 字符 |
 | `SCHOLARHUB_DATABASE_URL` | | PostgreSQL 连接串,默认 `postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub` |
 | `SCHOLARHUB_TENANCY_MODE` | | `single`(默认,单租户)/ `multi`(host-header 解析,未实现) |
 | `SCHOLARHUB_ENVIRONMENT` | | `development`(默认)/ `staging` / `production` / `test` |
 | `SCHOLARHUB_FRONTEND_BASE_URL` | | 邮件深链的 SPA origin,如 `https://app.yourdomain.com` |
-| `SCHOLARHUB_OIDC_ENABLED` | | `true` 启用 OIDC SSO(配合下方 OIDC_* 变量) |
+| `SCHOLARHUB_OIDC_ENABLED` | | `true` 启用 OIDC SSO(配合下方 OIDC_* 变量);另见 `/api/auth/oidc/providers` |
+| `SCHOLARHUB_TOTP_ISSUER` | | TOTP 验证器中显示的签发方(默认 `ScholarHUB`) |
+| `SCHOLARHUB_REDIS_URL` | | 设置后启用 Redis 限流,未设置则使用内存存储(Redis 失败自动降级) |
 | `SCHOLARHUB_EMAIL_BACKEND` | | `console`(默认)/ `smtp` |
 | `SCHOLARHUB_CORS_ORIGINS` | | 前端 origin 列表,逗号分隔 |
 
@@ -323,7 +328,7 @@ npm run test
 
 ### E2E 测试
 
-56 个 spec 覆盖完整用户旅程,以真实浏览器点击的方式验证每条主流程:
+9 个 spec 文件（53 个 Playwright test()）覆盖完整用户旅程,以真实浏览器点击的方式验证每条主流程:
 
 ```bash
 # 启动后端(测试模式,SQLite + rate_limit 跳过)
@@ -358,9 +363,21 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 10 个模块全部 shipped,前后端 + 数据库迁移 + 单元测试 + E2E 测试 + 部署都已就绪。后续规划:
 
+- [x] 双因素认证 (TOTP) — shipped
+- [x] JWT 密钥轮换 (在线,零停机) — shipped
+- [x] Redis 分布式限流 (带内存降级) — shipped
+- [x] GDPR 端点 (数据导出 + 软删除 + 30 天恢复) — shipped
+- [x] OIDC provider discovery 端点 + PKCE 强制 — shipped
+- [x] CI: ruff + mypy + pytest + 前端 lint/typecheck/build + gitleaks + CodeQL + pip-audit — shipped
+- [x] CSRF 双重提交 cookie — shipped
+- [x] RFC 7807 格式错误响应 — shipped
+- [x] ORCID iD 字段 (用户 + 作者元数据) — shipped
+- [x] 学科/子学科 ontology 表 — shipped
+- [x] Crossref 富集 (出版者/期刊缩写/卷/期/页/ISSN) — shipped
+- [x] 隐私页 + cookie consent banner + 保留策略 — shipped
 - [ ] 多租户模式落地(host-header → tenant 映射表)
-- [ ] Redis 接入(缓存 + 分布式限流)
 - [ ] refresh token 显式 denylist
+- [ ] WebAuthn / passkeys 作为 TOTP 2FA 替代
 - [ ] 卷期(volume / issue)的高级管理界面
 - [ ] DOI 注册与互链
 - [ ] 全文检索(PostgreSQL FTS 或 Meilisearch)

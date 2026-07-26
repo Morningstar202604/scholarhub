@@ -10,9 +10,9 @@ repository and how to operate it.
 | 1. Secret scanning | [Gitleaks](https://github.com/gitleaks/gitleaks) | Pre-commit + GitHub Action blocks commit/push of API keys, JWT secrets, DB passwords | `.gitleaks.toml`, `.github/workflows/ci.yml` job `secrets-scan` |
 | 2. Dependency audit | [pip-audit](https://pypi.org/project/pip-audit/) | PyPI deps CVE scan on every CI run | `.github/workflows/ci.yml` job `backend` step `pip-audit` |
 | 3. Static SAST | [CodeQL](https://codeql.github.com/) | SQLi, XSS, deserialization, weak crypto detection for Python + JS/TS | `.github/workflows/ci.yml` job `codeql` |
-| 4. Linter | [Ruff](https://docs.astral.sh/ruff/) + [ESLint](https://eslint.org/) | Style + many bug categories (B-prefix rules) | `apps/backend/pyproject.toml [tool.ruff]`, `apps/frontend/eslint.config.*` |
+| 4. Linter | [Ruff](https://docs.astral.sh/ruff/) + [ESLint](https://eslint.org/) | Style + many bug categories | `apps/backend/pyproject.toml [tool.ruff]`, `apps/frontend/eslint.config.*` |
 | 5. Typecheck | [mypy](https://mypy.readthedocs.io/) strict + [tsc](https://www.typescriptlang.org/) strict | Catches API misuse, missing null checks, type confusion | `apps/backend/pyproject.toml [tool.mypy]`, `apps/frontend/tsconfig.json` |
-| 6. Dependabot | [Dependabot](https://docs.github.com/en/code-security/dependabot) | Daily PRs for vulnerable/outdated deps | `.github/dependabot.yml` |
+| 6. Dependabot | [Dependabot](https://docs.github.com/en/code-security/dependabot) | Weekly PRs for vulnerable/outdated deps (pip + npm + GHA + docker) | `.github/dependabot.yml` |
 | 7. Auto-merge | Dependabot workflow | Auto-squash-merge patch & minor updates | `.github/workflows/dependabot-auto-merge.yml` |
 
 ## Manual checks (run before every release)
@@ -28,8 +28,11 @@ cd apps/backend && uv run pip-audit
 # 3. Python bandit (fast security lint)
 cd apps/backend && uv run bandit -r app -lll
 
-# 4. Full test + lint
-cd apps/backend && uv run ruff check . && uv run mypy app && uv run pytest
+# 4. Full test + lint (back end)
+cd apps/backend && uv run ruff check . && uv run ruff format --check . \
+    && uv run mypy app && uv run pytest -q
+
+# 5. Full test + lint (front end)
 cd apps/frontend && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
@@ -43,7 +46,7 @@ cd apps/frontend && npm run lint && npm run typecheck && npm test && npm run bui
 | Redis URL with password | `SCHOLARHUB_REDIS_URL` | Rate-limit + cache poisoning + session theft |
 | OIDC client secret | `SCHOLARHUB_OIDC_*_CLIENT_SECRET` | Allows impersonation via the configured IdP |
 | Admin bootstrap password | `SCHOLARHUB_ADMIN_PASSWORD` | First-boot superuser; instant full takeover |
-| SMTP password | `SCHOLARHUB_SMTP_PASSWORD` (Phase 10+) | Used to send password-reset mails |
+| SMTP password | `SCHOLARHUB_EMAIL_SMTP_PASSWORD` | Used to send password-reset / verification mails |
 
 ## Incident response
 

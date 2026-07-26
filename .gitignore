@@ -75,6 +75,16 @@ coverage/
 .cache/
 .eslintcache
 
+# Agent workspace (developer-specific, not part of the project)
+.qclaw/
+
+# Diagnostic scripts (keep in scripts/ but never commit into repo)
+scripts/scan_secrets.py
+
+# Work artifacts (auto-generated during development)
+*artifact*.md
+scholarhub_*.md
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts

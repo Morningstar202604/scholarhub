@@ -138,6 +138,8 @@ export interface ResourceBase {
   pages?: string | null
   issn?: string | null
   isbn?: string | null
+  publisher?: string | null
+  short_container_title?: string | null
   keywords?: string[] | null
   language: string
   publication_status: PublicationStatus
@@ -515,6 +517,12 @@ export interface IngestResource {
   tags: string[]
   abstract: string
   doi?: string | null
+  publisher?: string | null
+  volume?: string | null
+  issue?: string | null
+  pages?: string | null
+  issn?: string | null
+  short_container_title?: string | null
 }
 
 export interface ParseRequest {

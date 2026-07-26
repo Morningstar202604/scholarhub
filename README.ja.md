@@ -21,7 +21,7 @@
 
 [![Modules](https://img.shields.io/badge/modules-10-6366F1?style=flat-square&logo=modin&logoColor=white)](#モジュール一覧)
 [![E2E Specs](https://img.shields.io/badge/E2E_specs-56-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-249-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
+[![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#テスト)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#プロジェクトステータス)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
@@ -256,10 +256,12 @@ scholarhub/
 │   └── Caddyfile                  # TLS テンプレート
 └── .github/
     ├── workflows/
-    │   ├── ci.yml                  # ruff + mypy + pytest + RLS Postgres job + frontend
-    │   └── gitleaks.yml            # シークレットスキャン
-    ├── dependabot.yml             # 自動依存更新
+    │   ├── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
+    │   ├── release.yml             # タグ駆動 wheel + Docker イメージ + Release
+    │   └── dependabot-auto-merge.yml
+    ├── dependabot.yml             # 毎週 pip + npm + GHA + docker 依存更新
     ├── CODEOWNERS                 # コード所有権
+    ├── SECURITY-MONITORING.md     # セキュリティ自動化レイヤー
     └── ISSUE_TEMPLATE/            # issue テンプレート
 ```
 
@@ -272,12 +274,15 @@ scholarhub/
 | 環境変数 | 必須 | 説明 |
 |---|:---:|---|
 | `SCHOLARHUB_SECRET_KEY` | ✓ | JWT 署名キー、32 文字以上、`openssl rand -hex 32` で生成 |
+| `SCHOLARHUB_PREVIOUS_SECRET_KEYS` | | ローテーションウィンドウ中の旧 JWT 署名キー(カンマ区切り) |
 | `SCHOLARHUB_ADMIN_PASSWORD` | ✓ | 初回起動時の admin パスワード、12 文字以上 |
 | `SCHOLARHUB_DATABASE_URL` | | PostgreSQL DSN、デフォルト `postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub` |
 | `SCHOLARHUB_TENANCY_MODE` | | `single`(デフォルト)/ `multi`(host-header 解決、未実装) |
 | `SCHOLARHUB_ENVIRONMENT` | | `development`(デフォルト)/ `staging` / `production` / `test` |
 | `SCHOLARHUB_FRONTEND_BASE_URL` | | メール内ディープリンク用の SPA オリジン、例 `https://app.yourdomain.com` |
-| `SCHOLARHUB_OIDC_ENABLED` | | `true` で OIDC SSO を有効化(`OIDC_*` 変数と併用) |
+| `SCHOLARHUB_OIDC_ENABLED` | | `true` で OIDC SSO を有効化(`OIDC_*` 変数と併用); `/api/auth/oidc/providers` も参照 |
+| `SCHOLARHUB_TOTP_ISSUER` | | TOTP 認証アプリに表示される発行者 (デフォルト `ScholarHUB`) |
+| `SCHOLARHUB_REDIS_URL` | | 設定すると Redis レートリミットが有効、未設定時はメモリ(Redis エラー時は自動フォールバック) |
 | `SCHOLARHUB_EMAIL_BACKEND` | | `console`(デフォルト)/ `smtp` |
 | `SCHOLARHUB_CORS_ORIGINS` | | フロントエンドオリジンのカンマ区切りリスト |
 
@@ -323,7 +328,7 @@ npm run test
 
 ### E2E テスト
 
-56 個の spec が完全なユーザージャーニーをカバーし、実際のブラウザクリックで各主フローを検証します:
+9 個の spec ファイル（53 個の Playwright test()）が完全なユーザージャーニーをカバーし、実際のブラウザクリックで各主フローを検証します:
 
 ```bash
 # バックエンドを起動(テストモード: SQLite + rate_limit スキップ)
@@ -358,9 +363,21 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 
 10 個のモジュールすべてを出荷済み。バックエンド + フロントエンド + DB マイグレーション + ユニットテスト + E2E テスト + デプロイがすべて揃っています。今後の予定:
 
+- [x] 二要素認証 (TOTP) — shipped
+- [x] JWT キーローテーション (オンライン, 無停止) — shipped
+- [x] Redis 分散レートリミット (メモリ降格付き) — shipped
+- [x] GDPR エンドポイント (エクスポート + ソフト削除 + 30 日復元) — shipped
+- [x] OIDC provider discovery エンドポイント + PKCE 強制 — shipped
+- [x] CI: ruff + mypy + pytest + frontend lint/typecheck/build + gitleaks + CodeQL + pip-audit — shipped
+- [x] CSRF 二重送信 cookie — shipped
+- [x] RFC 7807 形式エラー応答 — shipped
+- [x] ORCID iD フィールド (ユーザー + 著者メタデータ) — shipped
+- [x] 学科/サブ学科 ontology テーブル — shipped
+- [x] Crossref リッチ化 (出版社/雑誌略称/巻/号/ページ/ISSN) — shipped
+- [x] プライバシーページ + cookie consent banner + 保持ポリシー — shipped
 - [ ] マルチテナントモードの実装(host-header → テナントマッピングテーブル)
-- [ ] Redis 統合(キャッシュ + 分散レートリミット)
 - [ ] refresh token の明示的 denylist
+- [ ] WebAuthn / passkeys による TOTP 2FA の代替
 - [ ] 高度な巻号管理 UI
 - [ ] DOI 登録と相互リンク
 - [ ] フルテキスト検索(PostgreSQL FTS または Meilisearch)

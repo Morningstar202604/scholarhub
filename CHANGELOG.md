@@ -40,12 +40,38 @@
 - **依赖**: backend 同步到 100 个 lock 包 (fastapi 0.139.2 等),frontend
   同步 minor 升级 (vite 7.3.6、tailwindcss 4.3.3 等)。
 
+### Added (Round 2 — production engineering + privacy + auth hardening)
+
+- **P0-A 生产工程化.** `/metrics` Prometheus 端点 + structlog 上下文绑定
+  (request_id/tenant_id/user_id) + `/healthz` `/livez` `/readyz` 健康检查拆分 +
+  SQLAlchemy 连接池 metrics + fakeredis 限流存储测试。
+- **P1-A 隐私合规.** `/privacy` 静态端点 + cookie consent banner 前端组件 +
+  审计日志保留期 365 天常量 + admin 强制 2FA gate (`require_2fa_for_admin` 配置项)。
+- **P1-B 认证加固.** `/api/auth/revoke-all` 全量令牌撤销 + CSRF 双重提交 cookie
+  (默认关闭) + captcha hook 抽象 (`CaptchaVerifier` Protocol, 默认关闭)。
+- **P2-A RFC 7807.** 所有 HTTP 异常返回 `application/problem+json`,
+  含 `type`/`title`/`status`/`detail`/`instance` 字段。
+- **P2-B 学术领域.** `User.orcid` 字段 + `Resource.authors_meta` 支持 ORCID;
+  `Discipline`/`Subdiscipline` 本体表 (alembic 015) + CRUD 端点;
+  Crossref 反查增强 (`publisher`/`short_container_title`/`volume`/`issue`/`page`/`ISSN`, alembic 016)。
+- **安全核心测试.** `test_secret_validation.py` (14 用例, Settings 密钥强校验) +
+  `test_totp_algorithm.py` (24 用例, RFC 4226 附录 D 向量 + Fernet 加密往返) +
+  `test_security_headers.py` (7 用例, CSP/HSTS/X-Content-Type 等) +
+  `test_captcha_hook.py` + `test_csrf_and_revoke.py` (7 用例) +
+  `test_problem_json.py` (3 用例) + `test_privacy_and_2fa_admin.py` (6 用例) +
+  `test_orcid.py` + `test_ontology.py` (12 用例) + `test_metrics.py` (7 用例) +
+  `test_context_binding.py`。
+- **CI 门禁.** `ci_local.ps1`/`ci_local.sh` 本地镜像脚本; ruff 全域通过;
+  mypy strict 84 文件零错误; ruff format 全域通过; bandit 低严重度扫描。
+- **依赖升级.** backend uv.lock + frontend package-lock.json 同步 latest minor releases。
+
 ### Added (其他)
 
 - 新增 GitHub 长镜像仓库 `weed33834/scholarhub`,与 GitCode 主结同步发布。
 - 新增项目 LOGO、投稿/审稿-发表流程图、系统架构图(均位于 `docs/assets/`)。
 - 新增 `CHANGELOG.md`、`CODE_OF_CONDUCT.md`、`SUPPORT.md`, 琛拉贵开源治理配好。
 - E2E 测试套件 56 个 spec, 覆盖作者 / 编辑 / 审稿 / 读者 / 期刊五类角色的完整旅程。
+- 新增 `.github/SECURITY-MONITORING.md` (安全自动化层级文档).
 
 ### Fixed
 

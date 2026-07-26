@@ -7,8 +7,8 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
-from app.core.config import settings
 from app.core.captcha import _AlwaysPassVerifier, _load_verifier
+from app.core.config import settings
 
 
 def _payload(email: str = "captcha1@example.com", username: str = "captcha1") -> dict[str, Any]:

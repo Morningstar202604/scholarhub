@@ -303,6 +303,12 @@ _CROSSREF_PAYLOAD: dict[str, Any] = {
         "container-title": ["Journal of Testing"],
         "abstract": "A test abstract from Crossref.",
         "DOI": "10.1234/test",
+        "publisher": "Society of Testing",
+        "volume": "45",
+        "issue": "3",
+        "page": "100-120",
+        "ISSN": ["1234-5678"],
+        "short-container-title": ["J. Test."],
     }
 }
 
@@ -326,6 +332,29 @@ async def test_fetch_crossref_success(
     assert body["venue"] == "Journal of Testing"
     assert body["doi"] == "10.1234/test"
     assert body["abstract"] == "A test abstract from Crossref."
+    assert body["publisher"] == "Society of Testing"
+    assert body["volume"] == "45"
+    assert body["issue"] == "3"
+    assert body["pages"] == "100-120"
+    assert body["issn"] == "1234-5678"
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
+    assert body["short_container_title"] == "J. Test."
 
 
 async def test_fetch_crossref_not_found_404(

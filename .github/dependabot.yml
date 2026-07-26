@@ -6,13 +6,10 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "08:00"
-    auto-merge:
-      enabled: true
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "backend"
-      - "auto-merge"
 
   - package-ecosystem: "npm"
     directory: "/apps/frontend"
@@ -20,13 +17,10 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "08:00"
-    auto-merge:
-      enabled: true
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "frontend"
-      - "auto-merge"
 
   - package-ecosystem: "github-actions"
     directory: "/"
