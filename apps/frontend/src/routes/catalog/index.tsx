@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { Download, Plus } from 'lucide-react'
+import { Download, Plus, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 import { exportResources, useResources } from '@/hooks/api/use-modules'
 import type { ResourceType } from '@/lib/types'
 import { PageHeader } from '@/components/common/page-header'
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { ResourceCard } from '@/components/mobile/ResourceCard'
 import {
   Select,
   SelectContent,
@@ -60,6 +62,7 @@ function CatalogListPage() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as CatalogSearch
   const { isAdmin } = useAuth()
+  const isMobile = useIsMobile()
 
   const params = {
     q: search.q || undefined,
@@ -125,84 +128,91 @@ function CatalogListPage() {
         }
       />
 
-      <Card className="mb-4">
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">搜索</label>
-              <Input
-                placeholder="标题/作者/摘要"
-                defaultValue={search.q ?? ''}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+      {/* 桌面端：筛选常驻卡片（md 及以上） */}
+      {!isMobile && (
+        <Card className="mb-4">
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">搜索</label>
+                <Input
+                  placeholder="标题/作者/摘要"
+                  defaultValue={search.q ?? ''}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      updateSearch({
+                        q: (e.target as HTMLInputElement).value,
+                        page: 1,
+                      })
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">类型</label>
+                <Select
+                  value={search.type ?? 'all'}
+                  onValueChange={(v) =>
                     updateSearch({
-                      q: (e.target as HTMLInputElement).value,
+                      type: v === 'all' ? undefined : (v as ResourceType),
                       page: 1,
                     })
                   }
-                }}
-              />
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">学科</label>
+                <Input
+                  placeholder="如 computer science"
+                  defaultValue={search.discipline ?? ''}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      updateSearch({
+                        discipline: (e.target as HTMLInputElement).value,
+                        page: 1,
+                      })
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">年份</label>
+                <Input
+                  type="number"
+                  placeholder="如 2024"
+                  defaultValue={search.year ?? ''}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const v = (e.target as HTMLInputElement).value
+                      updateSearch({
+                        year: v ? Number(v) : undefined,
+                        page: 1,
+                      })
+                    }
+                  }}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">类型</label>
-              <Select
-                value={search.type ?? 'all'}
-                onValueChange={(v) =>
-                  updateSearch({
-                    type: v === 'all' ? undefined : (v as ResourceType),
-                    page: 1,
-                  })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TYPE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">学科</label>
-              <Input
-                placeholder="如 computer science"
-                defaultValue={search.discipline ?? ''}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    updateSearch({
-                      discipline: (e.target as HTMLInputElement).value,
-                      page: 1,
-                    })
-                  }
-                }}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">年份</label>
-              <Input
-                type="number"
-                placeholder="如 2024"
-                defaultValue={search.year ?? ''}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const v = (e.target as HTMLInputElement).value
-                    updateSearch({
-                      year: v ? Number(v) : undefined,
-                      page: 1,
-                    })
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {selectedIds.length > 0 && (
+      {/* 移动端：筛选收进可折叠面板，默认收起，避免挤占浏览空间 */}
+      {isMobile && <MobileFilters search={search} updateSearch={updateSearch} />}
+
+      {/* 批量选择/导出是桌面管理操作，移动端隐藏以保持浏览专注 */}
+      {!isMobile && selectedIds.length > 0 && (
         <div className="mb-3 flex items-center justify-between rounded-md border bg-muted/40 px-4 py-2">
           <span className="text-sm">已选 {selectedIds.length} 项</span>
           <DropdownMenu>
@@ -229,115 +239,78 @@ function CatalogListPage() {
         <ErrorState message="加载资源失败" onRetry={() => refetch()} />
       ) : !data || data.data.length === 0 ? (
         <EmptyState title="暂无资源" description="尝试调整筛选条件。" />
+      ) : isMobile ? (
+        // 移动端：卡片列表（独立设计，无批量勾选）
+        <div className="space-y-3">
+          {data.data.map((r) => (
+            <ResourceCard key={r.id} resource={r} />
+          ))}
+        </div>
       ) : (
-        <>
-          {/* 移动端：卡片列表（<md 显示） */}
-          <div className="space-y-3 md:hidden">
-            {data.data.map((r) => {
-              const authors =
-                r.authors.length > 2
-                  ? `${r.authors.slice(0, 2).join(', ')} et al.`
-                  : r.authors.join(', ')
-              return (
-                <Card key={r.id} data-state={selectedIds.includes(r.id) ? 'selected' : undefined}>
-                  <CardContent className="flex items-start gap-3 py-4">
+        // 桌面端：表格
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
                     <input
                       type="checkbox"
-                      checked={selectedIds.includes(r.id)}
-                      onChange={() => toggleOne(r.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={`选择 ${r.title}`}
-                      className="mt-1 shrink-0"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      aria-label="全选"
                     />
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        to="/catalog/$resourceId"
-                        params={{ resourceId: String(r.id) }}
-                        className="block font-medium hover:text-primary"
-                      >
-                        <p className="line-clamp-2">{r.title}</p>
-                      </Link>
-                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                  </TableHead>
+                  <TableHead>标题</TableHead>
+                  <TableHead>作者</TableHead>
+                  <TableHead className="w-16">年份</TableHead>
+                  <TableHead>学科</TableHead>
+                  <TableHead className="w-20">类型</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.data.map((r) => {
+                  const authors =
+                    r.authors.length > 2
+                      ? `${r.authors.slice(0, 2).join(', ')} et al.`
+                      : r.authors.join(', ')
+                  return (
+                    <TableRow
+                      key={r.id}
+                      data-state={selectedIds.includes(r.id) ? 'selected' : undefined}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(r.id)}
+                          onChange={() => toggleOne(r.id)}
+                          aria-label={`选择 ${r.title}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          to="/catalog/$resourceId"
+                          params={{ resourceId: String(r.id) }}
+                          className="font-medium hover:text-primary"
+                        >
+                          {r.title}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
                         {authors}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span>{r.year}</span>
-                        <span>·</span>
-                        <span className="line-clamp-1">{r.discipline}</span>
-                        <Badge variant="secondary" className="text-[10px]">{r.type}</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          {/* 桌面端：表格（≥md 显示） */}
-          <Card className="hidden md:block">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleAll}
-                        aria-label="全选"
-                      />
-                    </TableHead>
-                    <TableHead>标题</TableHead>
-                    <TableHead>作者</TableHead>
-                    <TableHead className="w-16">年份</TableHead>
-                    <TableHead>学科</TableHead>
-                    <TableHead className="w-20">类型</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.data.map((r) => {
-                    const authors =
-                      r.authors.length > 2
-                        ? `${r.authors.slice(0, 2).join(', ')} et al.`
-                        : r.authors.join(', ')
-                    return (
-                      <TableRow
-                        key={r.id}
-                        data-state={selectedIds.includes(r.id) ? 'selected' : undefined}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(r.id)}
-                            onChange={() => toggleOne(r.id)}
-                            aria-label={`选择 ${r.title}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            to="/catalog/$resourceId"
-                            params={{ resourceId: String(r.id) }}
-                            className="font-medium hover:text-primary"
-                          >
-                            {r.title}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {authors}
-                        </TableCell>
-                        <TableCell>{r.year}</TableCell>
-                        <TableCell>{r.discipline}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{r.type}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
+                      </TableCell>
+                      <TableCell>{r.year}</TableCell>
+                      <TableCell>{r.discipline}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{r.type}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {data && (
@@ -346,6 +319,115 @@ function CatalogListPage() {
           totalPages={data.meta.total_pages}
           onPageChange={(p) => updateSearch({ page: p })}
         />
+      )}
+    </div>
+  )
+}
+
+// 移动端筛选：默认收起，点击"筛选"展开。与桌面常驻筛选卡片是不同的交互形态。
+function MobileFilters({
+  search,
+  updateSearch,
+}: {
+  search: CatalogSearch
+  updateSearch: (patch: Partial<CatalogSearch>) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const activeCount = [
+    search.q,
+    search.type,
+    search.discipline,
+    search.year,
+  ].filter(Boolean).length
+
+  return (
+    <div className="mb-4">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full justify-between"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4" />
+          筛选
+          {activeCount > 0 && (
+            <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+              {activeCount}
+            </span>
+          )}
+        </span>
+        <span className="text-xs text-muted-foreground">{open ? '收起' : '展开'}</span>
+      </Button>
+
+      {open && (
+        <div className="mt-3 space-y-3 rounded-lg border bg-muted/30 p-3">
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">搜索</label>
+            <Input
+              placeholder="标题/作者/摘要"
+              defaultValue={search.q ?? ''}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  updateSearch({ q: (e.target as HTMLInputElement).value, page: 1 })
+                }
+              }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">类型</label>
+            <Select
+              value={search.type ?? 'all'}
+              onValueChange={(v) =>
+                updateSearch({
+                  type: v === 'all' ? undefined : (v as ResourceType),
+                  page: 1,
+                })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">学科</label>
+            <Input
+              placeholder="如 computer science"
+              defaultValue={search.discipline ?? ''}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  updateSearch({
+                    discipline: (e.target as HTMLInputElement).value,
+                    page: 1,
+                  })
+                }
+              }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">年份</label>
+            <Input
+              type="number"
+              placeholder="如 2024"
+              defaultValue={search.year ?? ''}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const v = (e.target as HTMLInputElement).value
+                  updateSearch({ year: v ? Number(v) : undefined, page: 1 })
+                }
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

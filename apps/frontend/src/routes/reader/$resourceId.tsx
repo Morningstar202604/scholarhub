@@ -3,6 +3,7 @@ import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-ro
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 import {
   useReadingProgress,
   useRemoveFromHistory,
@@ -51,6 +52,7 @@ function ReaderPage() {
   // 本地累加器：仅跟踪本次会话新增的秒数，flush 后清零
   const [localDuration, setLocalDuration] = useState(0)
   const [removeOpen, setRemoveOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   // 标记是否已从服务端同步过进度。
   // React StrictMode 在 dev 下会 mount→unmount→mount：第一次 unmount 时
@@ -190,7 +192,12 @@ function ReaderPage() {
         {data.type && <Badge variant="secondary">{data.type}</Badge>}
       </div>
 
-      <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <div
+        className={
+          'flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden' +
+          (isMobile ? ' pb-20' : '')
+        }
+      >
         {/* PDF 主体 */}
         <div className="flex-1 overflow-hidden p-4">
           {data.download_url && isSafeDownloadUrl(data.download_url) ? (
@@ -230,10 +237,21 @@ function ReaderPage() {
                     onChange={(e) => setPage(Number(e.target.value))}
                     className="h-8 w-20"
                   />
-                  <Button size="sm" variant="outline" onClick={() => goToPage(page - 1)}>
+                  {/* 移动端：翻页由底部固定操作栏独占，这里仅桌面端显示，避免控件重复 */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="max-md:hidden"
+                    onClick={() => goToPage(page - 1)}
+                  >
                     上一页
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => goToPage(page + 1)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="max-md:hidden"
+                    onClick={() => goToPage(page + 1)}
+                  >
                     下一页
                   </Button>
                 </div>
@@ -277,8 +295,9 @@ function ReaderPage() {
                 </div>
               </div>
 
+              {/* 移动端：保存进度由底部固定操作栏独占，这里仅桌面端显示 */}
               <Button
-                className="w-full"
+                className="w-full max-md:hidden"
                 size="sm"
                 onClick={onManualUpdate}
                 disabled={updateMut.isPending}
@@ -298,6 +317,41 @@ function ReaderPage() {
           </Button>
         </aside>
       </div>
+
+      {/* 移动端底部阅读操作栏：翻页 + 保存进度（桌面端沿用侧栏控件） */}
+      {isMobile && (
+        <div
+          role="toolbar"
+          aria-label="阅读操作栏"
+          className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t bg-background/95 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => goToPage(page - 1)}
+            aria-label="上一页"
+          >
+            上一页
+          </Button>
+          <span className="text-xs text-muted-foreground">{page} 页</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => goToPage(page + 1)}
+            aria-label="下一页"
+          >
+            下一页
+          </Button>
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={onManualUpdate}
+            disabled={updateMut.isPending}
+          >
+            {updateMut.isPending ? '保存中…' : '保存进度'}
+          </Button>
+        </div>
+      )}
 
       <ConfirmDialog
         open={removeOpen}

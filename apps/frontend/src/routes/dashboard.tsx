@@ -1,6 +1,14 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
-import { BookOpen, Lightbulb, Bell, Library, ScrollText, type LucideIcon } from 'lucide-react'
+import {
+  BookOpen,
+  Lightbulb,
+  Bell,
+  Library,
+  ScrollText,
+  type LucideIcon,
+} from 'lucide-react'
 import { getAuthState } from '@/lib/auth'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 import {
   useCatalogStats,
   useMyRecommendations,
@@ -11,8 +19,10 @@ import {
 import { PageHeader } from '@/components/common/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
+import { StatTile } from '@/components/mobile/StatTile'
 
 export const Route = createFileRoute('/dashboard')({
   beforeLoad: () => {
@@ -36,6 +46,7 @@ function DashboardPage() {
   const notifs = useNotifications(1, 5)
   const lists = useReadingLists(1, 5)
   const pending = usePendingSubmissions(1, 5)
+  const isMobile = useIsMobile()
 
   const cards: StatCard[] = [
     {
@@ -76,36 +87,79 @@ function DashboardPage() {
         title="概览"
         description="你的 ScholarHUB 工作台一览。"
       />
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        {cards.map((c) => {
-          const Icon = c.icon
-          return (
-            <Link
-              key={c.to}
-              to={c.to}
-              className="block transition-transform hover:-translate-y-0.5"
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    {c.label}
-                  </CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-semibold">
-                    {stats.isLoading && c.label === '资源总数' ? (
-                      <Skeleton className="h-7 w-12" />
-                    ) : (
-                      c.value
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })}
-      </div>
+      {/* 移动端：2 列大数据块 + 快捷操作；桌面端：5 列小卡 */}
+      {isMobile ? (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {cards.map((c) => (
+              <StatTile
+                key={c.to}
+                label={c.label}
+                value={
+                  stats.isLoading && c.label === '资源总数' ? (
+                    <Skeleton className="h-7 w-12" />
+                  ) : (
+                    c.value
+                  )
+                }
+                to={c.to}
+                icon={c.icon}
+              />
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-3" data-testid="mobile-quick-actions">
+            <Button asChild className="flex-col gap-1 py-3" variant="outline">
+              <Link to="/catalog">
+                <BookOpen className="h-5 w-5" />
+                <span className="text-xs">浏览目录</span>
+              </Link>
+            </Button>
+            <Button asChild className="flex-col gap-1 py-3" variant="outline">
+              <Link to="/submissions">
+                <ScrollText className="h-5 w-5" />
+                <span className="text-xs">我的提交</span>
+              </Link>
+            </Button>
+            <Button asChild className="flex-col gap-1 py-3" variant="outline">
+              <Link to="/recommendations">
+                <Lightbulb className="h-5 w-5" />
+                <span className="text-xs">推荐</span>
+              </Link>
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+          {cards.map((c) => {
+            const Icon = c.icon
+            return (
+              <Link
+                key={c.to}
+                to={c.to}
+                className="block transition-transform hover:-translate-y-0.5"
+              >
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground">
+                      {c.label}
+                    </CardTitle>
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-semibold">
+                      {stats.isLoading && c.label === '资源总数' ? (
+                        <Skeleton className="h-7 w-12" />
+                      ) : (
+                        c.value
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>

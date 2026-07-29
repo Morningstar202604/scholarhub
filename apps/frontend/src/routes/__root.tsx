@@ -2,6 +2,8 @@ import { createRootRouteWithContext } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { AppShell } from '@/components/layout/AppShell'
+import { MobileAppShell } from '@/components/layout/MobileAppShell'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 import { useAuthStore, type AuthUser } from '@/lib/auth'
 import { api } from '@/lib/api'
 import { Toaster } from '@/components/ui/sonner'
@@ -41,9 +43,12 @@ function RootLayout() {
   // Playwright 跑 E2E 时 navigator.webdriver === true；
   // 这种情况下隐藏 Router Devtools 浮层，避免它拦截页面右下角按钮的点击
   const showDevtools = import.meta.env.DEV && !navigator.webdriver
+  // 移动端用独立的 MobileAppShell（底部 Tab 栏 + FAB + 底部抽屉），
+  // 与桌面侧边栏是完全不同的设计，运行时按视口切换，共享同一套路由。
+  const isMobile = useIsMobile()
   return (
     <>
-      <AppShell />
+      {isMobile ? <MobileAppShell /> : <AppShell />}
       <Toaster position="top-right" richColors closeButton />
       {showDevtools && <TanStackRouterDevtools />}
     </>

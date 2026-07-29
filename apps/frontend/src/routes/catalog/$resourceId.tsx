@@ -6,11 +6,13 @@ import {
   ChevronLeft,
   ExternalLink,
   Heart,
+  MoreVertical,
   Pencil,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 import {
   useAuthorFollowStatus,
   useDeleteResource,
@@ -77,6 +79,7 @@ function CatalogDetailPage() {
   const recordView = useRecordView()
   const updateMut = useUpdateResource()
   const deleteMut = useDeleteResource()
+  const isMobile = useIsMobile()
 
   // ref guard: avoid double recordView call under React StrictMode
   const viewRecordedRef = useRef(false)
@@ -113,7 +116,7 @@ function CatalogDetailPage() {
   }
 
   return (
-    <div>
+    <div className={isMobile ? 'pb-24' : ''}>
       <Link
         to="/catalog"
         className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-primary"
@@ -204,63 +207,65 @@ function CatalogDetailPage() {
           )}
         </div>
 
-        {/* 右侧操作区 */}
+        {/* 右侧操作区（移动端隐藏：操作移入底部固定操作栏） */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">操作</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button asChild className="w-full">
-                <Link to="/reader/$resourceId" params={{ resourceId: String(id) }}>
-                  <BookOpen className="h-4 w-4" />
-                  在线阅读
-                </Link>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full">
-                    加入阅读列表
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem disabled>敬请期待</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {data.external_url && (
-                <Button asChild variant="outline" className="w-full">
-                  <a
-                    href={data.external_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    外部链接
-                  </a>
+          {!isMobile && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">操作</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button asChild className="w-full">
+                  <Link to="/reader/$resourceId" params={{ resourceId: String(id) }}>
+                    <BookOpen className="h-4 w-4" />
+                    在线阅读
+                  </Link>
                 </Button>
-              )}
-              {isAdmin && (
-                <>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setEditOpen(true)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    编辑
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full">
+                      加入阅读列表
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem disabled>敬请期待</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {data.external_url && (
+                  <Button asChild variant="outline" className="w-full">
+                    <a
+                      href={data.external_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      外部链接
+                    </a>
                   </Button>
-                  <Button
-                    variant="destructive"
-                    className="w-full"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    删除
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                )}
+                {isAdmin && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setEditOpen(true)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      编辑
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      删除
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -311,6 +316,16 @@ function CatalogDetailPage() {
           />
         </div>
       </div>
+
+      {isMobile && (
+        <MobileDetailActions
+          resourceId={id}
+          isAdmin={isAdmin}
+          externalUrl={data.external_url}
+          onEdit={() => setEditOpen(true)}
+          onDelete={() => setDeleteOpen(true)}
+        />
+      )}
 
       {editOpen && data && (
         <EditDialog
@@ -592,6 +607,65 @@ function SubscribeDisciplineRow({ discipline }: { discipline: string }) {
       <p className="text-xs text-muted-foreground">
         {subscribersCount} 人订阅
       </p>
+    </div>
+  )
+}
+
+// 移动端底部固定操作栏：在线阅读（主操作）+ 更多菜单（外部链接/编辑/删除）。
+// 仅移动端渲染；桌面端沿用右侧"操作"卡片，互不复用。
+function MobileDetailActions({
+  resourceId,
+  isAdmin,
+  externalUrl,
+  onEdit,
+  onDelete,
+}: {
+  resourceId: number
+  isAdmin: boolean
+  externalUrl?: string | null
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
+      <Button asChild className="flex-1">
+        <Link to="/reader/$resourceId" params={{ resourceId: String(resourceId) }}>
+          <BookOpen className="h-4 w-4" />
+          在线阅读
+        </Link>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="icon" aria-label="更多操作">
+            <MoreVertical className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {externalUrl && (
+            <DropdownMenuItem asChild>
+              <a href={externalUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                外部链接
+              </a>
+            </DropdownMenuItem>
+          )}
+          {isAdmin && (
+            <>
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4" />
+                编辑
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+                删除
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
