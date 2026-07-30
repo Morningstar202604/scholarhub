@@ -40,6 +40,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup.ts'],
     css: true,
+    // 排除 E2E 测试目录：playwright spec 不应被 vitest 执行。
+    // （node_modules / dist / cypress 为 vitest 默认排除，此处显式声明以避免
+    // 数组覆盖行为导致默认值丢失）
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/cypress/**'],
   },
   build: {
     rollupOptions: {

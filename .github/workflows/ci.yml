@@ -1,0 +1,114 @@
+# ScholarHUB CI — lint, typecheck, unit & E2E tests。
+#
+# 在 push / pull request 到 main 时触发。E2E 测试需安装 Playwright 浏览器
+# 并启动前后端服务（由 Playwright config 的 webServer 自动管理）。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SCHOLARHUB_ENVIRONMENT: test
+
+jobs:
+  # ─── 后端：lint + mypy + 单元测试 ──────────────────────────────────────────
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        run: uv run mypy app
+
+      - name: Unit tests (pytest)
+        run: uv run pytest -v --tb=short
+        # RLS 隔离测试需要 PostgreSQL，CI 默认用 SQLite in-memory；若需跑 RLS
+        # 测试请添加 postgres service 并设置 SCHOLARHUB_DATABASE_URL。
+
+  # ─── 前端：lint + typecheck + unit tests ──────────────────────────────────
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc)
+        run: npm run typecheck
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+  # ─── E2E 测试：Playwright (chromium) ─────────────────────────────────────
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: uv sync --frozen
+        working-directory: apps/backend
+
+      - name: Install Playwright chromium
+        run: npx playwright install chromium
+
+      - name: Run E2E tests (chromium)
+        run: npx playwright test --project=chromium
+        env:
+          # Playwright 的 webServer 配置会自启后端 + 前端。
+          E2E_SPAWN_SERVER: "1"

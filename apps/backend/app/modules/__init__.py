@@ -15,11 +15,10 @@ Why explicit list (not entry-point scanning):
 
 from __future__ import annotations
 
-# Add module names here as they are implemented. Phase 1 ships the base
-# spine only — no domain modules yet. Next phase will add:
-#   ENABLED_MODULES = ["catalog"]
-# When a module is added, its package must exist at app/modules/<name>/
-# and its __init__.py must register a ModuleManifest.
+# Add module names here as they are implemented. All 10 domain modules
+# are now enabled. To add a new module, append its package name below;
+# its package must exist at app/modules/<name>/ and its __init__.py must
+# register a ModuleManifest.
 ENABLED_MODULES: list[str] = [
     "catalog",
     "export",

@@ -7,13 +7,27 @@
 
 ### Added
 
+- 新增移动端独立专用外壳(`MobileAppShell`):底部 4 Tab + 中心 FAB + "我的"底部抽屉,
+  运行时按视口宽度切换,与桌面侧边栏完全独立,非响应式裁剪。
+- 目录浏览、仪表盘、详情页、阅读页四个区域做了移动专属设计与适配:
+  卡片流(非表格)、2 列大块+快捷操作、固定底部操作栏。
+- 新增 Playwright `mobile` 项目(iPhone 13 视口)与 `mobile-shell.spec.ts` 5 个 E2E 用例。
+- E2E 测试套件更新至 57 个 spec(56 chromium + 5 mobile,含 4 个共用 mobile/chromium 的用例)。
+- 新增 `npm run test:e2e` 脚本,便于新贡献者发现和执行 Playwright 测试。
+- 新增 `VERSION` 文件,声明项目版本 0.1.0。
+- 新增 `.github/workflows/ci.yml`:PR/push 自动跑 lint、typecheck、单元测试、后端 pytest。
+- 新增 `.vscode/extensions.json`:推荐项目开发所需 VS Code 扩展。
 - 新增 GitHub 镜像仓库 `weed33834/scholarhub`,与 GitCode 主仓同步发布。
 - 新增项目 LOGO、投稿-审稿-发表流程图、系统架构图(均位于 `docs/assets/`)。
 - 新增 `CHANGELOG.md`、`CODE_OF_CONDUCT.md`、`SUPPORT.md`,补齐开源治理配套。
-- E2E 测试套件 56 个 spec,覆盖作者/编辑/审稿人/读者/访客五类角色的完整旅程。
 
 ### Fixed
 
+- 修复 `vite.config.ts` vitest 配置未排除 `tests/e2e/` 目录,导致 `vitest run`
+  误将 Playwright spec 当作 vitest 用例执行(10 条虚假失败)。
+- 修复 `admin-user-management.spec.ts` 禁用账号后重新打开下拉菜单时的 Radix
+  内部状态残留问题:缺少 Escape 确认关闭步骤,导致 trigger 二次点击行为异常
+  (实测导航至 `/verify-email` 页面)。对齐同文件通过用例的稳健写法。
 - 修复 `reader/$resourceId` 在新用户首次打开阅读页时进度无法上报的问题:`hasSyncedRef`
   改用 `progress.isFetched` 判断 query 完成;手动"保存进度"按钮绕过 guard,确保在
   GET /progress 仍在 retry 时也能立即上报用户输入。
