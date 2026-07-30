@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import {
   Bookmark,
   BookOpen,
@@ -26,7 +26,6 @@ import {
   useUnsubscribeDiscipline,
   useUpdateResource,
 } from '@/hooks/api/use-modules'
-import { getAuthState } from '@/lib/auth'
 import type { ResourceUpdate } from '@/lib/types'
 import { extractError } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -51,10 +50,9 @@ import {
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 
+// 详情页向访客开放（后端 GET /catalog/{id} 本就是公开接口）。
+// 需登录的能力（阅读、进度、关注）在组件内按 isAuthenticated 降级为登录引导。
 export const Route = createFileRoute('/catalog/$resourceId')({
-  beforeLoad: () => {
-    if (!getAuthState().isAuthenticated) throw redirect({ to: '/login' })
-  },
   component: CatalogDetailPage,
 })
 
@@ -72,25 +70,26 @@ function CatalogDetailPage() {
   const { resourceId } = Route.useParams()
   const id = Number(resourceId)
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const { isAdmin, isAuthenticated } = useAuth()
 
   const { data, isLoading, isError, refetch } = useResource(id)
-  const progress = useReadingProgress(id)
+  const progress = useReadingProgress(id, { enabled: isAuthenticated })
   const recordView = useRecordView()
   const updateMut = useUpdateResource()
   const deleteMut = useDeleteResource()
   const isMobile = useIsMobile()
 
   // ref guard: avoid double recordView call under React StrictMode
+  // 访客不上报浏览记录（后端该接口需要登录）。
   const viewRecordedRef = useRef(false)
   useEffect(() => {
-    if (viewRecordedRef.current) return
+    if (!isAuthenticated || viewRecordedRef.current) return
     viewRecordedRef.current = true
     void recordView.mutateAsync(id).catch(() => {})
     return () => {
       viewRecordedRef.current = false
     }
-  }, [id])
+  }, [id, isAuthenticated])
 
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -215,22 +214,41 @@ function CatalogDetailPage() {
                 <CardTitle className="text-base">操作</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button asChild className="w-full">
-                  <Link to="/reader/$resourceId" params={{ resourceId: String(id) }}>
-                    <BookOpen className="h-4 w-4" />
-                    在线阅读
-                  </Link>
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full">
-                      加入阅读列表
+                {isAuthenticated ? (
+                  <>
+                    <Button asChild className="w-full">
+                      <Link
+                        to="/reader/$resourceId"
+                        params={{ resourceId: String(id) }}
+                      >
+                        <BookOpen className="h-4 w-4" />
+                        在线阅读
+                      </Link>
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem disabled>敬请期待</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full">
+                          加入阅读列表
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem disabled>敬请期待</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                ) : (
+                  <>
+                    <Button asChild className="w-full">
+                      <Link to="/login">
+                        <BookOpen className="h-4 w-4" />
+                        登录后阅读全文
+                      </Link>
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      免费注册即可在线阅读、保存进度并关注作者。
+                    </p>
+                  </>
+                )}
                 {data.external_url && (
                   <Button asChild variant="outline" className="w-full">
                     <a
@@ -267,6 +285,7 @@ function CatalogDetailPage() {
             </Card>
           )}
 
+          {isAuthenticated && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">阅读进度</CardTitle>
@@ -309,6 +328,7 @@ function CatalogDetailPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <FollowCard
             authorName={data.authors[0]}
@@ -321,6 +341,7 @@ function CatalogDetailPage() {
         <MobileDetailActions
           resourceId={id}
           isAdmin={isAdmin}
+          isAuthenticated={isAuthenticated}
           externalUrl={data.external_url}
           onEdit={() => setEditOpen(true)}
           onDelete={() => setDeleteOpen(true)}
@@ -616,24 +637,38 @@ function SubscribeDisciplineRow({ discipline }: { discipline: string }) {
 function MobileDetailActions({
   resourceId,
   isAdmin,
+  isAuthenticated,
   externalUrl,
   onEdit,
   onDelete,
 }: {
   resourceId: number
   isAdmin: boolean
+  isAuthenticated: boolean
   externalUrl?: string | null
   onEdit: () => void
   onDelete: () => void
 }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
-      <Button asChild className="flex-1">
-        <Link to="/reader/$resourceId" params={{ resourceId: String(resourceId) }}>
-          <BookOpen className="h-4 w-4" />
-          在线阅读
-        </Link>
-      </Button>
+      {isAuthenticated ? (
+        <Button asChild className="flex-1">
+          <Link
+            to="/reader/$resourceId"
+            params={{ resourceId: String(resourceId) }}
+          >
+            <BookOpen className="h-4 w-4" />
+            在线阅读
+          </Link>
+        </Button>
+      ) : (
+        <Button asChild className="flex-1">
+          <Link to="/login">
+            <BookOpen className="h-4 w-4" />
+            登录后阅读全文
+          </Link>
+        </Button>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon" aria-label="更多操作">

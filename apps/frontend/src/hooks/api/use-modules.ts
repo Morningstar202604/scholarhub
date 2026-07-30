@@ -223,12 +223,16 @@ export function useReadingHistory(page = 1, pageSize = 20) {
   })
 }
 
-export function useReadingProgress(resourceId: number) {
+export function useReadingProgress(
+  resourceId: number,
+  options?: { enabled?: boolean },
+) {
   return useQuery<ReadingProgressResponse>({
     queryKey: keys.reader.progress(resourceId),
     queryFn: async () =>
       (await api.get<ReadingProgressResponse>(`/reader/history/${resourceId}/progress`)).data,
-    enabled: resourceId > 0,
+    // 访客不发请求：阅读进度接口需要登录，未登录时只会得到 401。
+    enabled: resourceId > 0 && (options?.enabled ?? true),
   })
 }
 
@@ -637,11 +641,14 @@ export function useNotifications(page = 1, pageSize = 20) {
   })
 }
 
-export function useUnreadCount() {
+export function useUnreadCount(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true
   return useQuery<UnreadCountResponse>({
     queryKey: keys.notifications.unread(),
     queryFn: async () => (await api.get<UnreadCountResponse>('/notifications/unread-count')).data,
-    refetchInterval: 30_000,
+    // 访客不轮询：未登录时该接口只会返回 401，白白打请求。
+    enabled,
+    refetchInterval: enabled ? 30_000 : false,
   })
 }
 

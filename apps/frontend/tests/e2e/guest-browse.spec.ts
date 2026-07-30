@@ -4,8 +4,9 @@ import { ADMIN } from './helpers'
 // 未登录访客的浏览体验。
 // 校验:
 // - 根路径 / 未登录时跳 /login
-// - /catalog 未登录可访问（公开目录）
-// - /catalog/$resourceId / /reader/* 未登录会被守卫挡回 /login
+// - /catalog 与 /catalog/$resourceId 未登录可访问（公开目录 + 公开详情）
+// - 详情页对访客隐藏鉴权能力（阅读进度/关注），显示"登录后阅读全文"引导
+// - /reader/* 未登录会被守卫挡回 /login
 // - 顶部菜单对未登录用户显示「登录」「注册」按钮
 
 test.describe('guest browse', () => {
@@ -23,8 +24,52 @@ test.describe('guest browse', () => {
     await expect(page.getByPlaceholder('标题/作者/摘要')).toBeVisible()
   })
 
-  test('catalog detail requires login and bounces to /login', async ({ page }) => {
-    await page.goto('/catalog/1')
+  test('catalog detail is publicly visible with login CTA for guests', async ({
+    page,
+    request,
+  }) => {
+    // 用 admin API 造一条资源（详情页需要真实数据；E2E 库启动时为空）
+    const loginRes = await request.post('http://localhost:8000/api/auth/login', {
+      data: { username: ADMIN.username, password: ADMIN.password },
+    })
+    expect(loginRes.ok()).toBeTruthy()
+    const { access_token } = (await loginRes.json()) as { access_token: string }
+    const createRes = await request.post('http://localhost:8000/api/catalog', {
+      headers: { Authorization: `Bearer ${access_token}` },
+      data: {
+        slug: `guest-detail-${Date.now().toString(36)}`,
+        type: 'paper',
+        title: '访客可见的公开论文',
+        authors: ['Guest Author'],
+        year: 2024,
+        discipline: 'Computer Science',
+        abstract: '这是一篇用于验证访客可以直接查看目录详情页的测试论文摘要。',
+      },
+    })
+    expect(createRes.ok()).toBeTruthy()
+    const { id } = (await createRes.json()) as { id: number }
+
+    // 访客直接访问详情页：不再被挡回 /login
+    await page.goto(`/catalog/${id}`)
+    await expect(page).toHaveURL(new RegExp(`/catalog/${id}$`))
+    await expect(
+      page.getByRole('heading', { name: '访客可见的公开论文' }),
+    ).toBeVisible()
+    // 摘要/元数据可见（preview 会由后端从 abstract 自动填充，文本出现两次，取首个）
+    await expect(
+      page.getByText('这是一篇用于验证访客可以直接查看目录详情页').first(),
+    ).toBeVisible()
+    // 鉴权能力降级：显示登录引导，而非"在线阅读"
+    await expect(
+      page.getByRole('link', { name: '登录后阅读全文' }).first(),
+    ).toBeVisible()
+    await expect(page.getByRole('link', { name: '在线阅读' })).toHaveCount(0)
+    // 阅读进度卡 / 关注卡对访客隐藏
+    await expect(page.getByText('阅读进度', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('关注', { exact: true })).toHaveCount(0)
+
+    // 点击登录引导跳 /login
+    await page.getByRole('link', { name: '登录后阅读全文' }).first().click()
     await expect(page).toHaveURL(/\/login/)
   })
 

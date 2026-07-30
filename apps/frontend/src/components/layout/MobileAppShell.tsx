@@ -85,7 +85,7 @@ export function MobileAppShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const logoutMut = useLogout()
-  const { data: unread } = useUnreadCount()
+  const { data: unread } = useUnreadCount({ enabled: isAuthenticated })
 
   const moreItems = MOBILE_MORE.filter((m) => !m.adminOnly || isAdmin)
 

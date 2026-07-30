@@ -65,7 +65,7 @@ export function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const logoutMut = useLogout()
-  const { data: unread } = useUnreadCount()
+  const { data: unread } = useUnreadCount({ enabled: isAuthenticated })
 
   const visibleNav = NAV.filter((n) => {
     if (n.adminOnly && !isAdmin) return false
