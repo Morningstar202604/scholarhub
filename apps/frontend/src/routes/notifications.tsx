@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { CheckCheck, Trash2 } from 'lucide-react'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { CheckCheck, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
 import {
@@ -27,7 +27,38 @@ export const Route = createFileRoute('/notifications')({
 
 const PAGE_SIZE = 20
 
+/**
+ * 把通知的 related_type / related_id 解析成站内目标。
+ *
+ * 后端在写通知时就带上了这对指针（见 notifications/models.py），
+ * 但前端一直没消费它 —— 用户只能看到"您的稿件收到编辑决定"，
+ * 却没有任何一跳能到达那篇稿件。这里补上这条链路。
+ *
+ * 返回 null 表示该通知没有可跳转的目标（如纯系统公告）。
+ */
+function resolveTarget(
+  relatedType?: string | null,
+  relatedId?: string | null,
+): { to: string; params?: Record<string, string>; label: string } | null {
+  if (!relatedType || !relatedId) return null
+  switch (relatedType) {
+    case 'resource':
+      return {
+        to: '/catalog/$resourceId',
+        params: { resourceId: relatedId },
+        label: '查看文章',
+      }
+    case 'submission':
+      return { to: '/submissions', label: '查看稿件' }
+    case 'review_assignment':
+      return { to: '/review/assignments', label: '前往审稿' }
+    default:
+      return null
+  }
+}
+
 function NotificationsPage() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const { data, isLoading, isError, refetch } = useNotifications(page, PAGE_SIZE)
   const unread = useUnreadCount()
@@ -121,6 +152,28 @@ function NotificationsPage() {
                       {n.body}
                     </p>
                   )}
+                  {(() => {
+                    const target = resolveTarget(n.related_type, n.related_id)
+                    if (!target) return null
+                    return (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="mt-1 h-auto p-0"
+                        onClick={() => {
+                          // 点击深链视为已读（用户已经看到并处理了这条通知）
+                          if (!n.is_read) void onMarkRead(n.id)
+                          void navigate({
+                            to: target.to,
+                            params: target.params,
+                          })
+                        }}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        {target.label}
+                      </Button>
+                    )
+                  })()}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {!n.is_read && (

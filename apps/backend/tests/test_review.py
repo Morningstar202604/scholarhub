@@ -420,6 +420,32 @@ async def test_decision_accept_materializes_resource(
     assert resource.json()["title"] == _PAYLOAD["title"]
 
 
+async def test_decision_accept_notification_deep_links_to_resource(
+    client: AsyncClient, admin_user: dict, test_user: dict
+) -> None:
+    """录用通知的 related 必须指向物化出的公开 Resource（作者点通知直达发表页）。"""
+    submission = await _create_submission(client, test_user)
+    resp = await client.patch(
+        f"/api/submissions/{submission['id']}/decision",
+        json={"decision": "accept"},
+        headers=auth_headers(admin_user),
+    )
+    assert resp.status_code == 200
+    resource_id = resp.json()["resource_id"]
+    assert resource_id is not None
+
+    inbox = await client.get("/api/notifications", headers=auth_headers(test_user))
+    assert inbox.status_code == 200
+    decisions = [
+        n for n in inbox.json()["data"] if n["type"] == "submission.decision"
+    ]
+    assert decisions, "作者应收到稿件决定通知"
+    latest = decisions[0]
+    assert latest["related_type"] == "resource"
+    assert latest["related_id"] == str(resource_id)
+    assert "录用" in latest["body"]
+
+
 async def test_decision_major_revision_then_resubmit(
     client: AsyncClient, admin_user: dict, test_user: dict
 ) -> None:

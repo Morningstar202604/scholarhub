@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
   createFileRoute,
+  Link,
   redirect,
   useNavigate,
   useRouterState,
   useSearch,
 } from '@tanstack/react-router'
-import { FileText, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { ExternalLink, FileText, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
 import {
@@ -374,6 +375,19 @@ function SubmissionsPage() {
                           撤销
                         </Button>
                       )}
+                      {/* 录用后物化出的目录条目：作者需要一条直达自己已发表文章的路径，
+                          否则"录用"之后整条链路就断在这里了 */}
+                      {s.resource_id != null && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link
+                            to="/catalog/$resourceId"
+                            params={{ resourceId: String(s.resource_id) }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            查看发表
+                          </Link>
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -478,6 +492,27 @@ function SubmissionsPage() {
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
                   <span className="text-muted-foreground">编辑备注：</span>
                   {detail.editor_note}
+                </div>
+              )}
+              {/* 已发表：录用后物化出的目录条目对访客也公开可见，
+                  给作者一个可直接分享的公开链接 */}
+              {detail.resource_id != null && (
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    <span className="font-medium">已发表</span>
+                  </div>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    本文已收录进公开目录，任何人无需登录即可查看。
+                  </p>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link
+                      to="/catalog/$resourceId"
+                      params={{ resourceId: String(detail.resource_id) }}
+                    >
+                      查看发表页面
+                    </Link>
+                  </Button>
                 </div>
               )}
               <div className="rounded-md border p-3">

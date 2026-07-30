@@ -798,17 +798,28 @@ async def editor_decision(
         ) from exc
     await db.refresh(entry)
 
-    # 通知作者
+    # 通知作者。录用时 related 指向物化出的公开目录条目而非 submission，
+    # 作者点通知即可直达自己已发表的文章（目录详情页对访客也公开）。
+    decision_labels = {
+        "accept": "录用",
+        "reject": "拒稿",
+        "minor_revision": "小修",
+        "major_revision": "大修",
+    }
+    accepted = decision == "accept" and entry.resource_id is not None
     await notifications.create(
         db,
         tenant_id=entry.tenant_id,
         user_id=entry.submitted_by,
         type_="submission.decision",
         title=f"稿件决定通知：{entry.title}",
-        body=f"您的稿件 #{entry.id} 收到编辑决定：{decision}。"
-        + (f" 编辑备注：{body.editor_note}" if body.editor_note else ""),
-        related_type="submission",
-        related_id=str(entry.id),
+        body=(
+            f"您的稿件 #{entry.id} 收到编辑决定：{decision_labels.get(decision, decision)}。"
+            + (f" 编辑备注：{body.editor_note}" if body.editor_note else "")
+            + ("（文章已收录进公开目录，点击查看发表页面）" if accepted else "")
+        ),
+        related_type="resource" if accepted else "submission",
+        related_id=str(entry.resource_id) if accepted else str(entry.id),
     )
     await db.commit()
 
