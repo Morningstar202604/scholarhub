@@ -30,6 +30,12 @@ dependencies = [
 monitoring = [
     "sentry-sdk[fastapi]>=2.20,<3.0.0",
 ]
+# 可选：全文搜索。未配置 SCHOLARHUB_MEILISEARCH_URL 时目录搜索走内置
+# DB ILIKE；配置后由 Meilisearch 提供容错拼写 + 相关性排序。
+# 启用：uv sync --extra search
+search = [
+    "meilisearch-python-sdk>=4.0,<5.0.0",
+]
 
 [dependency-groups]
 dev = [

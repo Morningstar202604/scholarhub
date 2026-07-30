@@ -39,6 +39,7 @@ from app.api.deps import (
     require_editor,
     require_tenant_id,
 )
+from app.core import search as fulltext
 from app.core.db import get_db, paginate
 from app.core.time import utcnow
 from app.models import AuditLog, Role, User, UserRole
@@ -120,6 +121,9 @@ async def _materialize_resource_from_submission(
     )
     db.add(resource)
     await db.flush()
+    # 同步全文索引（best-effort）。即使后续事务回滚产生幽灵文档也无害：
+    # 搜索路由按 id 回读 DB，查不到的命中会被静默丢弃。
+    await fulltext.index_resource(resource)
     return resource
 
 

@@ -16,7 +16,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_admin, require_tenant_id
+from app.core import search as fulltext
 from app.core.db import get_db, paginate
+from app.core.schemas import PaginationMeta
 from app.models import AuditLog, User
 from app.modules.catalog.models import Resource
 from app.modules.catalog.schemas import (
@@ -47,8 +49,49 @@ async def list_resources(
     order: str | None = Query(default=None, pattern=r"^(asc|desc)$"),
     db: AsyncSession = Depends(get_db),
 ) -> ResourceListResponse:
-    """List resources with pagination, filtering, and basic search."""
+    """List resources with pagination, filtering, and basic search.
+
+    When Meilisearch is configured and a query string is present, the
+    search is delegated to it (typo tolerance + relevance ranking) and
+    rows are re-fetched from the DB by id. Otherwise — including any
+    Meilisearch failure — the original DB ILIKE path runs unchanged.
+    """
     tenant_id = require_tenant_id()
+
+    if q is not None and fulltext.search_enabled():
+        hit = await fulltext.search_resource_ids(
+            tenant_id=tenant_id,
+            q=q,
+            type_=type,
+            discipline=discipline,
+            year=year,
+            page=page,
+            page_size=page_size,
+        )
+        if hit is not None:
+            ids, total = hit
+            rows_by_id: dict[int, Resource] = {}
+            if ids:
+                fetched = (
+                    await db.execute(
+                        select(Resource).where(
+                            Resource.tenant_id == tenant_id, Resource.id.in_(ids)
+                        )
+                    )
+                ).scalars()
+                rows_by_id = {r.id: r for r in fetched}
+            # Preserve Meilisearch relevance order.
+            ranked = [rows_by_id[i] for i in ids if i in rows_by_id]
+            return ResourceListResponse(
+                data=[ResourceResponse.model_validate(r) for r in ranked],
+                meta=PaginationMeta(
+                    total=total,
+                    page=page,
+                    page_size=page_size,
+                    total_pages=(total + page_size - 1) // page_size,
+                ),
+            )
+
     stmt = select(Resource).where(Resource.tenant_id == tenant_id)
     if type is not None:
         stmt = stmt.where(Resource.type == type)
@@ -210,6 +253,7 @@ async def create_resource(
             detail="Slug already taken in this tenant",
         ) from exc
     await db.refresh(resource)
+    await fulltext.index_resource(resource)  # best-effort, never raises
     # Audit: log identifiers only — full payload is the Resource row itself.
     db.add(
         AuditLog(
@@ -261,6 +305,7 @@ async def update_resource(
             detail="Slug already taken in this tenant",
         ) from exc
     await db.refresh(resource)
+    await fulltext.index_resource(resource)  # best-effort, never raises
     # Audit: record which fields the admin touched (values may be large,
     # so we log field names only; the Resource row keeps the new state).
     db.add(
@@ -299,6 +344,7 @@ async def delete_resource(
     deleted_slug = resource.slug
     deleted_title = resource.title
     await db.delete(resource)
+    await fulltext.unindex_resource(resource_id)  # best-effort, never raises
     db.add(
         AuditLog(
             tenant_id=current_admin.tenant_id,

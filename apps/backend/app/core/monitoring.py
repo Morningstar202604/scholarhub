@@ -51,7 +51,7 @@ def init_monitoring() -> bool:
             profiles_sample_rate=settings.sentry_profiles_sample_rate,
             send_default_pii=settings.sentry_send_default_pii,
         )
-    except Exception as exc:  # noqa: BLE001 — monitoring must never crash the app
+    except Exception as exc:
         logger.warning("sentry_init_failed", error=str(exc))
         return False
 

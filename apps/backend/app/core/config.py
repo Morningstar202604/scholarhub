@@ -164,6 +164,14 @@ class Settings(BaseSettings):
     # and reviewer identities, which must not leak to a third party.
     sentry_send_default_pii: bool = False
 
+    # --- Full-text search (Meilisearch, optional) ---
+    # Empty URL = Meilisearch disabled; catalog search falls back to the
+    # built-in DB ILIKE search. Same fail-open philosophy as Sentry above:
+    # the SDK is never imported when unconfigured.
+    meilisearch_url: str = ""
+    meilisearch_api_key: str = ""
+    meilisearch_index_prefix: str = "scholarhub"
+
     # --- Admin bootstrap ---
     admin_email: str = "admin@scholarhub.local"
     admin_username: str = "admin"
