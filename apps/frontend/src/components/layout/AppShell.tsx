@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useLogout } from '@/hooks/api/use-auth'
 import { useUnreadCount } from '@/hooks/api/use-modules'
 import { cn } from '@/lib/utils'
+import { ModuleErrorBoundary } from '@/components/common/error-boundary'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -235,7 +236,11 @@ export function AppShell() {
         <main className="flex-1 overflow-y-auto">
           {/* 响应式 padding：移动端紧凑，桌面端宽松 */}
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-            <Outlet />
+            {/* 页面级错误边界：单个路由崩溃时侧边栏/头部仍可用，
+                resetKeys 绑定 pathname —— 换页自动复位，无需手动点重试 */}
+            <ModuleErrorBoundary name="页面" resetKeys={[location.pathname]}>
+              <Outlet />
+            </ModuleErrorBoundary>
           </div>
         </main>
       </div>

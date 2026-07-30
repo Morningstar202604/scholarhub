@@ -23,6 +23,14 @@ dependencies = [
     "rispy>=0.10,<1.0.0",
 ]
 
+[project.optional-dependencies]
+# 可选：错误监控。不安装也能正常运行 —— app/core/monitoring.py 对
+# ImportError 有降级处理，未配置 DSN 时更是完全不 import。
+# 启用：uv sync --extra monitoring
+monitoring = [
+    "sentry-sdk[fastapi]>=2.20,<3.0.0",
+]
+
 [dependency-groups]
 dev = [
     "ruff>=0.8,<1.0.0",

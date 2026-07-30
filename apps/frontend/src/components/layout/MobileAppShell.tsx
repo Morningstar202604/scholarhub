@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { ModuleErrorBoundary } from '@/components/common/error-boundary'
 import { MOBILE_TABS, MOBILE_MORE, MOBILE_FAB_TO, type MobileTab } from './mobile-nav'
 
 // 底部抽屉：自带遮罩、ESC 关闭、打开时锁 body 滚动。移动原生交互，不依赖居中 Dialog。
@@ -137,7 +138,10 @@ export function MobileAppShell() {
       {/* 内容区：移动端单列、限宽、底部留白避开 Tab 栏 */}
       <main className={cn('flex-1 overflow-y-auto', showChrome ? 'pb-24' : 'pb-4')}>
         <div className="mx-auto w-full max-w-screen-sm px-4 py-4">
-          <Outlet />
+          {/* 页面级错误边界：崩溃时底部 Tab 栏仍可用，换页自动复位 */}
+          <ModuleErrorBoundary name="页面" resetKeys={[location.pathname]}>
+            <Outlet />
+          </ModuleErrorBoundary>
         </div>
       </main>
 

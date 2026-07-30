@@ -45,6 +45,31 @@ def _reissue_tenant_guc(session: Session, transaction: Any, connection: Any) -> 
     )
 
 
+def _apply_sqlite_pragmas(dbapi_conn: Any, _record: Any) -> None:
+    """Make SQLite usable under concurrent async requests.
+
+    Default SQLite journaling (DELETE mode) takes a whole-database write
+    lock and fails immediately with "database is locked" when a second
+    connection wants to write. Under E2E, where the SPA fires several
+    requests per page, that surfaced as sporadic unrelated test failures.
+
+    * ``journal_mode=WAL`` — readers no longer block the writer
+    * ``busy_timeout=5000`` — a blocked writer waits up to 5s instead of
+      erroring out instantly
+    * ``synchronous=NORMAL`` — safe with WAL, much faster than FULL
+    * ``foreign_keys=ON`` — SQLite disables FK enforcement by default, so
+      without this the test DB has weaker constraints than production PG
+    """
+    cursor = dbapi_conn.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+    finally:
+        cursor.close()
+
+
 def _build_engine() -> AsyncEngine:
     """Create the async engine with pool settings appropriate for the backend.
 
@@ -55,7 +80,10 @@ def _build_engine() -> AsyncEngine:
     kwargs: dict[str, Any] = {"echo": settings.debug}
 
     if url.startswith("sqlite"):
-        return create_async_engine(url, **kwargs)
+        sqlite_engine = create_async_engine(url, **kwargs)
+        # sync_engine：PRAGMA 要在 DBAPI 层的每条新连接上执行一次
+        event.listen(sqlite_engine.sync_engine, "connect", _apply_sqlite_pragmas)
+        return sqlite_engine
 
     kwargs.update(
         pool_size=settings.db_pool_size,

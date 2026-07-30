@@ -30,12 +30,17 @@ from app.core.config import settings
 from app.core.db import check_db_connection, dispose_engine
 from app.core.logging import configure_logging, get_logger
 from app.core.modules import load_all, registry
+from app.core.monitoring import init_monitoring
 from app.core.tenant import TenantContextMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 
 configure_logging()
 logger = get_logger("scholarhub.startup")
+
+# Sentry must be initialised before the FastAPI app is constructed so its
+# auto-instrumentation can wrap the ASGI app. No-op when DSN is unset.
+init_monitoring()
 
 
 @retry(

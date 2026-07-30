@@ -154,6 +154,16 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     json_logs: bool = False
 
+    # --- Error monitoring (Sentry, optional) ---
+    # Empty DSN = monitoring disabled; the SDK is never imported in that
+    # case, so self-hosters pay nothing for a feature they don't use.
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = Field(default=0.1, ge=0.0, le=1.0)
+    sentry_profiles_sample_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+    # Scrub PII by default — submissions can carry unpublished manuscripts
+    # and reviewer identities, which must not leak to a third party.
+    sentry_send_default_pii: bool = False
+
     # --- Admin bootstrap ---
     admin_email: str = "admin@scholarhub.local"
     admin_username: str = "admin"
