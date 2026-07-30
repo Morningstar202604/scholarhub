@@ -113,6 +113,13 @@ test.describe('admin: user management', () => {
     await expect(adminPage.getByText('已禁用')).toBeVisible({ timeout: 5_000 })
     await expect(row.getByText('禁用')).toBeVisible()
 
+    // 禁用后 Radix 菜单已自动关闭，但显式按 Escape + 确认菜单项消失，
+    // 避免与同文件 assign-role 测试一致地出现"重新打开时 Radix 内部状态残留"
+    // 导致 trigger2.click() 行为异常（实测会导航到 /verify-email 页面）。
+    // 参考 assign-role 测试 line 73–74 的稳健写法。
+    await adminPage.keyboard.press('Escape')
+    await expect(disableItem).toHaveCount(0, { timeout: 5_000 })
+
     // 再启用（重新定位 row 避免 stale）
     const row2 = adminPage.locator('tr', { hasText: target.username }).first()
     const trigger2 = row2.locator('button[data-slot="dropdown-menu-trigger"]')
