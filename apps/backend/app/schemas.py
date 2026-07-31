@@ -38,6 +38,53 @@ class TokenResponse(BaseModel):
     is_admin: bool
 
 
+# --- Two-factor auth (TOTP) ---
+class TwoFactorRequiredResponse(BaseModel):
+    """Returned by /auth/login when the account has 2FA enabled.
+
+    No access/refresh tokens yet — the client exchanges
+    ``pending_token`` + a TOTP (or recovery) code at /auth/login/2fa.
+    """
+
+    two_factor_required: Literal[True] = True
+    pending_token: str
+
+
+class TwoFactorLoginRequest(BaseModel):
+    pending_token: str = Field(min_length=1)
+    # 6-digit TOTP or a xxxx-xxxx-xxxx recovery code
+    code: str = Field(min_length=6, max_length=32)
+
+
+class TwoFactorSetupResponse(BaseModel):
+    """Secret + otpauth URI for the enrolment QR code. 2FA is NOT yet
+    active — the user must confirm with a valid code via /2fa/enable."""
+
+    secret: str
+    otpauth_uri: str
+
+
+class TwoFactorEnableRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=32)
+
+
+class TwoFactorEnableResponse(BaseModel):
+    enabled: Literal[True] = True
+    # Shown exactly once at enable time; only hashes are stored.
+    recovery_codes: list[str]
+
+
+class TwoFactorDisableRequest(BaseModel):
+    # Require the account password so a hijacked session can't
+    # silently strip the second factor.
+    password: str = Field(min_length=1)
+
+
+class TwoFactorStatusResponse(BaseModel):
+    enabled: bool
+    recovery_codes_remaining: int
+
+
 # --- Email verification + password reset ---
 class VerifyEmailRequest(BaseModel):
     token: str = Field(min_length=1)

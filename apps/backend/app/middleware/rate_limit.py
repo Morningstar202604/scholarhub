@@ -23,6 +23,10 @@ from app.core.config import settings
 
 # Per-endpoint stricter limits: path -> max requests per minute
 STRICT_PATHS: dict[str, int] = {
+    # 2FA 码只有 6 位数字：code 交换端点要比 /login 更紧，否则第二因子
+    # 会在 pending token 的 5 分钟窗口内被暴力穷举。10 次/分 × 5 分 = 50 次
+    # 尝试 vs 100 万组合，风险可接受。
+    "/api/auth/login/2fa": 10,
     "/api/auth/login": 10,
     "/api/auth/register": 5,
     "/api/auth/verify-email": 10,

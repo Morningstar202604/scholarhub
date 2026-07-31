@@ -1,12 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth'
+import { isTwoFactorRequired } from '@/lib/types'
 import type {
   ForgotPasswordRequest,
+  LoginResponse,
   MessageResponse,
   ResetPasswordRequest,
   ResendVerificationRequest,
   TokenResponse,
+  TwoFactorEnableResponse,
+  TwoFactorLoginRequest,
+  TwoFactorSetupResponse,
+  TwoFactorStatusResponse,
   UserCreate,
   UserLogin,
   UserResponse,
@@ -14,6 +20,7 @@ import type {
 } from '@/lib/types'
 
 export const AUTH_KEY = ['auth'] as const
+export const TWO_FACTOR_KEY = [...AUTH_KEY, '2fa'] as const
 
 // 登录后拉一次 /auth/me 拿完整 user（含 is_email_verified）
 export function useMe() {
@@ -28,8 +35,29 @@ export function useMe() {
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth)
   const qc = useQueryClient()
-  return useMutation<TokenResponse, Error, UserLogin>({
-    mutationFn: async (body) => (await api.post<TokenResponse>('/auth/login', body)).data,
+  return useMutation<LoginResponse, Error, UserLogin>({
+    mutationFn: async (body) => (await api.post<LoginResponse>('/auth/login', body)).data,
+    onSuccess: (data) => {
+      // 2FA 账号：这里只拿到 pending_token，真正的 token 由
+      // useTwoFactorLogin 在第二步写入。
+      if (isTwoFactorRequired(data)) return
+      setAuth(data.access_token, {
+        id: data.user_id,
+        username: data.username,
+        is_admin: data.is_admin,
+      })
+      void qc.invalidateQueries({ queryKey: [...AUTH_KEY, 'me'] })
+    },
+  })
+}
+
+// 2FA 第二步：pending token + TOTP/恢复码 → 正式 token
+export function useTwoFactorLogin() {
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const qc = useQueryClient()
+  return useMutation<TokenResponse, Error, TwoFactorLoginRequest>({
+    mutationFn: async (body) =>
+      (await api.post<TokenResponse>('/auth/login/2fa', body)).data,
     onSuccess: (data) => {
       setAuth(data.access_token, {
         id: data.user_id,
@@ -37,6 +65,46 @@ export function useLogin() {
         is_admin: data.is_admin,
       })
       void qc.invalidateQueries({ queryKey: [...AUTH_KEY, 'me'] })
+    },
+  })
+}
+
+// --- 2FA 自管理（账号安全页） ---
+export function useTwoFactorStatus() {
+  return useQuery<TwoFactorStatusResponse>({
+    queryKey: [...TWO_FACTOR_KEY, 'status'],
+    queryFn: async () =>
+      (await api.get<TwoFactorStatusResponse>('/users/me/2fa')).data,
+    enabled: !!useAuthStore.getState().token,
+  })
+}
+
+export function useTwoFactorSetup() {
+  return useMutation<TwoFactorSetupResponse, Error, void>({
+    mutationFn: async () =>
+      (await api.post<TwoFactorSetupResponse>('/users/me/2fa/setup')).data,
+  })
+}
+
+export function useTwoFactorEnable() {
+  const qc = useQueryClient()
+  return useMutation<TwoFactorEnableResponse, Error, { code: string }>({
+    mutationFn: async (body) =>
+      (await api.post<TwoFactorEnableResponse>('/users/me/2fa/enable', body)).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...TWO_FACTOR_KEY] })
+    },
+  })
+}
+
+export function useTwoFactorDisable() {
+  const qc = useQueryClient()
+  return useMutation<void, Error, { password: string }>({
+    mutationFn: async (body) => {
+      await api.post('/users/me/2fa/disable', body)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...TWO_FACTOR_KEY] })
     },
   })
 }

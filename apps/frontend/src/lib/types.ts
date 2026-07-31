@@ -58,6 +58,42 @@ export interface UserLogin {
   password: string
 }
 
+// --- Two-factor auth (TOTP) ---
+// /auth/login 在账号开启 2FA 时返回它而不是 TokenResponse
+export interface TwoFactorRequiredResponse {
+  two_factor_required: true
+  pending_token: string
+}
+
+export type LoginResponse = TokenResponse | TwoFactorRequiredResponse
+
+export function isTwoFactorRequired(
+  r: LoginResponse,
+): r is TwoFactorRequiredResponse {
+  return 'two_factor_required' in r && r.two_factor_required === true
+}
+
+export interface TwoFactorLoginRequest {
+  pending_token: string
+  code: string
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string
+  otpauth_uri: string
+}
+
+export interface TwoFactorEnableResponse {
+  enabled: true
+  // 只在启用瞬间返回一次，之后服务端只存哈希
+  recovery_codes: string[]
+}
+
+export interface TwoFactorStatusResponse {
+  enabled: boolean
+  recovery_codes_remaining: number
+}
+
 export interface UserUpdate {
   email?: string
   username?: string

@@ -217,6 +217,13 @@ export function AppShell() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>{user.username}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/account/security">
+                      <ShieldCheck className="h-4 w-4" />
+                      账号安全
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onLogout} className="text-destructive">
                     退出登录
                   </DropdownMenuItem>

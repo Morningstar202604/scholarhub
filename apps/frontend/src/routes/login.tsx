@@ -3,7 +3,8 @@ import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-r
 import { AxiosError } from 'axios'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { useLogin } from '@/hooks/api/use-auth'
+import { isTwoFactorRequired } from '@/lib/types'
+import { useLogin, useTwoFactorLogin } from '@/hooks/api/use-auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -18,13 +19,23 @@ function LoginPage() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as { redirect?: string }
   const loginMut = useLogin()
+  const twoFactorMut = useTwoFactorLogin()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  // 非 null = 密码已通过，等待第二因子（TOTP / 恢复码）
+  const [pendingToken, setPendingToken] = useState<string | null>(null)
+  const [totpCode, setTotpCode] = useState('')
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await loginMut.mutateAsync({ username, password })
+      const result = await loginMut.mutateAsync({ username, password })
+      if (isTwoFactorRequired(result)) {
+        // 进入第二步；不落任何 token
+        setPendingToken(result.pending_token)
+        setTotpCode('')
+        return
+      }
       toast.success('登录成功')
       void navigate({ to: search.redirect ?? '/dashboard' })
     } catch (err) {
@@ -33,6 +44,37 @@ function LoginPage() {
           ? (err.response?.data as { detail?: string })?.detail ?? '登录失败'
           : '登录失败'
       toast.error(msg)
+    }
+  }
+
+  const onSubmitTwoFactor = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pendingToken) return
+    try {
+      await twoFactorMut.mutateAsync({
+        pending_token: pendingToken,
+        code: totpCode,
+      })
+      toast.success('登录成功')
+      void navigate({ to: search.redirect ?? '/dashboard' })
+    } catch (err) {
+      const status =
+        err instanceof AxiosError ? err.response?.status : undefined
+      if (status === 401) {
+        const detail =
+          err instanceof AxiosError
+            ? (err.response?.data as { detail?: string })?.detail
+            : undefined
+        // pending token 过期（5 分钟）→ 回到第一步重新输密码
+        if (detail?.includes('session')) {
+          toast.error('验证会话已过期，请重新登录')
+          setPendingToken(null)
+          return
+        }
+        toast.error('验证码错误，请重试')
+        return
+      }
+      toast.error('验证失败，请重试')
     }
   }
 
@@ -50,6 +92,56 @@ function LoginPage() {
   }
 
   const oidcEnabled = import.meta.env.VITE_OIDC_ENABLED === 'true'
+
+  // --- 第二步：两步验证 ---
+  if (pendingToken) {
+    return (
+      <div className="mx-auto flex min-h-[80vh] max-w-md items-center">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl">两步验证</CardTitle>
+            <CardDescription>
+              输入身份验证器 App 中的 6 位验证码，或一个未使用的恢复码。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onSubmitTwoFactor} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="totp-code">验证码</Label>
+                <Input
+                  id="totp-code"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value)}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  placeholder="123456 或 xxxx-xxxx-xxxx"
+                  autoFocus
+                  required
+                  minLength={6}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={twoFactorMut.isPending}
+                data-testid="confirm-2fa"
+              >
+                {twoFactorMut.isPending ? '验证中…' : '验证并登录'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => setPendingToken(null)}
+              >
+                返回重新登录
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md items-center">

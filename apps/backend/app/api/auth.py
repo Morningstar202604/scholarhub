@@ -38,6 +38,12 @@ from app.core.tokens import (
     create_password_reset_token,
     decode_token,
 )
+from app.core.twofactor import (
+    consume_recovery_code,
+    create_two_factor_pending_token,
+    decode_two_factor_pending_token,
+    verify_totp_code,
+)
 from app.models import User
 from app.schemas import (
     ForgotPasswordRequest,
@@ -45,6 +51,8 @@ from app.schemas import (
     ResendVerificationRequest,
     ResetPasswordRequest,
     TokenResponse,
+    TwoFactorLoginRequest,
+    TwoFactorRequiredResponse,
     UserCreate,
     UserLogin,
     UserResponse,
@@ -144,14 +152,30 @@ async def register(
     return _issue_tokens(user, response)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse | TwoFactorRequiredResponse,
+    responses={
+        200: {
+            "description": (
+                "Tokens on success; or `{two_factor_required: true, "
+                "pending_token}` when the account has 2FA enabled."
+            )
+        }
+    },
+)
 async def login(
     request: Request,
     response: Response,
     payload: UserLogin,
     db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    """Authenticate and issue tokens."""
+) -> TokenResponse | TwoFactorRequiredResponse:
+    """Authenticate and issue tokens.
+
+    When the account has TOTP 2FA enabled, no tokens are issued here —
+    the response carries a short-lived ``pending_token`` that must be
+    exchanged with a valid code at ``/auth/login/2fa``.
+    """
     # User.username uniqueness is (tenant_id, username) — a query without
     # the tenant filter could match a user from another tenant.
     tenant_id = require_tenant_id()
@@ -172,7 +196,73 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
 
+    if user.two_factor_enabled:
+        # Password OK, but the second factor is outstanding. Issue a
+        # 5-minute pending token instead of real credentials.
+        return TwoFactorRequiredResponse(
+            pending_token=create_two_factor_pending_token(user.id, user.token_version)
+        )
+
     return _issue_tokens(user, response)
+
+
+@router.post("/login/2fa", response_model=TokenResponse)
+async def login_two_factor(
+    response: Response,
+    payload: TwoFactorLoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Second step of 2FA login: pending token + TOTP/recovery code → tokens.
+
+    Accepts either a 6-digit TOTP code or an unused xxxx-xxxx-xxxx
+    recovery code (which is consumed on success).
+    """
+    claims = decode_two_factor_pending_token(payload.pending_token)
+    if claims is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired two-factor session; log in again",
+        )
+
+    tenant_id = require_tenant_id()
+    result = await db.execute(
+        select(User).where(
+            User.id == int(claims["sub"]),
+            User.tenant_id == tenant_id,
+        )
+    )
+    user = result.scalar_one_or_none()
+    # token_version check: a password change / logout-everywhere after
+    # the pending token was issued must invalidate it too.
+    if (
+        user is None
+        or not user.is_active
+        or not user.two_factor_enabled
+        or user.two_factor_secret is None
+        or claims.get("token_version") != user.token_version
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired two-factor session; log in again",
+        )
+
+    if verify_totp_code(user.two_factor_secret, payload.code):
+        return _issue_tokens(user, response)
+
+    # Fall back to recovery codes (single use).
+    remaining = consume_recovery_code(
+        user.two_factor_recovery_codes or [], payload.code
+    )
+    if remaining is not None:
+        user.two_factor_recovery_codes = remaining
+        await db.commit()
+        logger.info("two_factor_recovery_code_used", user_id=user.id, remaining=len(remaining))
+        return _issue_tokens(user, response)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid two-factor code",
+    )
 
 
 @router.post("/refresh", response_model=TokenResponse)

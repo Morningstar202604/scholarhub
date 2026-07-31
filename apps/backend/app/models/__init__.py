@@ -114,6 +114,19 @@ class User(Base):
     # Independent from token_version so refresh rotation does not log out
     # every device the way logout / password change do.
     refresh_token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # --- TOTP two-factor auth (opt-in per user) ---
+    # The secret is written during setup but 2FA only takes effect once
+    # ``two_factor_enabled`` flips True — i.e. after the user has proven
+    # they can produce a valid code from it. Stored in plaintext by TOTP
+    # necessity; see app/core/twofactor.py for the rationale.
+    two_factor_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    two_factor_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # SHA-256 digests of the still-unused single-use recovery codes.
+    two_factor_recovery_codes: Mapped[list[str] | None] = mapped_column(
+        JSONBVariant, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
