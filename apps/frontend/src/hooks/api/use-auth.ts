@@ -59,6 +59,8 @@ export function useTwoFactorLogin() {
     mutationFn: async (body) =>
       (await api.post<TokenResponse>('/auth/login/2fa', body)).data,
     onSuccess: (data) => {
+      // 2FA 中途态不存 token，留给 /auth/2fa/authenticate 处理
+      if (data.requires_2fa) return
       setAuth(data.access_token, {
         id: data.user_id,
         username: data.username,

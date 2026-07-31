@@ -126,9 +126,7 @@ class DisciplineSubscription(Base):
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
-    user: Mapped[User] = relationship(
-        "User", foreign_keys="DisciplineSubscription.user_id"
-    )
+    user: Mapped[User] = relationship("User", foreign_keys="DisciplineSubscription.user_id")
 
 
 __all__ = ["AuthorFollow", "DisciplineSubscription"]

@@ -21,6 +21,23 @@ export interface TokenResponse {
   user_id: number
   username: string
   is_admin: boolean
+  // M2 2FA: when the account requires 2FA, access/refresh are empty
+  // strings and the client must redeem ``two_factor_token`` via
+  // ``POST /auth/2fa/authenticate`` before storing any tokens.
+  requires_2fa?: boolean
+  two_factor_token?: string | null
+}
+
+// --- 2FA ---
+export interface TwoFactorSetupResponse {
+  secret: string
+  otpauth_uri: string
+  backup_codes: string[]
+}
+
+export interface TwoFactorStatusResponse {
+  enabled: boolean
+  backup_codes_remaining: number
 }
 
 export interface UserResponse {
@@ -157,6 +174,8 @@ export interface ResourceBase {
   pages?: string | null
   issn?: string | null
   isbn?: string | null
+  publisher?: string | null
+  short_container_title?: string | null
   keywords?: string[] | null
   language: string
   publication_status: PublicationStatus
@@ -555,6 +574,12 @@ export interface IngestResource {
   tags: string[]
   abstract: string
   doi?: string | null
+  publisher?: string | null
+  volume?: string | null
+  issue?: string | null
+  pages?: string | null
+  issn?: string | null
+  short_container_title?: string | null
 }
 
 export interface ParseRequest {

@@ -79,9 +79,7 @@ class FileAsset(Base):
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
-    storage_backend: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="local"
-    )
+    storage_backend: Mapped[str] = mapped_column(String(20), nullable=False, default="local")
     # Optional content hash for dedup / integrity verification. Unique per
     # tenant (not globally) so two tenants can have separate dedup spaces.
     sha256: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
@@ -95,9 +93,7 @@ class FileAsset(Base):
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
-    uploader: Mapped[User | None] = relationship(
-        "User", foreign_keys="FileAsset.uploaded_by"
-    )
+    uploader: Mapped[User | None] = relationship("User", foreign_keys="FileAsset.uploaded_by")
 
 
 class ReadingHistory(Base):
@@ -157,9 +153,7 @@ class ReadingHistory(Base):
     # Accumulated reading time in seconds. Upsert ADDS to this field,
     # never overwrites — see routes.py PUT /progress.
     duration_sec: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_read_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 

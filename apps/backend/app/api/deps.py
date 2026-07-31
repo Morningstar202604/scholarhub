@@ -16,7 +16,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from structlog.contextvars import bind_contextvars
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.core.security import decode_access_token, token_version_matches
 from app.core.tenant import TENANT_CONTEXT_VAR
@@ -80,23 +82,49 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
-        )
+    # Token-version check first: a stale token (e.g. after logout,
+    # password change, or GDPR self-delete which bumps token_version)
+    # is "invalid", not "user-disabled". Reporting 401 here prevents
+    # leaking the account's active state to a stolen-but-revoked
+    # access token.
     if not token_version_matches(payload, user.token_version):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked"
         )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
+        )
+    # Bind the resolved user id to the structlog context so that every
+    # log line emitted during this request is automatically tagged.
+    # The middleware clears the context after the request finishes.
+    bind_contextvars(user_id=str(user.id), is_admin=bool(user.is_admin))
     return user
 
 
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require the current user to have ``is_admin=True``.
 
+    When ``settings.require_2fa_for_admin`` is True, additionally
+    require the caller to have enrolled in TOTP. The reload-secret-keys
+    endpoint opts out via ``require_admin_no_2fa`` below so an operator
+    mid-rotation can still trigger a key reload.
+
     Per-tenant admin scope is enforced by RLS — a user with ``is_admin=True``
     in tenant A cannot read tenant B's data because RLS denies the rows.
     """
+    # Enforce 2FA-for-admin policy before the admin check so that even
+    # callers who passed the auth step still get the 2FA prompt when
+    # the policy is on.
+    if settings.require_2fa_for_admin and current_user.totp_enabled_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Admin access requires two-factor authentication. "
+                "Enable TOTP in your account settings before calling "
+                "admin endpoints."
+            ),
+        )
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
@@ -132,8 +160,12 @@ async def get_current_user_optional(
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
         return None
+    # Same ordering rationale as get_current_user: a revoked token
+    # should look invalid (None), not look like a valid token for a
+    # disabled user. Both collapse to None for the optional variant.
     if not token_version_matches(payload, user.token_version):
         return None
+    bind_contextvars(user_id=str(user.id), is_admin=bool(user.is_admin))
     return user
 
 

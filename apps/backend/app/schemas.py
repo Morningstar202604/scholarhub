@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 # --- Auth ---
@@ -18,6 +18,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=8, max_length=128)
+    # Optional CAPTCHA token. Required when the deployment has
+    # captcha_required_for_registration=True; ignored otherwise.
+    captcha_token: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -36,6 +39,64 @@ class TokenResponse(BaseModel):
     user_id: int
     username: str
     is_admin: bool
+    # M2 2FA: when 2FA is required but not yet completed, access/refresh
+    # are empty strings and ``requires_2fa`` is True with a short-lived
+    # ``two_factor_token`` to redeem via POST /auth/2fa/authenticate.
+    # Fields are optional with defaults so non-2FA callers keep working.
+    requires_2fa: bool = False
+    two_factor_token: str | None = None
+
+
+class TwoFactorSetupResponse(BaseModel):
+    """Returned by GET/POST /auth/2fa/setup - the secret + 10 backup codes.
+
+    ``secret`` is the raw base32 secret. The client renders it as a QR
+    code via the otpauth URI. It is the LAST time the secret is exposed:
+    once the user verifies and enables, it lives only in the encrypted
+    column on the server. ``backup_codes`` is similarly one-shot: the
+    cleartext list is returned exactly once, never persisted.
+    """
+
+    secret: str
+    otpauth_uri: str
+    backup_codes: list[str]
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=10)
+
+
+class TwoFactorAuthenticateRequest(BaseModel):
+    """Body for POST /auth/2fa/authenticate.
+
+    Exactly one of ``code`` (TOTP) or ``backup_code`` is required.
+    """
+
+    two_factor_token: str = Field(min_length=1)
+    code: str | None = Field(default=None, min_length=6, max_length=10)
+    backup_code: str | None = Field(default=None, min_length=4, max_length=20)
+
+
+class TwoFactorStatusResponse(BaseModel):
+    """Returned by GET /auth/2fa/status - tells the SPA whether 2FA is on."""
+
+    enabled: bool
+    # Count of remaining un-used backup codes. 0 means the user should
+    # regenerate; the SPA can prompt accordingly.
+    backup_codes_remaining: int
+
+
+class TwoFactorDisableRequest(BaseModel):
+    """Body for POST /auth/2fa/disable.
+
+    Require both the user's current password AND a fresh TOTP code OR
+    a backup code - so a stolen device / hijacked session alone cannot
+    turn off 2FA. A bare password is not enough.
+    """
+
+    password: str = Field(min_length=1)
+    code: str | None = Field(default=None, min_length=6, max_length=10)
+    backup_code: str | None = Field(default=None, min_length=4, max_length=20)
 
 
 # --- Two-factor auth (TOTP) ---
@@ -117,6 +178,8 @@ class UserResponse(BaseModel):
     is_admin: bool
     is_email_verified: bool
     created_at: datetime
+    # ORCID iD in canonical hyphenated form, or null when not set.
+    orcid: str | None = None
     # 当前用户在本租户内被授予的角色名列表（如 ["reviewer", "editor"]）
     # 默认空列表：未填充时视为"无角色"，向后兼容旧调用点
     roles: list[str] = Field(default_factory=list)
@@ -144,6 +207,7 @@ class UserResponse(BaseModel):
                 "is_admin": data.is_admin,
                 "is_email_verified": data.is_email_verified,
                 "created_at": data.created_at,
+                "orcid": data.orcid,
                 # roles 不在此填：让默认空列表生效；admin 路径用 _user_with_roles 显式覆盖
             }
         return data
@@ -170,6 +234,51 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     username: str | None = Field(default=None, min_length=3, max_length=100)
     is_active: bool | None = None
+    # ORCID iD. Set to empty string to clear; pass None to leave
+    # unchanged. We validate and canonicalise here so the DB layer
+    # never sees a malformed value.
+    orcid: str | None = None
+
+    @field_validator("orcid")
+    @classmethod
+    def _canonicalise_orcid(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if value == "":
+            return None  # explicit clear
+        from app.core.orcid import is_valid_orcid, normalize_orcid
+
+        if not is_valid_orcid(value):
+            raise ValueError(f"Invalid ORCID iD: {value!r}")
+        return normalize_orcid(value)
+
+
+class ORCIDUpdateRequest(BaseModel):
+    """Body for PATCH /me/orcid. Empty string clears; missing field is no-op.
+
+    Separate from ``UserUpdate`` so the /me/orcid endpoint has an
+    explicit, narrow contract: ``{"orcid": "..."}`` (set),
+    ``{"orcid": ""}`` (clear), or ``{}`` (no-op). This keeps the
+    self-service ORCID editing flow decoupled from the admin's
+    ``UserUpdate`` body.
+
+    ``max_length`` is generous because we accept URL forms up to
+    ``https://orcid.org/0000-0002-1825-0097`` (38 chars). The
+    canonical validator truncates the URL to its 19-char iD.
+    """
+
+    orcid: str | None = Field(default=None, max_length=64)
+
+    @field_validator("orcid")
+    @classmethod
+    def _canonicalise_orcid(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return None
+        from app.core.orcid import is_valid_orcid, normalize_orcid
+
+        if not is_valid_orcid(value):
+            raise ValueError(f"Invalid ORCID iD: {value!r}")
+        return normalize_orcid(value)
 
 
 # --- Module ---

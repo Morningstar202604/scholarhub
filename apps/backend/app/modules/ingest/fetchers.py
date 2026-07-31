@@ -118,6 +118,17 @@ async def fetch_crossref(doi: str) -> IngestResource:
     container = message.get("container-title") or []
     venue = container[0].strip() if container else None
 
+    publisher = (message.get("publisher") or "").strip() or None
+    volume = (message.get("volume") or "").strip() or None
+    issue = (message.get("issue") or "").strip() or None
+    pages = (message.get("page") or "").strip() or None
+    issn_list = message.get("ISSN") or []
+    issn = issn_list[0] if issn_list else None
+    short_container_title = None
+    short_container_list = message.get("short-container-title") or []
+    if short_container_list:
+        short_container_title = short_container_list[0].strip() or None
+
     return IngestResource(
         title=title,
         type="paper",
@@ -128,6 +139,12 @@ async def fetch_crossref(doi: str) -> IngestResource:
         tags=[],
         abstract=(message.get("abstract") or "").strip(),
         doi=doi,
+        publisher=publisher,
+        volume=volume,
+        issue=issue,
+        pages=pages,
+        issn=issn,
+        short_container_title=short_container_title,
     )
 
 

@@ -49,9 +49,7 @@ class ReadingList(Base):
 
     __tablename__ = "reading_lists"
     __table_args__ = (
-        UniqueConstraint(
-            "tenant_id", "user_id", "name", name="uq_reading_lists_tenant_user_name"
-        ),
+        UniqueConstraint("tenant_id", "user_id", "name", name="uq_reading_lists_tenant_user_name"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -93,9 +91,7 @@ class ReadingListItem(Base):
 
     __tablename__ = "reading_list_items"
     __table_args__ = (
-        UniqueConstraint(
-            "reading_list_id", "resource_id", name="uq_reading_list_item_resource"
-        ),
+        UniqueConstraint("reading_list_id", "resource_id", name="uq_reading_list_item_resource"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

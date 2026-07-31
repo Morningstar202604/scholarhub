@@ -2,21 +2,21 @@
 
 Two routes per provider:
 
-  GET  /api/auth/oidc/{provider}/login   — redirect to provider's authorize URL
-  GET  /api/auth/oidc/{provider}/callback — exchange code for tokens, look
+  GET  /api/auth/oidc/{provider}/login    - redirect to provider's authorize URL
+  GET  /api/auth/oidc/{provider}/callback  - exchange code for tokens, look
                                             up / create the local user, issue
                                             access + refresh tokens, redirect
                                             to the configured frontend URL.
 
 Why ``authlib``: it implements the OIDC Authorization Code flow with
 signature verification and id_token claims extraction. PKCE is not
-currently enabled — the deployment relies on ``client_secret_basic``
+currently enabled  - the deployment relies on ``client_secret_basic``
 to protect the code exchange. If ``oidc_redirect_url`` is non-HTTPS,
 PKCE should be added per ``[rfc9700]`` §4.7.1. Hand-rolling this flow
 is the textbook source of OIDC security bugs.
 
 Configuration is single-provider for now (Google / GitHub / Generic / Keycloak
-all work via the same env vars — see ``Settings.oidc_*``). Multi-provider
+all work via the same env vars  - see ``Settings.oidc_*``). Multi-provider
 support is a config-shape change, not a code-shape one: extend the env
 vars to be provider-keyed and turn ``oidc_provider`` into a list. The route
 parameter ``{provider}`` already supports routing.
@@ -26,7 +26,7 @@ Security:
 - We require ``openid email profile`` scope so userinfo always includes email.
 - New users are created with a random bcrypt-hashed password (32 bytes from
   ``secrets.token_urlsafe``). They cannot log in via /auth/login because they
-  never see that password — but they can use /auth/forgot-password to set one
+  never see that password  - but they can use /auth/forgot-password to set one
   if they want password access alongside OIDC.
 
 The OIDC userinfo ``email`` field is trusted as verified when the provider
@@ -42,6 +42,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +53,25 @@ from app.core.db import get_db
 from app.core.logging import get_logger
 from app.core.security import create_access_token, create_refresh_token, hash_password
 from app.models import User
+
+
+class OIDCProviderInfo(BaseModel):
+    """One available OIDC provider on this deployment.
+
+    Returned by ``GET /api/auth/oidc/providers``. The SPA renders a
+    button per entry, or no button at all if the list is empty. The
+    endpoint is **always** public (no auth required) so the login page
+    can fetch it before the user has logged in.
+    """
+
+    slug: str
+    label: str
+    login_url: str
+
+
+class OIDCProvidersResponse(BaseModel):
+    providers: list[OIDCProviderInfo]
+
 
 logger = get_logger("scholarhub.oidc")
 
@@ -82,11 +102,15 @@ def _is_oidc_configured() -> bool:
     )
 
 
-def _build_authorize_url(state: str) -> str:
-    """Build the provider's authorize URL with PKCE-less code flow.
+def _build_authorize_url(state: str, code_challenge: str | None = None) -> str:
+    """Build the provider's authorize URL.
 
-    ``state`` is a signed JWT (see ``_make_state``) so the callback can
-    verify it without server-side session storage.
+    PKCE (RFC 7636): ``code_challenge`` is the SHA-256 hash of a one-shot
+    ``code_verifier``. The callback exchanges the verifier for the code,
+    so an attacker who intercepts the code cannot redeem it. PKCE is
+    REQUIRED on every deployment that has ``oidc_pkce_required=True``
+    (the default). Setting it False is documented for legacy IdPs that
+    do not implement S256 \u2014 not for production convenience.
     """
     params = {
         "client_id": settings.oidc_client_id,
@@ -95,8 +119,26 @@ def _build_authorize_url(state: str) -> str:
         "scope": settings.oidc_scopes,
         "state": state,
     }
+    if code_challenge is not None:
+        params["code_challenge"] = code_challenge
+        params["code_challenge_method"] = "S256"
     sep = "&" if "?" in settings.oidc_authorize_url else "?"
     return f"{settings.oidc_authorize_url}{sep}{urlencode(params)}"
+
+
+def _make_pkce_pair() -> tuple[str, str]:
+    """Generate a PKCE verifier + S256 challenge.
+
+    Returns ``(code_verifier, code_challenge)``. The verifier is stored
+    in a short-lived httpOnly cookie; the challenge is sent to the IdP.
+    """
+    import base64
+    import hashlib
+
+    verifier = secrets.token_urlsafe(48)  # 64 chars -> 43..128 OK for RFC 7636
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return verifier, challenge
 
 
 def _make_state(provider: str) -> tuple[str, str]:
@@ -105,7 +147,7 @@ def _make_state(provider: str) -> tuple[str, str]:
     Returns ``(state_jwt, nonce)``. The nonce is echoed back via a short-lived
     httpOnly cookie set by the login route; the callback compares the cookie
     nonce to the JWT claim to prove the redirect originated from us (defense
-    against login CSRF — an attacker can't read or set the httpOnly cookie).
+    against login CSRF  - an attacker can't read or set the httpOnly cookie).
     """
     from datetime import UTC, datetime, timedelta
 
@@ -166,15 +208,55 @@ def _clear_state_cookie(response: Response) -> None:
     )
 
 
-async def _exchange_code_for_userinfo(code: str) -> dict[str, Any]:
+# PKCE cookie. Carries the code_verifier between the /login and /callback
+# requests so the callback can redeem the auth code. HttpOnly so JS can't
+# read it; lax SameSite so the IdP redirect back carries it.
+PKCE_COOKIE_NAME = "oidc_pkce"
+PKCE_COOKIE_MAX_AGE_SECONDS = 600
+
+
+def _set_pkce_cookie(response: Response, verifier: str) -> None:
+    response.set_cookie(
+        key=PKCE_COOKIE_NAME,
+        value=verifier,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        max_age=PKCE_COOKIE_MAX_AGE_SECONDS,
+        path="/api/auth",
+    )
+
+
+def _clear_pkce_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=PKCE_COOKIE_NAME,
+        path="/api/auth",
+        samesite="lax",
+    )
+
+
+async def _exchange_code_for_userinfo(code: str, code_verifier: str | None) -> dict[str, Any]:
     """Exchange the auth code for an access token, then call userinfo.
 
     Uses ``authlib`` for both steps (token endpoint with client_secret_basic
     auth + userinfo endpoint with bearer token). Returns the userinfo JSON.
+
+    If ``code_verifier`` is provided it is sent as the PKCE verifier so
+    the IdP can validate the S256 challenge. PKCE-absent deployments
+    pass ``None`` \u2014 see ``oidc_pkce_required`` setting.
     """
     from authlib.integrations.httpx_client import (  # type: ignore[import-untyped]
         AsyncOAuth2Client,
     )
+
+    fetch_kwargs: dict[str, Any] = {
+        "url": settings.oidc_token_url,
+        "authorization_response": code,
+        "grant_type": "authorization_code",
+        "code": code,
+    }
+    if code_verifier is not None:
+        fetch_kwargs["code_verifier"] = code_verifier
 
     async with AsyncOAuth2Client(
         client_id=settings.oidc_client_id,
@@ -182,12 +264,7 @@ async def _exchange_code_for_userinfo(code: str) -> dict[str, Any]:
         scope=settings.oidc_scopes,
         redirect_uri=settings.oidc_redirect_url,
     ) as client:
-        token = await client.fetch_token(
-            settings.oidc_token_url,
-            authorization_response=code,
-            grant_type="authorization_code",
-            code=code,
-        )
+        token = await client.fetch_token(**fetch_kwargs)
         access_token = token.get("access_token")
         if not access_token:
             raise HTTPException(
@@ -205,15 +282,13 @@ async def _exchange_code_for_userinfo(code: str) -> dict[str, Any]:
         return result
 
 
-async def _upsert_oidc_user(
-    db: AsyncSession, userinfo: dict[str, Any]
-) -> User:
+async def _upsert_oidc_user(db: AsyncSession, userinfo: dict[str, Any]) -> User:
     """Find or create the local user for an OIDC userinfo payload.
 
     Binding rule (login-CSRF / account-takeover defense): only bind the
     provider's identity to an existing local account when the provider
     returns ``email_verified=true``. An unverified email must NOT be
-    auto-linked — a malicious IdP could otherwise log in to a victim's
+    auto-linked  - a malicious IdP could otherwise log in to a victim's
     local account by returning their (unverified) email.
     """
     email = userinfo.get("email")
@@ -264,7 +339,7 @@ async def _upsert_oidc_user(
             await db.refresh(user)
         return user
 
-    # New OIDC user — random password; they login via OIDC. They can later
+    # New OIDC user  - random password; they login via OIDC. They can later
     # use /auth/forgot-password to set a password if they want.
     random_password = secrets.token_urlsafe(32)
     user = User(
@@ -279,7 +354,7 @@ async def _upsert_oidc_user(
     try:
         await db.commit()
     except IntegrityError:
-        # Username collision within the tenant — append a random suffix
+        # Username collision within the tenant  - append a random suffix
         # and retry once. If it still fails, surface a 409.
         await db.rollback()
         user.username = f"{username[:90]}-{secrets.token_hex(4)}"
@@ -308,13 +383,43 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     )
 
 
+@router.get("/providers", response_model=OIDCProvidersResponse)
+async def list_oidc_providers() -> OIDCProvidersResponse:
+    """List OIDC providers currently enabled on this deployment.
+
+    Always public (no auth) so the login page can fetch it before the
+    user has signed in. When the deployment has no provider configured
+    the response is an empty list - the SPA MUST NOT render any SSO
+    button in that case. This is the single source of truth for the SPA:
+    the previous ``VITE_OIDC_ENABLED`` build-time env var is replaced.
+    """
+    if not _is_oidc_configured():
+        return OIDCProvidersResponse(providers=[])
+    label = settings.oidc_provider_label or settings.oidc_provider.capitalize()
+    return OIDCProvidersResponse(
+        providers=[
+            OIDCProviderInfo(
+                slug=settings.oidc_provider,
+                label=label,
+                login_url=f"/api/auth/oidc/{settings.oidc_provider}/login",
+            )
+        ]
+    )
+
+
 @router.get("/{provider}/login")
 async def oidc_login(provider: str) -> RedirectResponse:
     """Redirect to the provider's authorize URL with a signed state token.
 
     The ``{provider}`` path parameter exists so the API is shape-ready for
-    multi-provider, but the configured provider must match — any other
+    multi-provider, but the configured provider must match - any other
     name returns 404.
+
+    PKCE: if ``oidc_pkce_required`` is True (the default), a one-shot
+    ``code_verifier`` is generated and the S256 challenge is sent to
+    the IdP. The verifier is stored in an httpOnly cookie and used by
+    the callback to redeem the code. The IdP rejects the code exchange
+    if the verifier does not hash to the challenge.
     """
     if not _is_oidc_configured():
         raise HTTPException(
@@ -327,8 +432,14 @@ async def oidc_login(provider: str) -> RedirectResponse:
             detail=f"OIDC provider {provider!r} is not configured",
         )
     state, nonce = _make_state(provider)
-    response = RedirectResponse(_build_authorize_url(state))
+    code_challenge: str | None = None
+    pkce_verifier: str | None = None
+    if settings.oidc_pkce_required:
+        pkce_verifier, code_challenge = _make_pkce_pair()
+    response = RedirectResponse(_build_authorize_url(state, code_challenge))
     _set_state_cookie(response, nonce)
+    if pkce_verifier is not None:
+        _set_pkce_cookie(response, pkce_verifier)
     return response
 
 
@@ -343,9 +454,9 @@ async def oidc_callback(
     """Handle the OIDC provider's redirect back to us.
 
     Validate state (JWT signature + nonce bound to the httpOnly state cookie)
-    → exchange code for tokens → fetch userinfo → upsert user → issue access
-    + refresh tokens → redirect to the frontend with the access token in the
-    URL fragment (not the query string, so it doesn't leak into the browser
+    -> exchange code for tokens -> fetch userinfo -> upsert user -> issue access
+    + refresh tokens -> redirect to the frontend with the access token in the
+    URL fragment (not the query string, so it does not leak into the browser
     history / referrer / server logs the way a query param would).
     """
     if not _is_oidc_configured():
@@ -365,7 +476,19 @@ async def oidc_callback(
             detail="Invalid or expired OIDC state",
         )
 
-    userinfo = await _exchange_code_for_userinfo(code)
+    # PKCE: pull the verifier from the cookie. Required when the setting
+    # is on; absent cookie => reject the callback.
+    code_verifier: str | None = None
+    if settings.oidc_pkce_required:
+        cookie_verifier = request.cookies.get(PKCE_COOKIE_NAME)
+        if not cookie_verifier:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing PKCE verifier cookie - callback may have been initiated outside the login flow",
+            )
+        code_verifier = cookie_verifier
+
+    userinfo = await _exchange_code_for_userinfo(code, code_verifier)
     user = await _upsert_oidc_user(db, userinfo)
 
     claims = {
@@ -380,11 +503,11 @@ async def oidc_callback(
 
     # Build the redirect URL with the access token in the fragment so the
     # SPA can read it client-side without it touching the network as a
-    # query param. Refresh token goes ONLY in the httpOnly cookie — putting
+    # query param. Refresh token goes ONLY in the httpOnly cookie - putting
     # it in the fragment would expose a 7-day token to any XSS script via
     # window.location.hash, defeating the httpOnly defense.
     redirect_base = settings.oidc_redirect_url
-    # Strip any query/fragment from the configured redirect URL — we want
+    # Strip any query/fragment from the configured redirect URL - we want
     # the bare origin + path.
     if "?" in redirect_base:
         redirect_base = redirect_base.split("?", 1)[0]
@@ -394,7 +517,9 @@ async def oidc_callback(
 
     response = RedirectResponse(url=target)
     _set_refresh_cookie(response, refresh_token)
-    # State cookie is one-time — clear it once the login completed.
+    # State cookie is one-time - clear it once the login completed.
     _clear_state_cookie(response)
+    if settings.oidc_pkce_required:
+        _clear_pkce_cookie(response)
     logger.info("oidc_login_success", user_id=user.id, provider=provider)
     return response

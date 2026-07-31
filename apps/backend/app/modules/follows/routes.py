@@ -78,9 +78,7 @@ async def _author_follow_status(
         )
         following = existing.scalar_one_or_none() is not None
 
-    return FollowStatusResponse(
-        following=following, followers_count=followers_count
-    )
+    return FollowStatusResponse(following=following, followers_count=followers_count)
 
 
 @router.post(
@@ -222,9 +220,7 @@ async def _discipline_subscription_status(
         )
         subscribed = existing.scalar_one_or_none() is not None
 
-    return SubscriptionStatusResponse(
-        subscribed=subscribed, subscribers_count=subscribers_count
-    )
+    return SubscriptionStatusResponse(subscribed=subscribed, subscribers_count=subscribers_count)
 
 
 @router.post(

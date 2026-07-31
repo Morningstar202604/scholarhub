@@ -1,17 +1,22 @@
 """Per-IP rate limiting middleware.
 
-Memory-only sliding window: no Redis dependency, suitable for single-node
-deployments. For multi-node deployments swap the store for Redis (the
-interface is just ``_buckets`` dict access — easy to replace with a
-Redis-backed INCR + EXPIRE).
+Delegates bucket storage to ``app.core.rate_limit_store``. The
+middleware itself is responsible for:
+
+- Mapping incoming requests to ``(ip, path_bucket)`` keys.
+- Picking the per-path limit from ``STRICT_PATHS`` or the global
+  default from settings.
+- Translating "denied" into a 429 with a sane ``Retry-After``.
+
+The middleware never calls Redis directly; the store handles that.
+This keeps the middleware unit-testable without a Redis dependency
+and means swapping the backend never touches the middleware code.
 
 Sensitive auth endpoints get a stricter limit than the global default.
 """
 
 from __future__ import annotations
 
-import time
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
@@ -20,6 +25,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.core.config import settings
+from app.core.rate_limit_store import get_rate_limiter_store
 
 # Per-endpoint stricter limits: path -> max requests per minute
 STRICT_PATHS: dict[str, int] = {
@@ -36,15 +42,20 @@ STRICT_PATHS: dict[str, int] = {
     "/api/auth/refresh": 30,
 }
 
+_RATE_WINDOW_SECONDS = 60.0
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Sliding-window rate limiter keyed by client IP + path."""
+    """Sliding-window rate limiter keyed by client IP + path.
+
+    Single-node deployments use the in-memory store. Multi-node
+    deployments should set ``SCHOLARHUB_REDIS_URL`` so the bucket is
+    shared across replicas; the middleware doesn't need to change.
+    """
 
     def __init__(self, app: ASGIApp, default_per_minute: int) -> None:
         super().__init__(app)
         self._default = default_per_minute
-        # key = (ip, path_prefix) -> list of request timestamps
-        self._buckets: dict[tuple[str, str], list[float]] = defaultdict(list)
 
     async def dispatch(
         self,
@@ -62,23 +73,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         ip = self._client_ip(request)
-        now = time.monotonic()
-        bucket_key = (ip, self._path_key(path))
-        bucket = self._buckets[bucket_key]
-        # Sliding window: drop timestamps older than 60s
-        cutoff = now - 60.0
-        self._buckets[bucket_key] = [ts for ts in bucket if ts > cutoff]
-        bucket = self._buckets[bucket_key]
-
-        if len(bucket) >= limit:
-            retry_after = int(60 - (now - bucket[0])) + 1
+        bucket_key = f"{ip}|{self._path_key(path)}"
+        store = get_rate_limiter_store()
+        allowed, _depth = await store.hit_and_check(
+            bucket_key=bucket_key,
+            limit=limit,
+            window_seconds=_RATE_WINDOW_SECONDS,
+        )
+        if not allowed:
+            # Conservative Retry-After: full window. We don't track the
+            # oldest entry's exact age here, so a one-window wait is the
+            # safest single-shot response.
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please slow down."},
-                headers={"Retry-After": str(retry_after)},
+                headers={"Retry-After": str(int(_RATE_WINDOW_SECONDS))},
             )
 
-        bucket.append(now)
         response = await call_next(request)
         return response
 

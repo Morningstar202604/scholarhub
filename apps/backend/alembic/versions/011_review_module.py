@@ -52,11 +52,18 @@ def upgrade() -> None:
     # --- submissions: add new columns + widen status ---
     op.add_column(
         "submissions",
-        sa.Column("keywords", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"),
+        sa.Column(
+            "keywords", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"
+        ),
     )
     op.add_column(
         "submissions",
-        sa.Column("jel_codes", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"),
+        sa.Column(
+            "jel_codes",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default="[]",
+        ),
     )
     op.add_column(
         "submissions",
@@ -72,7 +79,8 @@ def upgrade() -> None:
     )
     # SQLite ALTER 改类型在 PostgreSQL 上 OK；server_default 已有，无需调整
     op.alter_column(
-        "submissions", "status",
+        "submissions",
+        "status",
         existing_type=sa.String(length=20),
         type_=sa.String(length=32),
         existing_nullable=False,
@@ -124,7 +132,9 @@ def upgrade() -> None:
         sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("assignment_id", sa.Integer(), nullable=False),
         sa.Column("recommendation", sa.String(length=32), nullable=False),
-        sa.Column("scores", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"),
+        sa.Column(
+            "scores", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"
+        ),
         sa.Column("comments_to_editor", sa.Text(), nullable=True),
         sa.Column("comments_to_author", sa.Text(), nullable=True),
         sa.Column(
@@ -191,7 +201,8 @@ def downgrade() -> None:
     op.drop_table("review_assignments")
 
     op.alter_column(
-        "submissions", "status",
+        "submissions",
+        "status",
         existing_type=sa.String(length=32),
         type_=sa.String(length=20),
         existing_nullable=False,

@@ -110,18 +110,21 @@ function ReaderPage() {
   }
 
   // 每秒累加时长；每 30s 自动 flush
+  // flush ref to keep it stable — prevent interval recreation on every render
+  const flushRef = useRef(flush)
+  flushRef.current = flush
   useEffect(() => {
     const ticker = setInterval(() => {
       setLocalDuration((s) => s + 1)
     }, 1000)
     const flusher = setInterval(() => {
-      void flush()
+      void flushRef.current()
     }, 30_000)
     return () => {
       clearInterval(ticker)
       clearInterval(flusher)
       // unmount 时立即上报最后一次累积的进度，避免丢失最多 29s
-      void flush()
+      void flushRef.current()
     }
   }, [])
 

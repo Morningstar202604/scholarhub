@@ -26,9 +26,7 @@ def _extract_token(email_body: str) -> str:
     return match.group(1)
 
 
-async def test_register_sends_verification_email(
-    client: AsyncClient, fake_email_sender
-) -> None:
+async def test_register_sends_verification_email(client: AsyncClient, fake_email_sender) -> None:
     response = await client.post(
         "/api/auth/register",
         json={
@@ -46,9 +44,7 @@ async def test_register_sends_verification_email(
     assert _extract_token(mail["body"])
 
 
-async def test_verify_email_succeeds(
-    client: AsyncClient, fake_email_sender
-) -> None:
+async def test_verify_email_succeeds(client: AsyncClient, fake_email_sender) -> None:
     await client.post(
         "/api/auth/register",
         json={
@@ -69,15 +65,11 @@ async def test_verify_email_succeeds(
         json={"username": "verify2_user", "password": "password123"},
     )
     me_token = me.json()["access_token"]
-    me_resp = await client.get(
-        "/api/auth/me", headers={"Authorization": f"Bearer {me_token}"}
-    )
+    me_resp = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {me_token}"})
     assert me_resp.json()["is_email_verified"] is True
 
 
-async def test_verify_email_already_verified(
-    client: AsyncClient, fake_email_sender
-) -> None:
+async def test_verify_email_already_verified(client: AsyncClient, fake_email_sender) -> None:
     await client.post(
         "/api/auth/register",
         json={
@@ -95,18 +87,12 @@ async def test_verify_email_already_verified(
     assert second.json()["message"] == "Email already verified"
 
 
-async def test_verify_email_invalid_token(
-    client: AsyncClient, fake_email_sender
-) -> None:
-    response = await client.post(
-        "/api/auth/verify-email", json={"token": "not-a-real-token"}
-    )
+async def test_verify_email_invalid_token(client: AsyncClient, fake_email_sender) -> None:
+    response = await client.post("/api/auth/verify-email", json={"token": "not-a-real-token"})
     assert response.status_code == 400
 
 
-async def test_resend_verification(
-    client: AsyncClient, fake_email_sender
-) -> None:
+async def test_resend_verification(client: AsyncClient, fake_email_sender) -> None:
     await client.post(
         "/api/auth/register",
         json={
@@ -134,9 +120,7 @@ async def test_resend_verification_unknown_email_no_leak(
     )
     # Same response as a known account — no email sent, no leak.
     assert response.status_code == 200
-    assert response.json()["message"] == (
-        "If the account exists, a verification email was sent"
-    )
+    assert response.json()["message"] == ("If the account exists, a verification email was sent")
     assert len(fake_email_sender.outbox) == 0
 
 
@@ -162,9 +146,7 @@ async def test_forgot_password_unknown_email_no_leak(
         json={"email": "nobody@example.com"},
     )
     assert response.status_code == 200
-    assert response.json()["message"] == (
-        "If the account exists, a reset email was sent"
-    )
+    assert response.json()["message"] == ("If the account exists, a reset email was sent")
     assert len(fake_email_sender.outbox) == 0
 
 
@@ -185,9 +167,7 @@ async def test_reset_password_succeeds(
     assert reset.json()["message"] == "Password reset successful"
 
     # Old access token must be invalid (token_version was bumped).
-    old_me = await client.get(
-        "/api/auth/me", headers=auth_headers(test_user)
-    )
+    old_me = await client.get("/api/auth/me", headers=auth_headers(test_user))
     assert old_me.status_code == 401
 
     # Login with the new password succeeds.
@@ -269,8 +249,6 @@ async def test_verify_token_invalid_after_password_reset(
     assert reset.status_code == 200
 
     # The verify token was issued BEFORE the reset; it must now be invalid.
-    verify = await client.post(
-        "/api/auth/verify-email", json={"token": verify_token}
-    )
+    verify = await client.post("/api/auth/verify-email", json={"token": verify_token})
     assert verify.status_code == 400
     assert verify.json()["detail"] == "Verification token is no longer valid"

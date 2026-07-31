@@ -130,9 +130,7 @@ async def record_view(
         )
     ).scalar_one_or_none()
     if resource is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
     now = utcnow()
     # 用 flush 而不是 commit 触发 IntegrityError：
@@ -212,9 +210,7 @@ async def remove_from_history(
         )
     ).scalar_one_or_none()
     if entry is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="History entry not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="History entry not found")
     await db.delete(entry)
     await db.commit()
     return MessageResponse(message="Removed from history")
@@ -245,9 +241,7 @@ async def get_progress(
         )
     ).scalar_one_or_none()
     if entry is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Progress not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Progress not found")
     return ReadingProgressResponse.model_validate(entry)
 
 
@@ -280,9 +274,7 @@ async def update_progress(
         )
     ).scalar_one_or_none()
     if resource is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
     now = utcnow()
     # 用 flush 而不是 commit 触发 IntegrityError（详见 record_view 的注释）。
@@ -353,12 +345,16 @@ async def list_file_assets(
     """List all file assets in the current tenant (admin only)."""
     tenant_id = require_tenant_id()
     rows = (
-        await db.execute(
-            select(FileAsset)
-            .where(FileAsset.tenant_id == tenant_id)
-            .order_by(desc(FileAsset.created_at), FileAsset.id.asc())
+        (
+            await db.execute(
+                select(FileAsset)
+                .where(FileAsset.tenant_id == tenant_id)
+                .order_by(desc(FileAsset.created_at), FileAsset.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [FileAssetResponse.model_validate(r) for r in rows]
 
 
@@ -382,9 +378,7 @@ async def get_file_asset(
         )
     ).scalar_one_or_none()
     if entry is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="File asset not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File asset not found")
     return FileAssetResponse.model_validate(entry)
 
 
@@ -470,9 +464,7 @@ async def delete_file_asset(
         )
     ).scalar_one_or_none()
     if entry is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="File asset not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File asset not found")
     # Capture identifying info before delete so the audit row can describe
     # what was removed (storage_path stays valuable for cleanup audits).
     deleted_filename = entry.filename

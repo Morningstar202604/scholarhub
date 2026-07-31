@@ -169,12 +169,8 @@ async def test_list_paginates(
 # ---------------------------------------------------------------------------
 
 
-async def test_unread_count_zero_when_empty(
-    client: AsyncClient, test_user: dict
-) -> None:
-    response = await client.get(
-        "/api/notifications/unread-count", headers=auth_headers(test_user)
-    )
+async def test_unread_count_zero_when_empty(client: AsyncClient, test_user: dict) -> None:
+    response = await client.get("/api/notifications/unread-count", headers=auth_headers(test_user))
     assert response.status_code == 200
     assert response.json()["unread"] == 0
 
@@ -200,9 +196,7 @@ async def test_unread_count_excludes_read(
         title="Already read",
         is_read=True,
     )
-    response = await client.get(
-        "/api/notifications/unread-count", headers=auth_headers(test_user)
-    )
+    response = await client.get("/api/notifications/unread-count", headers=auth_headers(test_user))
     assert response.json()["unread"] == 2
 
 
@@ -211,18 +205,12 @@ async def test_unread_count_excludes_read(
 # ---------------------------------------------------------------------------
 
 
-async def test_mark_read_404_when_not_owned(
-    client: AsyncClient, test_user: dict
-) -> None:
-    response = await client.patch(
-        "/api/notifications/99999/read", headers=auth_headers(test_user)
-    )
+async def test_mark_read_404_when_not_owned(client: AsyncClient, test_user: dict) -> None:
+    response = await client.patch("/api/notifications/99999/read", headers=auth_headers(test_user))
     assert response.status_code == 404
 
 
-async def test_mark_read(
-    client: AsyncClient, test_user: dict, db_session: AsyncSession
-) -> None:
+async def test_mark_read(client: AsyncClient, test_user: dict, db_session: AsyncSession) -> None:
     n = await _seed(
         db_session,
         user_id=test_user["user_id"],
@@ -236,9 +224,7 @@ async def test_mark_read(
     assert response.json()["is_read"] is True
 
     # Unread count drops to 0.
-    count = await client.get(
-        "/api/notifications/unread-count", headers=auth_headers(test_user)
-    )
+    count = await client.get("/api/notifications/unread-count", headers=auth_headers(test_user))
     assert count.json()["unread"] == 0
 
 
@@ -264,16 +250,12 @@ async def test_mark_all_read(
         is_read=True,
     )
 
-    response = await client.patch(
-        "/api/notifications/read-all", headers=auth_headers(test_user)
-    )
+    response = await client.patch("/api/notifications/read-all", headers=auth_headers(test_user))
     assert response.status_code == 200
     assert response.json()["updated"] == 3
 
     # Unread count is now 0.
-    count = await client.get(
-        "/api/notifications/unread-count", headers=auth_headers(test_user)
-    )
+    count = await client.get("/api/notifications/unread-count", headers=auth_headers(test_user))
     assert count.json()["unread"] == 0
 
 
@@ -282,29 +264,19 @@ async def test_mark_all_read(
 # ---------------------------------------------------------------------------
 
 
-async def test_delete_404_when_not_owned(
-    client: AsyncClient, test_user: dict
-) -> None:
-    response = await client.delete(
-        "/api/notifications/99999", headers=auth_headers(test_user)
-    )
+async def test_delete_404_when_not_owned(client: AsyncClient, test_user: dict) -> None:
+    response = await client.delete("/api/notifications/99999", headers=auth_headers(test_user))
     assert response.status_code == 404
 
 
-async def test_delete(
-    client: AsyncClient, test_user: dict, db_session: AsyncSession
-) -> None:
+async def test_delete(client: AsyncClient, test_user: dict, db_session: AsyncSession) -> None:
     n = await _seed(
         db_session,
         user_id=test_user["user_id"],
         title="To be deleted",
     )
-    response = await client.delete(
-        f"/api/notifications/{n.id}", headers=auth_headers(test_user)
-    )
+    response = await client.delete(f"/api/notifications/{n.id}", headers=auth_headers(test_user))
     assert response.status_code == 200
     # Subsequent list shows 0.
-    listed = await client.get(
-        "/api/notifications", headers=auth_headers(test_user)
-    )
+    listed = await client.get("/api/notifications", headers=auth_headers(test_user))
     assert listed.json()["meta"]["total"] == 0

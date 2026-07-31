@@ -49,8 +49,7 @@ async def export_endpoint(
     if len(requested_ids) > EXPORT_MAX_IDS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Too many ids requested ({len(requested_ids)}); "
-            f"limit is {EXPORT_MAX_IDS}.",
+            detail=f"Too many ids requested ({len(requested_ids)}); limit is {EXPORT_MAX_IDS}.",
         )
     if not requested_ids:
         raise HTTPException(
@@ -80,9 +79,7 @@ async def export_endpoint(
         # mypy can't see that without a runtime check; cast through.
         body = export_resources(format, cast(list[Exportable], ordered))
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     extension = FILE_EXTENSIONS[format]
     media_type = MIME_TYPES[format]

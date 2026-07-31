@@ -105,4 +105,3 @@ async def test_test_env_skipped(client) -> None:
 
 async def _ok() -> Response:
     return JSONResponse({"ok": True})
-

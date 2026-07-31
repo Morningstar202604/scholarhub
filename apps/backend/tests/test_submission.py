@@ -33,9 +33,7 @@ _PAYLOAD = {
 }
 
 
-async def _create_submission(
-    client: AsyncClient, user: dict, payload: dict | None = None
-) -> dict:
+async def _create_submission(client: AsyncClient, user: dict, payload: dict | None = None) -> dict:
     body = payload if payload is not None else _PAYLOAD
     response = await client.post("/api/submissions", json=body, headers=auth_headers(user))
     response.raise_for_status()
@@ -53,9 +51,7 @@ async def test_create_requiresauth_headers(client: AsyncClient) -> None:
 
 
 async def test_create_submission(client: AsyncClient, test_user: dict) -> None:
-    response = await client.post(
-        "/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user)
-    )
+    response = await client.post("/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user))
     assert response.status_code == 201
     body = response.json()
     assert body["id"] > 0
@@ -73,9 +69,7 @@ async def test_create_without_preview_autofills_from_abstract(
     """preview 留空时自动从 abstract 截取（避免首次投稿 422 摩擦点）。"""
     payload = dict(_PAYLOAD)
     payload.pop("preview")
-    response = await client.post(
-        "/api/submissions", json=payload, headers=auth_headers(test_user)
-    )
+    response = await client.post("/api/submissions", json=payload, headers=auth_headers(test_user))
     assert response.status_code == 201
     body = response.json()
     # preview 应被自动填充为 abstract 的截断
@@ -91,9 +85,7 @@ async def test_create_with_long_abstract_truncates_preview(
     payload.pop("preview")
     long_abstract = "X" * 1000  # 1000 字 abstract
     payload["abstract"] = long_abstract
-    response = await client.post(
-        "/api/submissions", json=payload, headers=auth_headers(test_user)
-    )
+    response = await client.post("/api/submissions", json=payload, headers=auth_headers(test_user))
     assert response.status_code == 201
     body = response.json()
     # 截取到 500 字，不超 preview 字段上限
@@ -139,9 +131,7 @@ async def test_list_my_submissions_filter_by_status(
     assert body["data"][0]["id"] == s1["id"]
 
 
-async def test_get_submission_owner_can_see_own(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_get_submission_owner_can_see_own(client: AsyncClient, test_user: dict) -> None:
     created = await _create_submission(client, test_user)
     response = await client.get(
         f"/api/submissions/{created['id']}", headers=auth_headers(test_user)
@@ -150,9 +140,7 @@ async def test_get_submission_owner_can_see_own(
     assert response.json()["id"] == created["id"]
 
 
-async def test_get_submission_other_user_forbidden(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_get_submission_other_user_forbidden(client: AsyncClient, test_user: dict) -> None:
     """A different user cannot see someone else's submission."""
     created = await _create_submission(client, test_user)
     # Register a second user and try to read test_user's submission.
@@ -174,9 +162,7 @@ async def test_get_submission_other_user_forbidden(
 
 
 async def test_get_submission_404(client: AsyncClient, test_user: dict) -> None:
-    response = await client.get(
-        "/api/submissions/99999", headers=auth_headers(test_user)
-    )
+    response = await client.get("/api/submissions/99999", headers=auth_headers(test_user))
     assert response.status_code == 404
 
 
@@ -199,9 +185,7 @@ async def test_admin_list_requires_admin(client: AsyncClient, test_user: dict) -
     assert response.status_code == 403
 
 
-async def test_admin_list_shows_all(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_admin_list_shows_all(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     await _create_submission(client, test_user, {**_PAYLOAD, "title": "First"})
     await _create_submission(client, test_user, {**_PAYLOAD, "title": "Second"})
     response = await client.get("/api/submissions", headers=auth_headers(admin_user))
@@ -210,9 +194,7 @@ async def test_admin_list_shows_all(
     assert body["meta"]["total"] == 2
 
 
-async def test_admin_pending_list(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_admin_pending_list(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     s1 = await _create_submission(client, test_user, {**_PAYLOAD, "title": "P1"})
     await _create_submission(client, test_user, {**_PAYLOAD, "title": "P2"})
 
@@ -224,17 +206,13 @@ async def test_admin_pending_list(
     )
     assert review.status_code == 200
 
-    pending = await client.get(
-        "/api/submissions/pending", headers=auth_headers(admin_user)
-    )
+    pending = await client.get("/api/submissions/pending", headers=auth_headers(admin_user))
     body = pending.json()
     assert body["meta"]["total"] == 1
     assert body["data"][0]["title"] == "P2"
 
 
-async def test_review_requires_admin(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_review_requires_admin(client: AsyncClient, test_user: dict) -> None:
     created = await _create_submission(client, test_user)
     response = await client.patch(
         f"/api/submissions/{created['id']}/review",
@@ -340,9 +318,7 @@ async def test_reject_does_not_create_resource(
     assert body["admin_note"] == "Out of scope"
 
 
-async def test_reject_re_review_400(
-    client: AsyncClient, admin_user: dict, test_user: dict
-) -> None:
+async def test_reject_re_review_400(client: AsyncClient, admin_user: dict, test_user: dict) -> None:
     """A reviewed submission cannot be re-reviewed."""
     created = await _create_submission(client, test_user)
     first = await client.patch(
@@ -377,9 +353,7 @@ async def test_review_rejects_invalid_status(
 # ---------------------------------------------------------------------------
 
 
-async def test_submitter_can_delete_own_pending(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_submitter_can_delete_own_pending(client: AsyncClient, test_user: dict) -> None:
     created = await _create_submission(client, test_user)
     response = await client.delete(
         f"/api/submissions/{created['id']}", headers=auth_headers(test_user)
@@ -387,9 +361,7 @@ async def test_submitter_can_delete_own_pending(
     assert response.status_code == 200
     # Subsequent GET → 404.
     assert (
-        await client.get(
-            f"/api/submissions/{created['id']}", headers=auth_headers(test_user)
-        )
+        await client.get(f"/api/submissions/{created['id']}", headers=auth_headers(test_user))
     ).status_code == 404
 
 
@@ -409,9 +381,7 @@ async def test_submitter_cannot_delete_reviewed(
     assert "Cannot delete a reviewed submission" in response.json()["detail"]
 
 
-async def test_other_user_cannot_delete(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_other_user_cannot_delete(client: AsyncClient, test_user: dict) -> None:
     created = await _create_submission(client, test_user)
     second = await client.post(
         "/api/auth/register",

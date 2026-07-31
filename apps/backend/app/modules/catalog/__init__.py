@@ -32,3 +32,5 @@ registry.register(
         router=router,
     )
 )
+
+__all__ = ["router"]

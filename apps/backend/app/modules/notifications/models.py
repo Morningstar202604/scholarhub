@@ -77,9 +77,7 @@ class Notification(Base):
     related_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     related_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    is_read: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, index=True
-    )
+    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )

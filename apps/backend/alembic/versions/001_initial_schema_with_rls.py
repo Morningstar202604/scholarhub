@@ -202,9 +202,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "tenant_id", "module_name", name="uq_module_states_tenant_module"
-        ),
+        sa.UniqueConstraint("tenant_id", "module_name", name="uq_module_states_tenant_module"),
     )
     op.create_index("ix_module_states_tenant_id", "module_states", ["tenant_id"])
 

@@ -20,8 +20,8 @@ Submissions, peer review, publication, catalog, reader, and subscriptions are in
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
 [![Modules](https://img.shields.io/badge/modules-10-6366F1?style=flat-square&logo=modin&logoColor=white)](#modules)
-[![E2E Specs](https://img.shields.io/badge/E2E_specs-56-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-249-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
+[![E2E Specs](https://img.shields.io/badge/E2E_specs-53-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
+[![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#testing)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#project-status)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
@@ -254,10 +254,12 @@ scholarhub/
 │   └── Caddyfile                  # TLS template
 └── .github/
     ├── workflows/
-    │   ├── ci.yml                  # ruff + mypy + pytest + RLS Postgres job + frontend
-    │   └── gitleaks.yml            # Secret scanning
-    ├── dependabot.yml             # Automatic dependency updates
+    │   ├── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
+    │   ├── release.yml             # Tag-driven wheel + Docker image + GitHub Release
+    │   └── dependabot-auto-merge.yml
+    ├── dependabot.yml             # Weekly pip + npm + GHA + docker updates
     ├── CODEOWNERS                 # Code ownership
+    ├── SECURITY-MONITORING.md     # Security automation layers
     └── ISSUE_TEMPLATE/            # Issue templates
 ```
 
@@ -270,16 +272,64 @@ All variables are prefixed `SCHOLARHUB_`. The full list is in [`apps/backend/app
 | Variable | Required | Description |
 |---|:---:|---|
 | `SCHOLARHUB_SECRET_KEY` | ✓ | JWT signing key, at least 32 chars; generate with `openssl rand -hex 32` |
+| `SCHOLARHUB_PREVIOUS_SECRET_KEYS` | | Comma-separated previous JWT signing keys used during the rotation window |
 | `SCHOLARHUB_ADMIN_PASSWORD` | ✓ | Initial admin password, at least 12 chars |
 | `SCHOLARHUB_DATABASE_URL` | | PostgreSQL DSN, default `postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub` |
 | `SCHOLARHUB_TENANCY_MODE` | | `single` (default) / `multi` (host-header resolved; not yet implemented) |
 | `SCHOLARHUB_ENVIRONMENT` | | `development` (default) / `staging` / `production` / `test` |
 | `SCHOLARHUB_FRONTEND_BASE_URL` | | SPA origin used for deep links in emails, e.g. `https://app.yourdomain.com` |
-| `SCHOLARHUB_OIDC_ENABLED` | | `true` enables OIDC SSO (paired with the `OIDC_*` variables) |
+| `SCHOLARHUB_OIDC_ENABLED` | | `true` enables OIDC SSO (paired with the `OIDC_*` variables); see also `/api/auth/oidc/providers` |
+| `SCHOLARHUB_TOTP_ISSUER` | | Issuer string shown in TOTP authenticator apps (default `ScholarHUB`) |
+| `SCHOLARHUB_REDIS_URL` | | If set, `RedisRateLimiterStore` is used; otherwise `MemoryRateLimiterStore` (Redis errors auto-fail-open) |
 | `SCHOLARHUB_EMAIL_BACKEND` | | `console` (default) / `smtp` |
 | `SCHOLARHUB_CORS_ORIGINS` | | Comma-separated list of frontend origins |
 
 Full template: [`apps/backend/.env.example`](apps/backend/.env.example).
+
+---
+
+## Security
+
+Defense in depth is shipped by default — every layer below is enabled when
+the backend boots:
+
+- **Authentication.** bcrypt password hashing; JWT access tokens (HS256,
+  short-lived) + httpOnly refresh cookie + `token_version` per user.
+- **Two-factor authentication (TOTP).** RFC 6238 with per-user secret
+  Fernet-encrypted at rest; 10 single-use backup codes SHA-256-hashed.
+  Endpoints under `/api/auth/2fa/` (`setup`, `verify-setup`, `status`,
+  `authenticate`, `disable`, `backup-codes`).
+- **OIDC SSO.** authlib-based; PKCE mandatory; `state` parameter is a
+  short-lived JWT to defend against CSRF. Frontend reads the allowed
+  providers from `GET /api/auth/oidc/providers` on boot (no client
+  hardcoding).
+- **JWT key rotation.** `app/core/key_rotation.py` keeps an ordered key
+  chain; new tokens sign with the newest key, decode iterates the chain.
+  `POST /api/admin/reload-secret-keys` rebuilds the chain in-process —
+  zero downtime, no restarts.
+- **Rate limit.** Sliding window per IP + route, pluggable store
+  (`MemoryRateLimiterStore` default, `RedisRateLimiterStore` when
+  `SCHOLARHUB_REDIS_URL` is set). Redis unreachable → auto-fail-open.
+- **GDPR endpoints.** `GET /api/users/me/export`, `DELETE /api/users/me`
+  (soft delete, 30-day grace, PII anonymised, `token_version` bumped,
+  all sessions invalidated), `POST /api/users/me/restore` (within grace).
+- **Two-layer tenant isolation.** App-layer query filter + PostgreSQL RLS
+  with `SET LOCAL app.current_tenant_id`.
+- **Headers.** CSP, HSTS, X-Frame-Options, X-Content-Type,
+  Referrer-Policy, Permissions-Policy.
+- **CSRF.** Double-submit cookie pattern (configurable, default off for
+  API-first deployments). When enabled, state-changing requests must
+  present a matching `X-CSRF-Token` header + cookie.
+- **RFC 7807.** All error responses follow RFC 7807 `application/problem+json`
+  with `type` / `title` / `status` / `detail` / `instance`.
+- **Audit log.** Every privileged admin action is recorded per tenant.
+
+See [SECURITY.md](SECURITY.md) for the full policy, threat model, and
+incident-response checklist. To scan the repo for leaked secrets:
+
+```bash
+python scan_secrets.py
+```
 
 ---
 
@@ -321,7 +371,7 @@ npm run test
 
 ### End-to-end
 
-56 specs cover complete user journeys, validating every main flow with real browser clicks:
+9 spec files (53 Playwright test() calls) cover complete user journeys, validating every main flow with real browser clicks:
 
 ```bash
 # Start the backend (test mode: SQLite + rate_limit skipped)
@@ -356,9 +406,21 @@ CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 All 10 modules are shipped; backend + frontend + database migrations + unit tests + E2E tests + deployment are all in place. The roadmap:
 
+- [x] Two-factor authentication (TOTP) — shipped
+- [x] JWT secret rotation (online, zero downtime) — shipped
+- [x] Redis-backed distributed rate limit (with in-memory fallback) — shipped
+- [x] GDPR endpoints (export + soft delete + 30-day restore) — shipped
+- [x] OIDC provider discovery endpoint + PKCE enforcement — shipped
+- [x] CI: ruff + mypy + pytest + frontend lint/typecheck/build + gitleaks + CodeQL + pip-audit — shipped
+- [x] CSRF protection (double-submit cookie) — shipped
+- [x] RFC 7807 error responses (application/problem+json) — shipped
+- [x] ORCID iD field (User + author metadata) — shipped
+- [x] Discipline/subdiscipline ontology tables — shipped
+- [x] Crossref enrichment (publisher / journal abbreviation / volume / issue / page / ISSN) — shipped
+- [x] Privacy page + cookie consent banner + retention policy — shipped
 - [ ] Multi-tenant mode (host-header → tenant mapping table)
-- [ ] Redis integration (cache + distributed rate limit)
-- [ ] Explicit refresh token denylist
+- [ ] Explicit refresh token denylist (currently relies on `token_version`)
+- [ ] WebAuthn / passkeys as an alternative to TOTP 2FA
 - [ ] Advanced volume/issue management UI
 - [ ] DOI registration and cross-linking
 - [ ] Full-text search (PostgreSQL FTS or Meilisearch)

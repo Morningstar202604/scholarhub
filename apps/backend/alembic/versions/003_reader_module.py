@@ -66,9 +66,7 @@ def upgrade() -> None:
         sa.Column("mime_type", sa.String(length=100), nullable=False),
         sa.Column("file_size", sa.BigInteger(), nullable=False),
         sa.Column("storage_path", sa.String(length=500), nullable=False),
-        sa.Column(
-            "storage_backend", sa.String(length=20), nullable=False, server_default="local"
-        ),
+        sa.Column("storage_backend", sa.String(length=20), nullable=False, server_default="local"),
         sa.Column("sha256", sa.String(length=64), nullable=True),
         sa.Column("uploaded_by", sa.Integer(), nullable=True),
         sa.Column(
@@ -81,9 +79,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["uploaded_by"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         # Per-tenant dedup space: same sha256 in two tenants is allowed.
-        sa.UniqueConstraint(
-            "tenant_id", "sha256", name="uq_file_assets_tenant_sha256"
-        ),
+        sa.UniqueConstraint("tenant_id", "sha256", name="uq_file_assets_tenant_sha256"),
     )
     op.create_index("ix_file_assets_tenant_id", "file_assets", ["tenant_id"])
     op.create_index("ix_file_assets_sha256", "file_assets", ["sha256"])
@@ -102,14 +98,10 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.Column(
-            "visit_count", sa.Integer(), nullable=False, server_default="1"
-        ),
+        sa.Column("visit_count", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("page", sa.Integer(), nullable=True),
         sa.Column("progress_percent", sa.Float(), nullable=True),
-        sa.Column(
-            "duration_sec", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("duration_sec", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("last_read_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "completed",
@@ -130,9 +122,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_reading_history_tenant_id", "reading_history", ["tenant_id"])
     op.create_index("ix_reading_history_user_id", "reading_history", ["user_id"])
-    op.create_index(
-        "ix_reading_history_resource_id", "reading_history", ["resource_id"]
-    )
+    op.create_index("ix_reading_history_resource_id", "reading_history", ["resource_id"])
     op.create_index(
         "ix_reading_history_viewed_at",
         "reading_history",

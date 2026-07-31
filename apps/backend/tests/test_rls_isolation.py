@@ -107,9 +107,7 @@ async def _seed_two_tenants(session: AsyncSession) -> tuple[uuid.UUID, uuid.UUID
     return tenant_a, tenant_b
 
 
-async def _seed_resources(
-    session: AsyncSession, tenant_a: uuid.UUID, tenant_b: uuid.UUID
-) -> None:
+async def _seed_resources(session: AsyncSession, tenant_a: uuid.UUID, tenant_b: uuid.UUID) -> None:
     """Insert 5 resources per tenant."""
     for i in range(5):
         await session.execute(
@@ -149,7 +147,9 @@ async def test_experiment_a_own_tenant_returns_all_rows(pg_engine):
         await _seed_resources(session, tenant_a, tenant_b)
 
         # Set RLS context to tenant A.
-        await session.execute(text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)})
+        await session.execute(
+            text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)}
+        )
         result = await session.execute(
             text("SELECT count(*) FROM resources WHERE tenant_id = :tid"),
             {"tid": tenant_a},
@@ -177,7 +177,9 @@ async def test_experiment_b_rls_catches_cross_tenant_leak(pg_engine):
         await _seed_resources(session, tenant_a, tenant_b)
 
         # RLS context = tenant A.
-        await session.execute(text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)})
+        await session.execute(
+            text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)}
+        )
         # Deliberately flawed query: asks for tenant B's resources without
         # the correct app filter — only the tenant_id in the WHERE clause
         # is from the "attacker's" intent.
@@ -212,7 +214,9 @@ async def test_experiment_c_disabling_rls_causes_leak(pg_engine):
         # Disable RLS to demonstrate the leak.
         await session.execute(text("ALTER TABLE resources NO FORCE ROW LEVEL SECURITY"))
         # RLS context = tenant A (now irrelevant since FORCE is off).
-        await session.execute(text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)})
+        await session.execute(
+            text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)}
+        )
         # Flawed filter: asks for tenant B's resources.
         result = await session.execute(
             text("SELECT count(*) FROM resources WHERE tenant_id = :tid_b"),

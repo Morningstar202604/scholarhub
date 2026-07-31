@@ -46,9 +46,7 @@ DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
 
 
-async def _load_owned_list(
-    db: AsyncSession, list_id: int, user: User
-) -> ReadingList:
+async def _load_owned_list(db: AsyncSession, list_id: int, user: User) -> ReadingList:
     """Load a list owned by ``user``; 404 if missing or owned by someone else.
 
     Eager-loads ``items.resource`` so the detail response serializes
@@ -64,9 +62,7 @@ async def _load_owned_list(
                 ReadingList.user_id == user.id,
                 ReadingList.tenant_id == user.tenant_id,
             )
-            .options(
-                selectinload(ReadingList.items).selectinload(ReadingListItem.resource)
-            )
+            .options(selectinload(ReadingList.items).selectinload(ReadingListItem.resource))
             .execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()

@@ -85,9 +85,7 @@ async def test_me_returns_current_user(client: AsyncClient, test_user: dict) -> 
     assert body["is_admin"] is False
 
 
-async def test_refresh_via_cookie_issues_new_tokens(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_refresh_via_cookie_issues_new_tokens(client: AsyncClient, test_user: dict) -> None:
     # Cookie was set on the client during register/login, so we do not
     # need to pass it explicitly.
     response = await client.post("/api/auth/refresh")
@@ -98,9 +96,7 @@ async def test_refresh_via_cookie_issues_new_tokens(
     assert data["username"] == "testuser"
 
 
-async def test_refresh_rotates_old_refresh_token(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_refresh_rotates_old_refresh_token(client: AsyncClient, test_user: dict) -> None:
     """Refresh token rotation: a refresh token consumed once must not work again."""
     # First refresh: gets new pair, old refresh token (in cookie) is rotated out.
     first = await client.post("/api/auth/refresh")
@@ -141,9 +137,7 @@ async def test_logout_requires_auth(client: AsyncClient) -> None:
     assert response.status_code == 401
 
 
-async def test_old_access_token_invalid_after_logout(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_old_access_token_invalid_after_logout(client: AsyncClient, test_user: dict) -> None:
     token = test_user["token"]
     logout = await client.post(
         "/api/auth/logout",

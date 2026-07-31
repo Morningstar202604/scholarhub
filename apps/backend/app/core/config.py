@@ -71,10 +71,8 @@ class Settings(BaseSettings):
     # first startup. Leave as default unless you want a custom slug.
     bootstrap_tenant_slug: str = "default"
 
-    # --- Database (PostgreSQL only — RLS requires PG) ---
-    database_url: str = (
-        "postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub"
-    )
+    # --- Database (PostgreSQL only �?RLS requires PG) ---
+    database_url: str = "postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub"
     db_pool_size: int = Field(default=10, ge=1)
     db_max_overflow: int = Field(default=20, ge=0)
     db_pool_recycle: int = Field(default=1800, ge=0, description="0 = never recycle")
@@ -83,17 +81,53 @@ class Settings(BaseSettings):
     db_startup_retries: int = Field(default=5, ge=0)
     db_startup_retry_delay: float = Field(default=2.0, ge=0.1)
 
-    # --- Redis (cache + rate limit, planned — currently unused) ---
+    # --- Redis (cache + rate limit, planned �?currently unused) ---
     redis_url: str = ""
 
     # --- JWT / Auth ---
     secret_key: str = Field(default="")
+    # M3 hardening: comma-separated list of *previous* signing keys (newest
+    # first). Tokens minted before a rotation verify against this list so
+    # existing sessions keep working until they expire. Set via
+    # ``SCHOLARHUB_PREVIOUS_SECRET_KEYS``. Empty string is fine when no
+    # rotation is in flight.
+    previous_secret_keys: str = Field(default="")
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     algorithm: str = "HS256"
     refresh_token_cookie_name: str = "scholarhub_refresh"
+    # Symmetric key for at-rest encryption of secrets we cannot hash (i.e.
+    # TOTP seeds, where we need to recover the cleartext to compute the
+    # expected code at verify time). 32-byte url-safe base64 (Fernet format).
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Rotate by setting the new key as primary and the old key as fallback
+    # in fernet_keys (comma separated, NEWEST FIRST).
+    fernet_key: str = Field(default="")
+    fernet_keys: str = Field(default="")  # comma-separated for rotation
     refresh_token_cookie_secure: bool | None = None
     refresh_token_cookie_samesite: str = "strict"
+
+    # --- CSRF ---
+    # Double-submit-cookie protection for state-changing requests on
+    # cookie-authenticated endpoints. Off by default for backward
+    # compatibility; flip on once the SPA echoes ``X-CSRF-Token``.
+    csrf_enabled: bool = False
+
+    # --- Admin 2FA policy ---
+    # When True, callers reaching /api/admin/* must have TOTP enabled
+    # on their account. Off by default so existing admin accounts do
+    # not get locked out at deploy time; flip on once the operator
+    # has rolled out 2FA to all admins.
+    require_2fa_for_admin: bool = False
+
+    # --- CAPTCHA policy ---
+    # When True, /api/auth/register demands a captcha_token field and
+    # runs it through the verifier at ``captcha_verifier``. Default
+    # off so dev / CI / unit tests do not need an external provider.
+    captcha_required_for_registration: bool = False
+    # Dotted path to a verifier. Empty -> a dev passthrough that
+    # accepts everything (with a single warning log).
+    captcha_verifier: str = ""
 
     # --- Email ---
     # ``console`` logs to stdout (dev/test). ``smtp`` uses the relay below.
@@ -114,7 +148,7 @@ class Settings(BaseSettings):
     # --- Frontend base URL ---
     # Used to build deep-link URLs in transactional emails (verify-email,
     # password-reset). If unset, links use a relative path so the SPA can
-    # route them client-side — but most deployments should set this so
+    # route them client-side �?but most deployments should set this so
     # links work in any email client.
     frontend_base_url: str = ""
 
@@ -135,11 +169,22 @@ class Settings(BaseSettings):
     # After OIDC callback, where to redirect the browser. We append
     # ``?access_token=...&refresh_token=...`` (refresh also set as cookie).
     oidc_redirect_url: str = ""  # e.g. https://app.example.com/auth/oidc/callback
+    # PKCE (RFC 7636) is REQUIRED on every deployment by default. The
+    # one-shot code_verifier is stored in an httpOnly cookie and
+    # exchanged for the auth code in /callback. Disabling this setting
+    # is only for legacy IdPs that don't implement S256; do not turn
+    # it off in production.
+    oidc_pkce_required: bool = True
+    # Human-readable label shown on the login button (e.g. "Google" /
+    # "GitHub" / "University SSO"). Empty string falls back to the
+    # provider slug capitalized at the API boundary, so the SPA never
+    # has to guess at a label.
+    oidc_provider_label: str = ""
 
     # --- Bibliographic metadata ---
     # Used by the ingest module to identify itself to Crossref (their API
     # policy asks callers to include a mailto in the User-Agent header).
-    # Optional — falls back to a placeholder if not set.
+    # Optional �?falls back to a placeholder if not set.
     crossref_mailto: str = ""
 
     # --- CORS / Trusted hosts ---
@@ -220,6 +265,12 @@ class Settings(BaseSettings):
                 self.secret_key = _TEST_SECRET_KEY
             if not self.admin_password:
                 self.admin_password = _TEST_ADMIN_PASSWORD
+            if not self.fernet_key:
+                # Deterministic test key (DO NOT use in production).
+                # Pinned to a value generated by Fernet.generate_key() so the
+                # test suite can encrypt/decrypt deterministically across runs.
+                # Must be a valid 32-byte url-safe base64 string.
+                self.fernet_key = "88Q2Rl3-2UqzRfG_3tyKUPUDp9CP81YuJp2dLSkQa_0="
             return self
 
         # Non-test environments: reject weak/missing secrets.
@@ -234,6 +285,24 @@ class Settings(BaseSettings):
                 "Generate with: openssl rand -hex 32"
             )
 
+        # M3 rotation: every entry in previous_secret_keys must be a real,
+        # non-weak key. We reject weak values and enforce length so a typo
+        # in the rotation env var cannot silently disable the verification
+        # fallback.
+        for raw in self.previous_secret_keys.split(","):
+            chunk = raw.strip()
+            if not chunk:
+                continue
+            if chunk in _WEAK_SECRET_KEYS:
+                raise ValueError(
+                    "SCHOLARHUB_PREVIOUS_SECRET_KEYS contains a weak value. "
+                    "Rotate only with real keys generated via: openssl rand -hex 32"
+                )
+            if len(chunk) < 32:
+                raise ValueError(
+                    "Every entry in SCHOLARHUB_PREVIOUS_SECRET_KEYS must be at least 32 characters."
+                )
+
         if self.admin_password in _WEAK_ADMIN_PASSWORDS:
             raise ValueError(
                 "SCHOLARHUB_ADMIN_PASSWORD is missing or uses a common weak value. "
@@ -241,6 +310,30 @@ class Settings(BaseSettings):
             )
         if len(self.admin_password) < 12:
             raise ValueError("SCHOLARHUB_ADMIN_PASSWORD must be at least 12 characters long.")
+
+        # Fernet key is required in non-test environments because TOTP 2FA
+        # (M2 hardening) encrypts user secrets at rest with it. Tests get a
+        # deterministic key above; production must provide one via env.
+        if not self.fernet_key:
+            raise ValueError(
+                "SCHOLARHUB_FERNET_KEY is missing. Generate with: "
+                "python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+            )
+        # Validate the actual Fernet format. An ill-formed key would only
+        # fail at first encrypt/decrypt, which is much harder to diagnose.
+        try:
+            from cryptography.fernet import (
+                Fernet,
+            )
+
+            Fernet(
+                self.fernet_key.encode() if isinstance(self.fernet_key, str) else self.fernet_key
+            )
+        except Exception as exc:  # InvalidToken / ValueError
+            raise ValueError(
+                "SCHOLARHUB_FERNET_KEY is not a valid Fernet key "
+                "(must be 32 url-safe base64 bytes)."
+            ) from exc
 
         # Production-specific checks.
         if self.is_production:
@@ -251,7 +344,7 @@ class Settings(BaseSettings):
                 raise ValueError("CORS wildcard '*' is not allowed in production")
             if self.tenancy_mode == "single" and self.bootstrap_tenant_slug == "default":
                 # Allow default slug in single mode for self-hosted convenience;
-                # warn but don't fail — single mode has exactly one tenant.
+                # warn but don't fail �?single mode has exactly one tenant.
                 pass
 
         return self

@@ -8,11 +8,47 @@ pagination metadata.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.core.schemas import Authors, PaginationMeta
+
+
+class AuthorMeta(BaseModel):
+    """Per-author enrichment object.
+
+    Parallel to the ``authors`` list (which is the display source of
+    truth). ``name`` matches the corresponding entry in ``authors``
+    by position; ``orcid`` and ``affiliation`` / ``email`` are
+    optional metadata.
+
+    Validation: ``orcid`` is canonicalised by ``app.core.orcid``.
+    """
+
+    name: str = Field(min_length=1, max_length=200)
+    orcid: str | None = Field(default=None, max_length=20)
+    affiliation: str | None = Field(default=None, max_length=300)
+    email: str | None = Field(default=None, max_length=255)
+
+    @field_validator("orcid")
+    @classmethod
+    def _canonicalise_orcid(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return None
+        from app.core.orcid import is_valid_orcid, normalize_orcid
+
+        if not is_valid_orcid(value):
+            raise ValueError(f"Invalid ORCID iD: {value!r}")
+        return normalize_orcid(value)
+
 
 # Resource type enum; may grow per deployment.
 ResourceType = Literal["paper", "book", "dataset", "tutorial"]
@@ -36,6 +72,23 @@ class ResourceBase(BaseModel):
     download_url: AnyHttpUrl | None = None
     external_url: AnyHttpUrl | None = None
     doi: str | None = Field(default=None, max_length=200)
+    # Optional parallel list of author enrichment objects. Must have
+    # the same length as ``authors`` (when set), or be empty/null.
+    authors_meta: list[AuthorMeta] | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _authors_meta_length_matches(self) -> ResourceBase:
+        if self.authors_meta is None:
+            return self
+        # Off-by-one checks: the metadata list is optional and may be
+        # shorter (caller only knows ORCID for some authors) but must
+        # never claim more entries than the authors list.
+        if len(self.authors_meta) > len(self.authors):
+            raise ValueError(
+                f"authors_meta has {len(self.authors_meta)} entries but "
+                f"authors has only {len(self.authors)}"
+            )
+        return self
 
     # Journal metadata
     volume: str | None = Field(default=None, max_length=50)
@@ -43,6 +96,8 @@ class ResourceBase(BaseModel):
     pages: str | None = Field(default=None, max_length=50)
     issn: str | None = Field(default=None, max_length=20)
     isbn: str | None = Field(default=None, max_length=20)
+    publisher: str | None = Field(default=None, max_length=500)
+    short_container_title: str | None = Field(default=None, max_length=200)
     keywords: list[str] | None = Field(default=None, max_length=50)
     language: str = Field(default="en", max_length=10)
     publication_status: PublicationStatus = "published"
@@ -85,10 +140,13 @@ class ResourceUpdate(BaseModel):
     pages: str | None = Field(default=None, max_length=50)
     issn: str | None = Field(default=None, max_length=20)
     isbn: str | None = Field(default=None, max_length=20)
+    publisher: str | None = Field(default=None, max_length=500)
+    short_container_title: str | None = Field(default=None, max_length=200)
     keywords: list[str] | None = Field(default=None, max_length=50)
     language: str | None = Field(default=None, max_length=10)
     publication_status: PublicationStatus | None = None
     slug: str | None = Field(default=None, min_length=1, max_length=100)
+    authors_meta: list[AuthorMeta] | None = Field(default=None, max_length=200)
 
 
 class ResourceResponse(ResourceBase):
@@ -100,6 +158,23 @@ class ResourceResponse(ResourceBase):
     slug: str | None = None
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_authors_meta(cls, data: Any) -> Any:
+        """Map the JSON column ``authors_meta`` (list[dict]) into a
+        list of :class:`AuthorMeta` for the response. When ``data``
+        is a plain dict we just leave it alone (Pydantic does the
+        construction). For ORM instances we extract the column by
+        name and replace the list of dicts with Pydantic models.
+        """
+        if hasattr(data, "_sa_instance_state"):
+            # ORM: take the raw value and let Pydantic build the models
+            raw = getattr(data, "authors_meta", None)
+            return {c.name: getattr(data, c.name) for c in data.__table__.columns} | {
+                "authors_meta": raw
+            }
+        return data
 
 
 class ResourceListResponse(BaseModel):
@@ -124,6 +199,7 @@ class ResourceFacets(BaseModel):
 
 
 __all__ = [
+    "AuthorMeta",
     "FacetBucket",
     "PaginationMeta",
     "PublicationStatus",

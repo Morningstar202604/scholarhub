@@ -112,9 +112,7 @@ class Submission(Base):
     # Workflow fields。
     # status 兼容旧值 pending/approved/rejected，同时支持
     # under_review/major_revision/minor_revision/resubmitted/accepted。
-    status: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="pending", index=True
-    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 编辑 4 元决定（accept/minor_revision/major_revision/reject）的备注，
     # 区别于 admin_note（兼容旧 review 端点的备注字段）
@@ -124,19 +122,13 @@ class Submission(Base):
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
-    reviewed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
     )
 
-    submitter: Mapped[User] = relationship(
-        "User", foreign_keys="Submission.submitted_by"
-    )
-    reviewer: Mapped[User | None] = relationship(
-        "User", foreign_keys="Submission.reviewed_by"
-    )
+    submitter: Mapped[User] = relationship("User", foreign_keys="Submission.submitted_by")
+    reviewer: Mapped[User | None] = relationship("User", foreign_keys="Submission.reviewed_by")
     # Resource lives in the catalog module; import lazily (string ref)
     # to avoid a circular import at module load time.
     resource: Mapped[Resource | None] = relationship("Resource")
