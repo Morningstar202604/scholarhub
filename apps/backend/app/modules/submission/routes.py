@@ -37,7 +37,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -62,14 +62,18 @@ from app.modules.review.schemas import (
     AssignmentResponse,
     ReviewReportResponse,
 )
-from app.modules.submission.models import Submission
+from app.modules.submission.models import Submission, SubmissionVersion
 from app.modules.submission.schemas import (
     MessageResponse,
+    ResubmitRequest,
     SubmissionCreate,
     SubmissionDecision,
     SubmissionListResponse,
     SubmissionResponse,
     SubmissionReview,
+    SubmissionUpdate,
+    SubmissionVersionListResponse,
+    SubmissionVersionResponse,
 )
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -167,6 +171,70 @@ def _to_response(entry: Submission) -> SubmissionResponse:
     )
 
 
+# 参与版本快照的书目字段。故意不含 status / editor_note / resource_id ——
+# 那些是工作流状态而非「作者写了什么」，把它们塞进快照会让 diff 充满
+# 与稿件内容无关的噪音。
+_VERSIONED_FIELDS = (
+    "title",
+    "type",
+    "authors",
+    "year",
+    "venue",
+    "discipline",
+    "subdiscipline",
+    "keywords",
+    "jel_codes",
+    "tags",
+    "abstract",
+    "preview",
+    "download_url",
+    "external_url",
+    "doi",
+    "corresponding_author_email",
+)
+
+
+def _version_payload(entry: Submission) -> dict[str, Any]:
+    """Extract the versioned bibliographic payload from a submission."""
+    return {field: getattr(entry, field) for field in _VERSIONED_FIELDS}
+
+
+async def _snapshot_submission(
+    db: AsyncSession,
+    entry: Submission,
+    *,
+    created_by: int | None,
+    note: str | None = None,
+) -> SubmissionVersion:
+    """Append an immutable snapshot of ``entry`` to its version history.
+
+    版本号取「当前最大版本 + 1」。并发重投理论上可能撞号，此时
+    (submission_id, version) 唯一约束会抛 IntegrityError —— 交给调用方
+    转成 409，比静默写重号安全。
+
+    调用方负责 commit：快照必须与触发它的状态变更在同一事务里，
+    否则可能出现「状态变了但没留版本」的空洞。
+    """
+    current_max = (
+        await db.execute(
+            select(func.max(SubmissionVersion.version)).where(
+                SubmissionVersion.submission_id == entry.id
+            )
+        )
+    ).scalar()
+    snapshot = SubmissionVersion(
+        tenant_id=entry.tenant_id,
+        submission_id=entry.id,
+        version=(current_max or 0) + 1,
+        payload=_version_payload(entry),
+        file_path=entry.file_path,
+        note=note,
+        created_by=created_by,
+    )
+    db.add(snapshot)
+    return snapshot
+
+
 async def _list_submissions(
     db: AsyncSession,
     base_query: Any,
@@ -225,6 +293,9 @@ async def create_submission(
         corresponding_author_email=body.corresponding_author_email,
     )
     db.add(submission)
+    await db.flush()  # 拿到 submission.id 供 v1 快照引用
+    # v1 快照：保证「最初提交了什么」永远可查（版本历史从创建开始）
+    await _snapshot_submission(db, submission, created_by=current_user.id)
     await db.commit()
     await db.refresh(submission)
     return _to_response(submission)
@@ -308,6 +379,92 @@ async def get_submission(
             detail="Access denied",
         )
     return _to_response(entry)
+
+
+@router.patch("/{submission_id}", response_model=SubmissionResponse)
+async def update_submission(
+    submission_id: int,
+    body: SubmissionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SubmissionResponse:
+    """作者修改自己的稿件内容（补齐修回链路的缺口）。
+
+    此前 major/minor revision 后作者只能翻状态「重投」，却改不了
+    任何内容 —— 修回等于空转。此端点让作者在以下状态可编辑：
+
+    - ``pending``：还没进入评审，随便改；
+    - ``major_revision`` / ``minor_revision``：按审稿意见修改，
+      改完再点重投（重投时快照为新版本）。
+
+    under_review 不可编辑：审稿人正在看的稿子不能被作者悄悄换掉。
+    终态（accepted/rejected/approved）不可编辑。
+    """
+    entry = await _get_or_404(db, submission_id)
+    if entry.submitted_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the submitter can edit the submission",
+        )
+    if entry.status not in ("pending", "major_revision", "minor_revision"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot edit submission in status '{entry.status}'",
+        )
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        return _to_response(entry)
+    for field, value in updates.items():
+        # AnyHttpUrl 落库前转 str，与 create 端点行为一致
+        if field in ("download_url", "external_url") and value is not None:
+            value = str(value)
+        setattr(entry, field, value)
+    await db.commit()
+    await db.refresh(entry)
+    return _to_response(entry)
+
+
+@router.get(
+    "/{submission_id}/versions",
+    response_model=SubmissionVersionListResponse,
+)
+async def list_submission_versions(
+    submission_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SubmissionVersionListResponse:
+    """稿件版本历史（v1 = 初次提交；之后每次重投一个版本）。
+
+    可见方：作者本人、admin/editor。审稿人故意不给 —— 双盲模式下
+    历史版本可能残留身份信息，且审稿人只需要看「当前版本」。
+    """
+    from app.api.deps import ROLE_EDITOR, user_has_role
+
+    entry = await _get_or_404(db, submission_id)
+    allowed = (
+        entry.submitted_by == current_user.id
+        or current_user.is_admin
+        or await user_has_role(db, current_user, ROLE_EDITOR)
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+    rows = (
+        (
+            await db.execute(
+                select(SubmissionVersion)
+                .where(SubmissionVersion.submission_id == entry.id)
+                .order_by(SubmissionVersion.version.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return SubmissionVersionListResponse(
+        data=[SubmissionVersionResponse.model_validate(v) for v in rows]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -860,12 +1017,17 @@ async def editor_decision(
 )
 async def author_resubmit(
     submission_id: int,
+    body: ResubmitRequest | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
     """作者收到 major_revision / minor_revision 后重新提交。
 
-    将状态置为 under_review（编辑可再次分配/决断）。仅作者本人可操作。
+    将状态置为 under_review（编辑可再次分配/决断），并把当前（作者已
+    通过 PATCH 修改过的）稿件内容快照为新版本。可选 ``note`` 记录
+    「针对审稿意见做了哪些修改」，随版本一起存档并推送给编辑。
+
+    仅作者本人可操作。body 可省略，兼容旧的无 body 调用。
     """
     entry = await _get_or_404(db, submission_id)
     if entry.submitted_by != current_user.id:
@@ -878,24 +1040,46 @@ async def author_resubmit(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot resubmit in status '{entry.status}'",
         )
+    note = body.note if body else None
     entry.status = "under_review"
-    await db.commit()
+    # 快照与状态变更同事务：避免「状态翻了但没留版本」的历史空洞
+    snapshot = await _snapshot_submission(db, entry, created_by=current_user.id, note=note)
+    # commit 后 ORM 对象过期，异步会话下惰性刷新会炸；版本号在 commit 前取出
+    version_no = snapshot.version
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # (submission_id, version) 唯一约束冲突 = 并发重投撞号
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Concurrent resubmit detected, please retry",
+        ) from exc
     await db.refresh(entry)
-    # 通知编辑：作者已重投
+    # 通知编辑：作者已重投。
+    # admin 在权限模型里视同 editor（deps._user_has_role 对 admin 直接放行），
+    # fan-out 必须与之对齐 —— 否则只有 admin 的小刊重投通知会石沉大海。
+    editor_ids = select(UserRole.user_id).join(
+        Role, Role.id == UserRole.role_id
+    ).where(
+        UserRole.tenant_id == entry.tenant_id,
+        Role.tenant_id == entry.tenant_id,
+        Role.name == "editor",
+    )
     editors = (
         await db.execute(
             select(User)
-            .join(UserRole, UserRole.user_id == User.id)
-            .join(Role, Role.id == UserRole.role_id)
             .where(
                 User.tenant_id == entry.tenant_id,
-                Role.tenant_id == entry.tenant_id,
-                Role.name == "editor",
                 User.is_active.is_(True),
+                (User.id.in_(editor_ids)) | (User.is_admin.is_(True)),
             )
             .distinct()
         )
     ).scalars().all()
+    notify_body = f"Submission #{entry.id}（v{version_no}）已进入 under_review，请处理。"
+    if note:
+        notify_body += f"\n作者修改说明：{note}"
     for editor in editors:
         await notifications.create(
             db,
@@ -903,7 +1087,7 @@ async def author_resubmit(
             user_id=editor.id,
             type_="submission.resubmitted",
             title=f"作者已重新提交：{entry.title}",
-            body=f"Submission #{entry.id} 已进入 under_review，请处理。",
+            body=notify_body,
             related_type="submission",
             related_id=str(entry.id),
         )

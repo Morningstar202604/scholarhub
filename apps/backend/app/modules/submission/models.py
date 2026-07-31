@@ -142,4 +142,55 @@ class Submission(Base):
     resource: Mapped[Resource | None] = relationship("Resource")
 
 
-__all__ = ["Submission"]
+class SubmissionVersion(Base):
+    """Immutable snapshot of a submission's bibliographic payload.
+
+    版本产生时机（追加式，绝不回写）：
+
+    - **v1**：作者创建投稿时立即快照，保证「最初提交了什么」永远可查。
+    - **v2..n**：作者在大修/小修后点「重投」时，把当前（可能已被作者
+      编辑过的）payload 再快照一份，并可附「给编辑的修改说明」。
+
+    快照存 JSONB 整体 payload 而不是逐列复制：submission 的字段形状
+    还会继续演化（keywords/jel_codes 就是后加的），逐列复制会让每次
+    加字段都牵动版本表迁移；JSONB 快照只增不改，天然向前兼容。
+
+    ``file_path`` 单独抽出来存：文件是版本间最常见的差异（改了稿子重
+    传 PDF），且下载链路需要按 key 直达存储层，不适合埋在 JSON 里。
+    """
+
+    __tablename__ = "submission_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    submission_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("submissions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # 版本号从 1 开始、按 submission 单调递增；(submission_id, version)
+    # 唯一约束由迁移创建，防并发重投产生重号。
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 完整书目 payload 快照（title/authors/abstract/... 与 Submission 列同形）
+    payload: Mapped[dict] = mapped_column(JSONBVariant, nullable=False)
+    # 该版本对应的稿件文件 key（可能为 None：作者还没传文件）
+    file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # 作者附言：v1 恒空；重投版本可填「针对审稿意见做了哪些修改」
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+
+
+__all__ = ["Submission", "SubmissionVersion"]

@@ -11,6 +11,8 @@ import {
   Download,
   ExternalLink,
   FileText,
+  History,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -25,6 +27,8 @@ import {
   useMySubmissions,
   useResubmitSubmission,
   useSubmissionReports,
+  useSubmissionVersions,
+  useUpdateSubmission,
   useUploadSubmissionFile,
 } from '@/hooks/api/use-modules'
 import type {
@@ -144,6 +148,34 @@ const EMPTY_FORM: FormState = {
   external_url: '',
 }
 
+// 详情 → 表单：作者点「修改稿件」时把现有内容回填进同一套表单
+function submissionToForm(s: SubmissionResponse): FormState {
+  const validTypes: SubmissionType[] = ['paper', 'book', 'dataset', 'tutorial']
+  return {
+    title: s.title,
+    type: validTypes.includes(s.type as SubmissionType)
+      ? (s.type as SubmissionType)
+      : 'paper',
+    authors: s.authors.join(', '),
+    year: String(s.year),
+    discipline: s.discipline,
+    abstract: s.abstract,
+    preview: s.preview,
+    venue: s.venue ?? '',
+    subdiscipline: s.subdiscipline ?? '',
+    tags: s.tags.join(', '),
+    keywords: s.keywords.join(', '),
+    jel_codes: s.jel_codes.join(', '),
+    corresponding_author_email: s.corresponding_author_email ?? '',
+    doi: s.doi ?? '',
+    download_url: s.download_url ?? '',
+    external_url: s.external_url ?? '',
+  }
+}
+
+// 作者可编辑内容的状态（与后端 update_submission 的状态门一致）
+const EDITABLE_STATUSES = ['pending', 'major_revision', 'minor_revision']
+
 // ingest 预填：IngestResource.type 是 SubmissionType 的超集，需收敛到合法值
 function presetToForm(p: IngestResource): FormState {
   const validTypes: SubmissionType[] = ['paper', 'book', 'dataset', 'tutorial']
@@ -198,14 +230,20 @@ function SubmissionsPage() {
   const deleteMut = useDeleteSubmission()
   const uploadMut = useUploadSubmissionFile()
   const resubmitMut = useResubmitSubmission()
+  const updateMut = useUpdateSubmission()
 
   const [createOpen, setCreateOpen] = useState(false)
+  // null = 新建模式；数字 = 正在编辑该 submission（复用同一套表单）
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [detail, setDetail] = useState<SubmissionResponse | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
-  // 仅在 detail 对话框打开时拉取审稿报告（hook 通过 enabled 守卫）；
+  const [resubmitOpen, setResubmitOpen] = useState(false)
+  const [resubmitNote, setResubmitNote] = useState('')
+  // 仅在 detail 对话框打开时拉取审稿报告 / 版本历史（hook 通过 enabled 守卫）；
   // 必须放在 detail useState 之后，否则 TS2448/2454 报"使用先于声明"。
   const reportsQ = useSubmissionReports(detail?.id ?? 0)
+  const versionsQ = useSubmissionVersions(detail?.id ?? 0, detail !== null)
 
   const onUploadFile = async (file: File) => {
     if (!detail) return
@@ -218,16 +256,30 @@ function SubmissionsPage() {
     }
   }
 
-  // 大修/小修状态下作者重投，触发 submission → resubmitted → under_review
+  // 大修/小修状态下作者重投，触发 submission → resubmitted → under_review。
+  // 重投会把当前稿件内容快照为一个新版本，note 随版本存档并推送给编辑。
   const onResubmit = async () => {
     if (!detail) return
     try {
-      const updated = await resubmitMut.mutateAsync(detail.id)
+      const updated = await resubmitMut.mutateAsync({
+        id: detail.id,
+        note: resubmitNote.trim() || undefined,
+      })
       setDetail(updated)
+      setResubmitOpen(false)
+      setResubmitNote('')
       toast.success('已重投，等待编辑再次审核')
     } catch (err) {
       toast.error(extractError(err, '重投失败'))
     }
+  }
+
+  // 作者修改稿件内容：复用新建表单，提交走 PATCH 而非 POST
+  const onStartEdit = () => {
+    if (!detail) return
+    setForm(submissionToForm(detail))
+    setEditingId(detail.id)
+    setCreateOpen(true)
   }
 
   // ingest 页 "提交到目录" 通过 router state 传预填数据
@@ -280,12 +332,20 @@ function SubmissionsPage() {
       external_url: form.external_url || undefined,
     }
     try {
-      await createMut.mutateAsync(body)
-      toast.success('提交成功，等待审核')
+      if (editingId !== null) {
+        // 编辑模式：PATCH 全量字段（表单已回填原值，未动的字段等值覆盖无副作用）
+        const updated = await updateMut.mutateAsync({ id: editingId, body })
+        setDetail(updated)
+        toast.success('稿件已更新')
+      } else {
+        await createMut.mutateAsync(body)
+        toast.success('提交成功，等待审核')
+      }
       setCreateOpen(false)
+      setEditingId(null)
       setForm(EMPTY_FORM)
     } catch (err) {
-      toast.error(extractError(err, '提交失败'))
+      toast.error(extractError(err, editingId !== null ? '更新失败' : '提交失败'))
     }
   }
 
@@ -610,18 +670,51 @@ function SubmissionsPage() {
                   </div>
                 </div>
               )}
-              {/* 重投按钮：仅大修/小修状态可重投 */}
-              {['major_revision', 'minor_revision'].includes(
-                detail.status,
-              ) && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={onResubmit}
-                    disabled={resubmitMut.isPending}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    {resubmitMut.isPending ? '处理中…' : '重投提交'}
+              {/* 版本历史：v1 = 初次提交，之后每次重投一个版本 */}
+              {versionsQ.data && versionsQ.data.length > 0 && (
+                <div className="rounded-md border p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    <span className="font-medium">版本历史</span>
+                  </div>
+                  <ol className="space-y-2">
+                    {versionsQ.data.map((v) => (
+                      <li key={v.id} className="flex gap-2 text-sm">
+                        <Badge variant="outline" className="shrink-0">
+                          v{v.version}
+                        </Badge>
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">
+                            {v.version === 1 ? '初次提交' : '重投'} ·{' '}
+                            {new Date(v.created_at).toLocaleString()}
+                            {v.file_path ? ' · 含稿件文件' : ''}
+                          </div>
+                          {v.note && (
+                            <p className="mt-0.5 whitespace-pre-wrap text-sm">
+                              修改说明：{v.note}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {/* 操作区：可编辑状态下开放「修改稿件」；大修/小修额外开放「重投」 */}
+              {EDITABLE_STATUSES.includes(detail.status) && (
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={onStartEdit}>
+                    <Pencil className="h-4 w-4" />
+                    修改稿件
                   </Button>
+                  {['major_revision', 'minor_revision'].includes(
+                    detail.status,
+                  ) && (
+                    <Button onClick={() => setResubmitOpen(true)}>
+                      <RefreshCw className="h-4 w-4" />
+                      重投提交
+                    </Button>
+                  )}
                 </div>
               )}
               <div className="text-xs text-muted-foreground">
@@ -638,11 +731,19 @@ function SubmissionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 新建提交 Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      {/* 新建 / 修改稿件 Dialog（复用同一套表单，editingId 区分模式） */}
+      <Dialog
+        open={createOpen}
+        onOpenChange={(o) => {
+          setCreateOpen(o)
+          if (!o) setEditingId(null)
+        }}
+      >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>新建提交</DialogTitle>
+            <DialogTitle>
+              {editingId !== null ? '修改稿件' : '新建提交'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={onCreate} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -813,15 +914,74 @@ function SubmissionsPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setCreateOpen(false)}
+                onClick={() => {
+                  setCreateOpen(false)
+                  setEditingId(null)
+                }}
               >
                 取消
               </Button>
-              <Button type="submit" disabled={createMut.isPending}>
-                {createMut.isPending ? '提交中…' : '提交'}
+              <Button
+                type="submit"
+                disabled={createMut.isPending || updateMut.isPending}
+              >
+                {editingId !== null
+                  ? updateMut.isPending
+                    ? '保存中…'
+                    : '保存修改'
+                  : createMut.isPending
+                    ? '提交中…'
+                    : '提交'}
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* 重投 Dialog：可附「针对审稿意见做了哪些修改」，随版本存档并通知编辑 */}
+      <Dialog
+        open={resubmitOpen}
+        onOpenChange={(o) => {
+          setResubmitOpen(o)
+          if (!o) setResubmitNote('')
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>重投提交</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              重投会把稿件当前内容存为一个新版本并交回编辑。若还没改完，
+              先关掉这里用「修改稿件」编辑内容。
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="resubmit-note">修改说明（可选）</Label>
+              <Textarea
+                id="resubmit-note"
+                rows={4}
+                value={resubmitNote}
+                onChange={(e) => setResubmitNote(e.target.value)}
+                placeholder="例如：按审稿人 1 的意见补充了稳健性检验，重写了 3.2 节。"
+              />
+            </div>
+            <div className="flex justify-end gap-2 border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setResubmitOpen(false)}
+              >
+                取消
+              </Button>
+              <Button
+                onClick={onResubmit}
+                disabled={resubmitMut.isPending}
+                data-testid="confirm-resubmit"
+              >
+                {resubmitMut.isPending ? '处理中…' : '确认重投'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

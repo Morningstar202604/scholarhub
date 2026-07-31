@@ -261,6 +261,26 @@ export interface SubmissionListResponse {
   meta: PaginationMeta
 }
 
+/** 作者修改稿件：所有字段可选，只提交改动的部分 */
+export type SubmissionUpdate = Partial<SubmissionCreate>
+
+/** 稿件版本快照。payload 与 SubmissionCreate 同形（书目字段） */
+export interface SubmissionVersionResponse {
+  id: number
+  submission_id: number
+  version: number
+  payload: Record<string, unknown>
+  file_path?: string | null
+  /** 作者重投时填写的修改说明；v1 恒为 null */
+  note?: string | null
+  created_by?: number | null
+  created_at: string
+}
+
+export interface SubmissionVersionListResponse {
+  data: SubmissionVersionResponse[]
+}
+
 // --- Peer review ---
 export type AssignmentStatus =
   | 'pending'

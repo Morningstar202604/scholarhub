@@ -45,6 +45,9 @@ import type {
   SubmissionDecision,
   SubmissionListResponse,
   SubmissionResponse,
+  SubmissionUpdate,
+  SubmissionVersionListResponse,
+  SubmissionVersionResponse,
   SubscriptionStatusResponse,
   UnreadCountResponse,
   UserResponse,
@@ -72,6 +75,7 @@ export const keys = {
     detail: (id: number) => ['submissions', 'detail', id] as const,
     assignments: (id: number) => ['submissions', id, 'assignments'] as const,
     reports: (id: number) => ['submissions', id, 'reports'] as const,
+    versions: (id: number) => ['submissions', id, 'versions'] as const,
   },
   review: {
     myAssignments: (status?: string) =>
@@ -433,16 +437,48 @@ export function useEditorDecision() {
   })
 }
 
-// 作者重投
+// 作者重投（note 可选：给编辑的修改说明，随新版本存档）
 export function useResubmitSubmission() {
   const qc = useQueryClient()
-  return useMutation<SubmissionResponse, Error, number>({
-    mutationFn: async (id) =>
-      (await api.post<SubmissionResponse>(`/submissions/${id}/resubmit`)).data,
-    onSuccess: (data, id) => {
+  return useMutation<SubmissionResponse, Error, { id: number; note?: string }>({
+    mutationFn: async ({ id, note }) =>
+      (
+        await api.post<SubmissionResponse>(
+          `/submissions/${id}/resubmit`,
+          note ? { note } : {},
+        )
+      ).data,
+    onSuccess: (data, { id }) => {
       qc.setQueryData(keys.submission.detail(id), data)
       void qc.invalidateQueries({ queryKey: ['submissions'] })
     },
+  })
+}
+
+// 作者修改稿件内容（pending / major_revision / minor_revision 状态限定）
+export function useUpdateSubmission() {
+  const qc = useQueryClient()
+  return useMutation<SubmissionResponse, Error, { id: number; body: SubmissionUpdate }>({
+    mutationFn: async ({ id, body }) =>
+      (await api.patch<SubmissionResponse>(`/submissions/${id}`, body)).data,
+    onSuccess: (data, { id }) => {
+      qc.setQueryData(keys.submission.detail(id), data)
+      void qc.invalidateQueries({ queryKey: ['submissions'] })
+    },
+  })
+}
+
+// 稿件版本历史（作者 + 编辑可见）
+export function useSubmissionVersions(id: number, enabled = true) {
+  return useQuery<SubmissionVersionResponse[]>({
+    queryKey: keys.submission.versions(id),
+    queryFn: async () =>
+      (
+        await api.get<SubmissionVersionListResponse>(
+          `/submissions/${id}/versions`,
+        )
+      ).data.data,
+    enabled: enabled && id > 0,
   })
 }
 

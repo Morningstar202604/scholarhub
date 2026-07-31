@@ -142,10 +142,62 @@ class SubmissionListResponse(BaseModel):
     meta: PaginationMeta
 
 
+class SubmissionUpdate(BaseModel):
+    """Body for PATCH /submissions/{id} — author edits their manuscript.
+
+    仅在 pending / major_revision / minor_revision 状态下允许（编辑要求
+    修改后，作者要能真正改内容，而不是只把状态翻回去）。所有字段可选，
+    只更新提供的字段；约束与 SubmissionCreate 逐字段一致。
+    """
+
+    title: str | None = Field(default=None, min_length=1, max_length=1000)
+    type: SubmissionType | None = None
+    authors: Authors | None = Field(default=None, min_length=1, max_length=200)
+    year: int | None = Field(default=None, ge=-3000, le=2100)
+    venue: str | None = Field(default=None, max_length=500)
+    discipline: str | None = Field(default=None, min_length=1, max_length=100)
+    subdiscipline: str | None = Field(default=None, max_length=100)
+    keywords: list[str] | None = Field(default=None, max_length=50)
+    jel_codes: list[str] | None = Field(default=None, max_length=20)
+    tags: list[str] | None = Field(default=None, max_length=50)
+    abstract: str | None = Field(default=None, min_length=1, max_length=20000)
+    preview: str | None = Field(default=None, max_length=5000)
+    download_url: AnyHttpUrl | None = None
+    external_url: AnyHttpUrl | None = None
+    doi: str | None = Field(default=None, max_length=200)
+    corresponding_author_email: str | None = Field(default=None, max_length=255)
+
+
+class ResubmitRequest(BaseModel):
+    """Body for POST /submissions/{id}/resubmit — optional author note."""
+
+    note: str | None = Field(default=None, max_length=5000)
+
+
+class SubmissionVersionResponse(BaseModel):
+    """One immutable snapshot in a submission's version history."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    submission_id: int
+    version: int
+    payload: dict
+    file_path: str | None = None
+    note: str | None = None
+    created_by: int | None = None
+    created_at: datetime
+
+
+class SubmissionVersionListResponse(BaseModel):
+    data: list[SubmissionVersionResponse]
+
+
 __all__ = [
     "EditorDecision",
     "MessageResponse",
     "PaginationMeta",
+    "ResubmitRequest",
     "ReviewRecommendation",
     "SubmissionCreate",
     "SubmissionDecision",
@@ -154,4 +206,7 @@ __all__ = [
     "SubmissionReview",
     "SubmissionStatus",
     "SubmissionType",
+    "SubmissionUpdate",
+    "SubmissionVersionListResponse",
+    "SubmissionVersionResponse",
 ]

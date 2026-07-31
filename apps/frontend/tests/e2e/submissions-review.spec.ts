@@ -185,4 +185,96 @@ test.describe('submissions + review flow', () => {
 
     await authorCtx.close()
   })
+
+  test('revision → author edits manuscript → resubmit with note → version history', async ({
+    browser,
+  }) => {
+    // Phase 2.4 全链路：大修 → 作者真正修改内容 → 带修改说明重投 →
+    // 作者与编辑双方都能在版本历史里看到 v1/v2 与作者说明。
+    const authorCtx = await browser.newContext()
+    const author = nextTestUser('reviser')
+    const authorPage = await authorCtx.newPage()
+    await registerAndVerifyViaUi(authorPage, author)
+    await loginViaUi(authorPage, author)
+
+    // --- 1) 作者投稿 ---
+    await authorPage.goto('/submissions')
+    await authorPage.getByRole('button', { name: /新建提交/ }).click()
+    const title = `E2E Revise ${Date.now()}`
+    await authorPage.getByLabel('标题').fill(title)
+    await authorPage.getByLabel('作者（逗号分隔）').fill('Revision Author')
+    await authorPage.getByLabel('学科', { exact: true }).fill('economics')
+    await authorPage.getByLabel('摘要', { exact: true }).fill('Original abstract v1.')
+    await authorPage.getByRole('button', { name: '提交' }).click({ force: true })
+    await expect(authorPage.getByText('提交成功，等待审核')).toBeVisible({
+      timeout: 5_000,
+    })
+
+    // --- 2) admin 决定 = 大修 ---
+    const adminCtx = await browser.newContext()
+    const adminPage = await adminCtx.newPage()
+    await loginViaUi(adminPage, ADMIN)
+    await adminPage.goto('/submissions/pending')
+    await expect(adminPage.getByText(title)).toBeVisible({ timeout: 10_000 })
+    // 编辑工作台是卡片布局（不是表格），用 data-testid 锚定到目标稿件那张卡片
+    const card = adminPage.locator('[data-testid="submission-card"]', {
+      hasText: title,
+    })
+    await card.getByRole('button', { name: /做决定/ }).click()
+    await adminPage.locator('button[role="combobox"]').first().click()
+    await adminPage.getByRole('option', { name: /大修/ }).click()
+    await adminPage
+      .getByLabel('编辑备注（作者可见）')
+      .fill('Please expand the methodology.')
+    await adminPage.getByRole('button', { name: '确认决定' }).click()
+    await expect(adminPage.getByText('决定已记录')).toBeVisible({ timeout: 5_000 })
+
+    // --- 3) 作者看到大修，修改稿件内容（这是 2.4 之前根本做不到的事）---
+    await authorPage.goto('/submissions')
+    await expect(authorPage.getByText('大修').first()).toBeVisible({
+      timeout: 10_000,
+    })
+    await authorPage.getByText(title).click()
+    await authorPage.getByRole('button', { name: '修改稿件' }).click()
+    await expect(authorPage.getByRole('heading', { name: '修改稿件' })).toBeVisible()
+    // 表单已回填原值；只改摘要
+    await authorPage
+      .getByLabel('摘要', { exact: true })
+      .fill('Revised abstract v2 with expanded methodology.')
+    await authorPage.getByRole('button', { name: '保存修改' }).click({ force: true })
+    await expect(authorPage.getByText('稿件已更新')).toBeVisible({ timeout: 5_000 })
+
+    // --- 4) 带修改说明重投 ---
+    await authorPage.getByRole('button', { name: '重投提交' }).click()
+    await authorPage.getByLabel('修改说明（可选）').fill('已按意见扩写方法论一节')
+    await authorPage.getByTestId('confirm-resubmit').click()
+    await expect(authorPage.getByText('已重投，等待编辑再次审核')).toBeVisible({
+      timeout: 5_000,
+    })
+
+    // --- 5) 作者详情里能看到 v1 + v2 版本历史与修改说明 ---
+    await expect(authorPage.getByText('版本历史')).toBeVisible({ timeout: 5_000 })
+    await expect(authorPage.getByText('v2', { exact: true })).toBeVisible()
+    await expect(authorPage.getByText(/已按意见扩写方法论一节/)).toBeVisible()
+
+    // --- 6) 编辑侧详情也能看到版本历史 + 改过的内容 ---
+    await adminPage.goto('/submissions/pending')
+    await expect(adminPage.getByText(title)).toBeVisible({ timeout: 10_000 })
+    await adminPage
+      .locator('[data-testid="submission-card"]', { hasText: title })
+      .getByRole('button', { name: '详情' })
+      .click()
+    // 断言限定在详情 dialog 内：改后的摘要同时出现在列表卡片摘要里，
+    // 页面级 getByText 会 strict-mode 命中 2 个节点。
+    const detailDialog = adminPage.getByRole('dialog')
+    await expect(detailDialog.getByText('版本历史')).toBeVisible({ timeout: 5_000 })
+    await expect(detailDialog.getByText('v2', { exact: true })).toBeVisible()
+    await expect(detailDialog.getByText(/已按意见扩写方法论一节/)).toBeVisible()
+    await expect(
+      detailDialog.getByText(/Revised abstract v2 with expanded methodology/),
+    ).toBeVisible()
+
+    await authorCtx.close()
+    await adminCtx.close()
+  })
 })
