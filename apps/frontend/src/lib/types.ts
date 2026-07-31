@@ -249,7 +249,8 @@ export interface SubmissionResponse {
   editor_note?: string | null
   resource_id?: number | null
   file_path?: string | null
-  submitted_by: number
+  /** 双盲评审下，审稿人视图中该字段会被置空 */
+  submitted_by: number | null
   submitted_at: string
   reviewed_by?: number | null
   reviewed_at?: string | null
@@ -550,6 +551,13 @@ export interface AuditLogEntry {
   target_id: string | null
   payload: Record<string, unknown> | null
   created_at: string
+}
+
+// --- Journal settings (admin) ---
+export type ReviewMode = 'single_blind' | 'double_blind'
+
+export interface ReviewModeResponse {
+  review_mode: ReviewMode
 }
 
 // --- Export ---

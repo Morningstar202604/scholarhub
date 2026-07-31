@@ -30,6 +30,7 @@ import { Route as LibraryListIdRouteImport } from './routes/library/$listId'
 import { Route as CatalogNewRouteImport } from './routes/catalog/new'
 import { Route as CatalogResourceIdRouteImport } from './routes/catalog/$resourceId'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
 import { Route as AuthOidcCallbackRouteImport } from './routes/auth/oidc/callback'
 
@@ -138,6 +139,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
   id: '/admin/audit-logs',
   path: '/admin/audit-logs',
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/catalog/$resourceId': typeof CatalogResourceIdRoute
   '/catalog/new': typeof CatalogNewRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/catalog/$resourceId': typeof CatalogResourceIdRoute
   '/catalog/new': typeof CatalogNewRoute
@@ -211,6 +219,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/catalog/$resourceId': typeof CatalogResourceIdRoute
   '/catalog/new': typeof CatalogNewRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/admin/audit-logs'
+    | '/admin/settings'
     | '/admin/users'
     | '/catalog/$resourceId'
     | '/catalog/new'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/admin/audit-logs'
+    | '/admin/settings'
     | '/admin/users'
     | '/catalog/$resourceId'
     | '/catalog/new'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/admin/audit-logs'
+    | '/admin/settings'
     | '/admin/users'
     | '/catalog/$resourceId'
     | '/catalog/new'
@@ -314,6 +326,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   AdminAuditLogsRoute: typeof AdminAuditLogsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   CatalogResourceIdRoute: typeof CatalogResourceIdRoute
   CatalogNewRoute: typeof CatalogNewRoute
@@ -478,6 +491,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/audit-logs': {
       id: '/admin/audit-logs'
       path: '/admin/audit-logs'
@@ -506,6 +526,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   AdminAuditLogsRoute: AdminAuditLogsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   CatalogResourceIdRoute: CatalogResourceIdRoute,
   CatalogNewRoute: CatalogNewRoute,

@@ -130,7 +130,8 @@ class SubmissionResponse(BaseModel):
     editor_note: str | None = None
     resource_id: int | None = None
     file_path: str | None = None
-    submitted_by: int
+    # 双盲评审下审稿人视角会被抹掉，因此可空
+    submitted_by: int | None = None
     submitted_at: datetime
     reviewed_by: int | None = None
     reviewed_at: datetime | None = None

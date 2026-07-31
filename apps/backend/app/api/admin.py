@@ -19,7 +19,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_admin, require_tenant_id
 from app.core.db import get_db
 from app.models import AuditLog, Role, User, UserRole
-from app.schemas import RoleAssign, UserResponse
+from app.modules.review.blinding import get_review_mode, set_review_mode
+from app.schemas import (
+    ReviewModeResponse,
+    ReviewModeUpdate,
+    RoleAssign,
+    UserResponse,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -302,3 +308,50 @@ async def list_audit_logs(
         }
         for log in result.scalars()
     ]
+
+
+# ---------------------------------------------------------------------------
+# Journal settings（租户级配置；目前只有评审模式）
+# ---------------------------------------------------------------------------
+
+
+@router.get("/settings/review-mode", response_model=ReviewModeResponse)
+async def get_review_mode_setting(
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(require_admin),
+) -> ReviewModeResponse:
+    """读取本租户的评审模式（single_blind / double_blind）。"""
+    tenant_id = require_tenant_id()
+    return ReviewModeResponse(review_mode=await get_review_mode(db, tenant_id))
+
+
+@router.patch("/settings/review-mode", response_model=ReviewModeResponse)
+async def update_review_mode_setting(
+    payload: ReviewModeUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(require_admin),
+) -> ReviewModeResponse:
+    """切换本租户的评审模式。
+
+    切换即时生效，但只影响此后的「审稿人读取稿件」请求 —— 已经看过
+    作者姓名的审稿人无法被"取消知晓"，这一点在 UI 上要向管理员说明。
+    """
+    tenant_id = require_tenant_id()
+    try:
+        await set_review_mode(db, tenant_id, payload.review_mode)
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found"
+        ) from exc
+    db.add(
+        AuditLog(
+            tenant_id=tenant_id,
+            actor_user_id=current_admin.id,
+            action="admin.settings.review_mode",
+            target_type="tenant",
+            target_id=str(tenant_id),
+            payload={"review_mode": payload.review_mode},
+        )
+    )
+    await db.commit()
+    return ReviewModeResponse(review_mode=payload.review_mode)

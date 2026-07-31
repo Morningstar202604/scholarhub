@@ -37,6 +37,8 @@ import type {
   ResourceResponse,
   ResourceStats,
   ResourceUpdate,
+  ReviewMode,
+  ReviewModeResponse,
   ReviewReportResponse,
   ReviewSubmit,
   SubmissionCreate,
@@ -93,6 +95,7 @@ export const keys = {
   admin: {
     users: (limit = 50, offset = 0) => ['admin', 'users', limit, offset] as const,
     audit: (limit = 50, offset = 0) => ['admin', 'audit', limit, offset] as const,
+    reviewMode: () => ['admin', 'review-mode'] as const,
   },
   follows: {
     author: (name: string) => ['follows', 'author', name] as const,
@@ -854,6 +857,29 @@ export function useRevokeRole() {
       (await api.delete<UserResponse>(`/admin/users/${userId}/roles/${role}`)).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['admin', 'users'] })
+    },
+  })
+}
+
+// 期刊评审模式（单盲 / 双盲）——租户级设置
+export function useReviewMode() {
+  return useQuery<ReviewModeResponse>({
+    queryKey: keys.admin.reviewMode(),
+    queryFn: async () =>
+      (await api.get<ReviewModeResponse>('/admin/settings/review-mode')).data,
+  })
+}
+
+export function useSetReviewMode() {
+  const qc = useQueryClient()
+  return useMutation<ReviewModeResponse, Error, ReviewMode>({
+    mutationFn: async (review_mode) =>
+      (await api.patch<ReviewModeResponse>('/admin/settings/review-mode', { review_mode }))
+        .data,
+    onSuccess: (data) => {
+      qc.setQueryData(keys.admin.reviewMode(), data)
+      // 审稿人看到的稿件内容随模式变化，相关缓存需失效
+      void qc.invalidateQueries({ queryKey: ['review'] })
     },
   })
 }

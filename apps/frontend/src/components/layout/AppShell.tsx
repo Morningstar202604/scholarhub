@@ -13,6 +13,7 @@ import {
   Menu,
   Upload,
   ScrollText,
+  Settings,
   ShieldCheck,
   Users,
   X,
@@ -55,6 +56,7 @@ const NAV: NavItem[] = [
   { to: '/notifications', label: '通知', icon: Bell, auth: true },
   { to: '/admin/users', label: '用户管理', icon: Users, auth: true, adminOnly: true },
   { to: '/admin/audit-logs', label: '审计日志', icon: ShieldCheck, auth: true, adminOnly: true },
+  { to: '/admin/settings', label: '期刊设置', icon: Settings, auth: true, adminOnly: true },
 ]
 
 export function AppShell() {

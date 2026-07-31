@@ -13,7 +13,7 @@
  * - 局部兜底：任意子树包 `<ModuleErrorBoundary name="推荐">`，
  *   单个模块炸掉不会拖垮整页
  */
-import type { ReactNode } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
 import { QueryErrorResetBoundary } from '@tanstack/react-query'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
@@ -21,7 +21,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { reportError } from '@/lib/monitoring'
 
-function onBoundaryError(error: Error, info: { componentStack?: string | null }) {
+// react-error-boundary v6 的 onError 签名是 (error: unknown, info: ErrorInfo)，
+// error 未必是 Error 实例（可能 throw 了字符串/对象），故按 unknown 接。
+function onBoundaryError(error: unknown, info: ErrorInfo) {
   reportError(error, { componentStack: info.componentStack ?? undefined })
 }
 

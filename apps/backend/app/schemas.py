@@ -109,6 +109,16 @@ class RoleAssign(BaseModel):
     role: Literal["reviewer", "editor", "section_editor", "author", "reader"]
 
 
+class ReviewModeUpdate(BaseModel):
+    """Body for PATCH /admin/settings/review-mode."""
+
+    review_mode: Literal["single_blind", "double_blind"]
+
+
+class ReviewModeResponse(BaseModel):
+    review_mode: Literal["single_blind", "double_blind"]
+
+
 class UserUpdate(BaseModel):
     email: EmailStr | None = None
     username: str | None = Field(default=None, min_length=3, max_length=100)

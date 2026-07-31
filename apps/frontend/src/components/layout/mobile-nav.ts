@@ -5,8 +5,9 @@ import {
   Heart,
   Home,
   Lightbulb,
-  ShieldCheck,
   ScrollText,
+  Settings,
+  ShieldCheck,
   Upload,
   Users,
   type LucideIcon,
@@ -45,6 +46,7 @@ export const MOBILE_MORE: MobileMoreItem[] = [
   { to: '/ingest', label: '导入', icon: Upload },
   { to: '/admin/users', label: '用户管理', icon: Users, adminOnly: true },
   { to: '/admin/audit-logs', label: '审计日志', icon: ShieldCheck, adminOnly: true },
+  { to: '/admin/settings', label: '期刊设置', icon: Settings, adminOnly: true },
 ]
 
 // 中心悬浮按钮（FAB）跳转目标：导入（所有登录用户可用，属于创建类操作）。

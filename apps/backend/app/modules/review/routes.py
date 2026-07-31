@@ -24,6 +24,7 @@ from app.core.db import get_db, paginate
 from app.core.time import utcnow
 from app.models import User
 from app.modules.notifications import services as notifications
+from app.modules.review.blinding import anonymize_submission_fields, get_review_mode
 from app.modules.review.models import ReviewAssignment, ReviewReport
 from app.modules.review.schemas import (
     AssignmentListResponse,
@@ -159,7 +160,13 @@ async def get_assignment_submission(
 ) -> SubmissionResponse:
     """审稿人查看分配稿件的完整内容（abstract / preview / file_path 等）。
 
-    审稿人需要看完整稿件，单盲剥离仅作用于作者侧的 review reports。
+    单盲（默认）：审稿人看到完整稿件，含作者姓名。
+    双盲：作者姓名/通讯邮箱/venue/DOI/提交人 id 被抹掉（见 blinding 模块），
+    审稿人仍能拿到正文与所有学术内容。
+
+    作者侧的剥离（作者看不到审稿人身份）两种模式下都生效，在
+    ``submission.routes.list_review_reports`` 里处理。
+
     仅 pending/accepted/completed 状态可查看；declined/cancelled 不可查看。
     """
     a = await _get_assignment_for_reviewer(db, assignment_id, current_user.id)
@@ -174,34 +181,40 @@ async def get_assignment_submission(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Submission not found",
         )
-    return SubmissionResponse(
-        id=s.id,
-        title=s.title,
-        type=s.type,
-        authors=s.authors,
-        year=s.year,
-        venue=s.venue,
-        discipline=s.discipline,
-        subdiscipline=s.subdiscipline,
-        keywords=s.keywords,
-        jel_codes=s.jel_codes,
-        tags=s.tags,
-        abstract=s.abstract,
-        preview=s.preview,
-        download_url=s.download_url,
-        external_url=s.external_url,
-        doi=s.doi,
-        corresponding_author_email=s.corresponding_author_email,
-        status=s.status,
-        admin_note=s.admin_note,
-        editor_note=s.editor_note,
-        resource_id=s.resource_id,
-        file_path=s.file_path,
-        submitted_by=s.submitted_by,
-        submitted_at=s.submitted_at,
-        reviewed_by=s.reviewed_by,
-        reviewed_at=s.reviewed_at,
-    )
+    payload = {
+        "id": s.id,
+        "title": s.title,
+        "type": s.type,
+        "authors": s.authors,
+        "year": s.year,
+        "venue": s.venue,
+        "discipline": s.discipline,
+        "subdiscipline": s.subdiscipline,
+        "keywords": s.keywords,
+        "jel_codes": s.jel_codes,
+        "tags": s.tags,
+        "abstract": s.abstract,
+        "preview": s.preview,
+        "download_url": s.download_url,
+        "external_url": s.external_url,
+        "doi": s.doi,
+        "corresponding_author_email": s.corresponding_author_email,
+        "status": s.status,
+        "admin_note": s.admin_note,
+        "editor_note": s.editor_note,
+        "resource_id": s.resource_id,
+        "file_path": s.file_path,
+        "submitted_by": s.submitted_by,
+        "submitted_at": s.submitted_at,
+        "reviewed_by": s.reviewed_by,
+        "reviewed_at": s.reviewed_at,
+    }
+    # admin 例外：平台管理员需要能复现问题，且其身份天然不受盲审约束。
+    if not current_user.is_admin:
+        mode = await get_review_mode(db, s.tenant_id)
+        if mode == "double_blind":
+            payload = anonymize_submission_fields(payload)
+    return SubmissionResponse(**payload)
 
 
 @router.post(
