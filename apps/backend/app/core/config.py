@@ -177,9 +177,16 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = Field(default="")
 
-    # --- Storage (Phase 10 later) ---
+    # --- File storage ---
+    # local = 文件系统（默认，零依赖）；s3 = S3 兼容对象存储
+    # （AWS S3 / MinIO / R2 / OSS），需要 uv sync --extra s3。
     storage_backend: str = Field(default="local", pattern=r"^(local|s3)$")
     storage_path: str = "/data/uploads"
+    s3_bucket: str = ""
+    s3_endpoint_url: str = ""  # MinIO/R2 等自建端点；AWS 官方留空
+    s3_region: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -7,7 +7,14 @@ import { cn } from "@/lib/utils"
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+  // modal=false：Radix 的 modal 模式会在菜单打开时给 body 挂
+  // pointer-events:none。当菜单项触发 mutation → 列表失效重渲染与
+  // 菜单卸载同帧发生时，该样式偶发不被清理，整页从此点不动
+  // （E2E 稳定复现于 admin/users 的禁用→启用序列）。下拉菜单本就
+  // 不需要 modal 语义（不阻塞页面其余部分），统一关掉。
+  return (
+    <DropdownMenuPrimitive.Root data-slot="dropdown-menu" modal={false} {...props} />
+  )
 }
 
 function DropdownMenuPortal({

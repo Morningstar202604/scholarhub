@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { createFileRoute, redirect, useNavigate, useSearch } from '@tanstack/react-router'
-import { ClipboardList, Eye, FileText, Gavel, UserPlus } from 'lucide-react'
+import { ClipboardList, Download, Eye, FileText, Gavel, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
 import {
+  downloadSubmissionFile,
   useAdminUsers,
   useAllSubmissions,
   useAssignReviewer,
@@ -450,9 +451,17 @@ function SubmissionDetailBody({ sub }: { sub: SubmissionResponse }) {
         </div>
       )}
       {sub.file_path && (
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground">稿件文件：</span>
-          <span className="text-primary">{sub.file_path}</span>
+          <span className="break-all text-primary">{sub.file_path}</span>
+          <button
+            type="button"
+            className="inline-flex shrink-0 items-center gap-1 text-primary hover:underline"
+            onClick={() => void downloadSubmissionFile(sub.id)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            下载
+          </button>
         </div>
       )}
       <div className="text-xs text-muted-foreground">

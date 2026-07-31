@@ -465,6 +465,25 @@ export function useUploadSubmissionFile() {
   })
 }
 
+// 下载稿件文件（作者/编辑/被指派审稿人）。用 blob + programmatic <a>
+// 而不是裸 <a href>：请求必须带 Authorization 头，纯链接带不上。
+export async function downloadSubmissionFile(id: number): Promise<void> {
+  const { data, headers } = await api.get<Blob>(`/submissions/${id}/files`, {
+    responseType: 'blob',
+  })
+  const disposition = (headers['content-disposition'] as string | undefined) ?? ''
+  const match = /filename="?([^";]+)"?/.exec(disposition)
+  const filename = match?.[1] ?? `submission-${id}.pdf`
+  const url = URL.createObjectURL(data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 // 审稿报告列表（单盲：作者只看 comments_to_author）
 export function useSubmissionReports(id: number) {
   return useQuery<ReviewReportResponse[]>({

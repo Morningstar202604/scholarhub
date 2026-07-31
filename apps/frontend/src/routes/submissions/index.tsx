@@ -7,10 +7,19 @@ import {
   useRouterState,
   useSearch,
 } from '@tanstack/react-router'
-import { ExternalLink, FileText, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
 import {
+  downloadSubmissionFile,
   useCreateSubmission,
   useDeleteSubmission,
   useMySubmissions,
@@ -528,8 +537,18 @@ function SubmissionsPage() {
                   )}
                 </div>
                 {detail.file_path && (
-                  <div className="mb-2 break-all text-xs text-muted-foreground">
-                    {detail.file_path}
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="break-all text-xs text-muted-foreground">
+                      {detail.file_path}
+                    </span>
+                    <button
+                      type="button"
+                      className="inline-flex shrink-0 items-center gap-1 text-xs text-primary hover:underline"
+                      onClick={() => void downloadSubmissionFile(detail.id)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      下载
+                    </button>
                   </div>
                 )}
                 {/* 仅 pending / major_revision / minor_revision 可上传 */}

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { createFileRoute, redirect, useNavigate, useSearch } from '@tanstack/react-router'
-import { Check, Eye, FileText, X } from 'lucide-react'
+import { Check, Download, Eye, FileText, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
 import {
+  downloadSubmissionFile,
   useAcceptAssignment,
   useDeclineAssignment,
   useMyReviewAssignments,
@@ -580,9 +581,17 @@ function SubmissionDetailDialog({
                 </div>
               )}
               {data.file_path && (
-                <div className="col-span-2">
+                <div className="col-span-2 flex flex-wrap items-center gap-2">
                   <span className="text-muted-foreground">已上传文件：</span>
-                  <span className="font-mono">{data.file_path}</span>
+                  <span className="break-all font-mono">{data.file_path}</span>
+                  <button
+                    type="button"
+                    className="inline-flex shrink-0 items-center gap-1 text-primary hover:underline"
+                    onClick={() => void downloadSubmissionFile(data.id)}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    下载稿件
+                  </button>
                 </div>
               )}
             </div>

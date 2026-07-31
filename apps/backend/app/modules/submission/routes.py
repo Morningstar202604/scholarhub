@@ -27,7 +27,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy import desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -942,10 +951,9 @@ async def upload_submission_file(
     - 文件名经过 path 安全检查（防 ../ 穿越）
     """
     import os
-    from pathlib import Path
     from uuid import uuid4
 
-    from app.core.config import settings
+    from app.core.storage import get_storage
 
     entry = await _get_or_404(db, submission_id)
     if entry.submitted_by != current_user.id:
@@ -982,21 +990,92 @@ async def upload_submission_file(
                 detail=f"File exceeds {_MAX_UPLOAD_BYTES} bytes",
             )
 
-    # 存储路径：{storage_path}/{tenant_id}/{submission_id}/{uuid}{ext}
-    # 用 uuid 防文件名碰撞 + 路径穿越
+    # 存储 key：{tenant_id}/{submission_id}/{uuid}{ext}
+    # 用 uuid 防文件名碰撞 + 路径穿越；本地/S3 后端共用同一 key 形状，
+    # 切换后端无需迁移数据库。
     original_filename = file.filename or "upload"
     ext = os.path.splitext(original_filename)[1]
     if ext and len(ext) > 20:
         ext = ext[:20]
     safe_name = f"{uuid4().hex}{ext}"
-    tenant_dir = Path(settings.storage_path) / str(entry.tenant_id) / str(entry.id)
-    tenant_dir.mkdir(parents=True, exist_ok=True)
-    dest = tenant_dir / safe_name
-    dest.write_bytes(contents)
-
-    # 相对路径存库（绝对路径不外泄）
     rel_path = f"{entry.tenant_id}/{entry.id}/{safe_name}"
+    await get_storage().save(rel_path, contents, content_type=file.content_type)
     entry.file_path = rel_path
     await db.commit()
     await db.refresh(entry)
     return _to_response(entry)
+
+
+@router.get("/{submission_id}/files")
+async def download_submission_file(
+    submission_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """下载稿件文件。
+
+    这里补上了此前缺失的链路终点：稿件此前只能上传、无法取回，
+    编辑与被指派的审稿人拿不到作者的 PDF，评审无从谈起。
+
+    可访问方：
+    - 作者本人
+    - admin / editor
+    - 该稿件的被指派审稿人（assignment 处于 pending/accepted/completed）
+
+    S3 后端会尽量返回 302 预签名直链（省一次服务端带宽）；本地后端
+    与预签名失败时改为服务端流式返回，权限校验始终发生在这里。
+    """
+    import mimetypes
+
+    from fastapi.responses import RedirectResponse, StreamingResponse
+
+    from app.api.deps import ROLE_EDITOR, user_has_role
+    from app.core.storage import get_storage
+
+    entry = await _get_or_404(db, submission_id)
+    if not entry.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This submission has no uploaded file",
+        )
+
+    allowed = entry.submitted_by == current_user.id or await user_has_role(
+        db, current_user, ROLE_EDITOR
+    )
+    if not allowed:
+        assignment = (
+            await db.execute(
+                select(ReviewAssignment).where(
+                    ReviewAssignment.submission_id == entry.id,
+                    ReviewAssignment.reviewer_id == current_user.id,
+                    ReviewAssignment.status.in_(("pending", "accepted", "completed")),
+                )
+            )
+        ).scalars().first()
+        allowed = assignment is not None
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this submission file",
+        )
+
+    storage = get_storage()
+    url = storage.presigned_url(entry.file_path)
+    if url:
+        return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
+
+    try:
+        data = await storage.load(entry.file_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stored file is missing",
+        ) from exc
+
+    filename = entry.file_path.rsplit("/", 1)[-1]
+    media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return StreamingResponse(
+        iter((data,)),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

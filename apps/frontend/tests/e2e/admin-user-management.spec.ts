@@ -120,12 +120,18 @@ test.describe('admin: user management', () => {
     await adminPage.keyboard.press('Escape')
     await expect(disableItem).toHaveCount(0, { timeout: 5_000 })
 
-    // 再启用（重新定位 row 避免 stale）
+    // 再启用（重新定位 row 避免 stale）。
+    // trigger2.click() 可能恰好撞上 mutation 触发的表格 refetch 重渲染，
+    // 菜单刚打开就随行卸载而关闭（真实用户会自然再点一次）。
+    // 用 toPass 重试「点 trigger → 菜单项可见」这一整段，对齐 Playwright
+    // 官方对 flaky interaction 的推荐写法。
     const row2 = adminPage.locator('tr', { hasText: target.username }).first()
     const trigger2 = row2.locator('button[data-slot="dropdown-menu-trigger"]')
-    await trigger2.click()
     const enableItem = adminPage.getByRole('menuitem', { name: '启用账号' })
-    await enableItem.waitFor({ state: 'visible', timeout: 5_000 })
+    await expect(async () => {
+      await trigger2.click()
+      await expect(enableItem).toBeVisible({ timeout: 1_500 })
+    }).toPass({ timeout: 15_000 })
     await enableItem.click()
     await expect(adminPage.getByText('已启用')).toBeVisible({ timeout: 5_000 })
     await expect(row2.getByText('启用')).toBeVisible()

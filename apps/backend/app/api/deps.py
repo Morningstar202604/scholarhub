@@ -164,6 +164,15 @@ async def _user_has_role(db: AsyncSession, user: User, role_name: str) -> bool:
     return result.scalar_one_or_none() is not None
 
 
+async def user_has_role(db: AsyncSession, user: User, role_name: str) -> bool:
+    """公开版本的角色检查，供路由内做细粒度授权判断。
+
+    与 ``require_*`` 依赖的区别：这里返回布尔值而不是抛 403，适合
+    「作者 OR 编辑 OR 被指派审稿人」这类多路授权。
+    """
+    return await _user_has_role(db, user, role_name)
+
+
 async def require_reviewer(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

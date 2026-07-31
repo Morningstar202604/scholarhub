@@ -36,6 +36,12 @@ monitoring = [
 search = [
     "meilisearch-python-sdk>=4.0,<5.0.0",
 ]
+# 可选：S3 兼容对象存储（AWS S3 / MinIO / R2 / OSS）。默认 local
+# 文件系统零依赖；SCHOLARHUB_STORAGE_BACKEND=s3 时需要本组。
+# 启用：uv sync --extra s3
+s3 = [
+    "boto3>=1.35,<2.0.0",
+]
 
 [dependency-groups]
 dev = [
