@@ -15,7 +15,7 @@ Why explicit list (not entry-point scanning):
 
 from __future__ import annotations
 
-# Add module names here as they are implemented. All 10 domain modules
+# Add module names here as they are implemented. All 11 domain modules
 # are now enabled. To add a new module, append its package name below;
 # its package must exist at app/modules/<name>/ and its __init__.py must
 # register a ModuleManifest.
@@ -30,4 +30,5 @@ ENABLED_MODULES: list[str] = [
     "library",
     "ingest",
     "recommendations",
+    "doi",
 ]

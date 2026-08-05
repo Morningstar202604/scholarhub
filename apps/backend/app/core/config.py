@@ -187,6 +187,18 @@ class Settings(BaseSettings):
     # Optional �?falls back to a placeholder if not set.
     crossref_mailto: str = ""
 
+    # --- DataCite DOI registration ---
+    # Empty URL = DataCite disabled; the DOI module returns 501 Not
+    # Implemented. At minimum, ``datacite_api_url``, ``datacite_prefix``
+    # and ``datacite_api_key`` must be set for DOI minting to work.
+    datacite_api_url: str = ""
+    # DOI prefix issued by DataCite (e.g. "10.12345").
+    datacite_prefix: str = ""
+    # Base64-encoded "<username>:<password>" for HTTP Basic Auth against
+    # the DataCite MDS API. Generate with:
+    #   echo -n "username:password" | base64
+    datacite_api_key: str = ""
+
     # --- CORS / Trusted hosts ---
     cors_origins: str = "http://localhost:5173,http://localhost"
     allowed_hosts: str = "localhost,127.0.0.1"
