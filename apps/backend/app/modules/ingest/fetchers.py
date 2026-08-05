@@ -229,6 +229,288 @@ async def fetch_arxiv(arxiv_id: str) -> IngestResource:
     )
 
 
+# ---------------------------------------------------------------------------
+# PubMed
+# ---------------------------------------------------------------------------
+
+PUBMED_BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+
+
+async def fetch_pubmed(pubmed_id: str) -> IngestResource:
+    """Fetch a single paper by PubMed ID from the NCBI E-utilities API."""
+    url = f"{PUBMED_BASE_URL}?db=pubmed&id={quote(pubmed_id, safe='')}&retmode=json"
+    try:
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+            response = await client.get(url)
+    except httpx.TimeoutException as exc:
+        raise UpstreamError(f"PubMed timeout: {exc}") from exc
+    except httpx.RequestError as exc:
+        raise UpstreamError(f"PubMed request failed: {exc}") from exc
+
+    if response.status_code == 404:
+        raise ResourceNotFoundError(f"PubMed ID not found: {pubmed_id}")
+    if response.status_code >= 400:
+        raise UpstreamError(
+            f"PubMed returned status {response.status_code} for {pubmed_id}"
+        )
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise UpstreamError(f"PubMed returned non-JSON body: {exc}") from exc
+
+    result = payload.get("result", {})
+    record = result.get(pubmed_id)
+    if not record:
+        raise ResourceNotFoundError(f"PubMed ID not found: {pubmed_id}")
+
+    title = (record.get("title") or "").strip()
+    if not title:
+        raise ResourceNotFoundError(f"PubMed record for {pubmed_id} has no title")
+
+    authors_raw = record.get("authors") or []
+    authors = [a["name"].strip() for a in authors_raw if a.get("name")]
+    if not authors:
+        raise ResourceNotFoundError(f"PubMed record for {pubmed_id} has no authors")
+
+    pubdate = (record.get("pubdate") or "").strip()
+    year = _safe_parse_year(pubdate[:4]) if pubdate else None
+
+    venue = (record.get("source") or "").strip() or None
+    volume = (record.get("volume") or "").strip() or None
+    issue = (record.get("issue") or "").strip() or None
+    pages = (record.get("pages") or "").strip() or None
+    issn = (record.get("issn") or "").strip() or None
+
+    # elocationid may contain a DOI (e.g. "doi: 10.1000/xyz123").
+    doi = None
+    elocationid = (record.get("elocationid") or "").strip()
+    if elocationid.lower().startswith("doi:"):
+        doi = elocationid[4:].strip()
+
+    return IngestResource(
+        title=title,
+        type="paper",
+        authors=authors,
+        year=year,
+        venue=venue,
+        discipline="unknown",
+        tags=[],
+        abstract="",
+        doi=doi,
+        volume=volume,
+        issue=issue,
+        pages=pages,
+        issn=issn,
+    )
+
+
+# ---------------------------------------------------------------------------
+# OpenAlex
+# ---------------------------------------------------------------------------
+
+OPENALEX_BASE_URL = "https://api.openalex.org/works"
+
+
+def _invert_abstract(inverted: dict[str, list[int]] | None) -> str:
+    """Convert OpenAlex inverted-index abstract back to plain text."""
+    if not inverted:
+        return ""
+    word_positions: list[tuple[int, str]] = []
+    for word, positions in inverted.items():
+        for pos in positions:
+            word_positions.append((pos, word))
+    word_positions.sort(key=lambda x: x[0])
+    return " ".join(word for _, word in word_positions)
+
+
+async def fetch_openalex(doi_or_id: str) -> IngestResource:
+    """Fetch a single work by DOI or OpenAlex ID from the OpenAlex API.
+
+    When *doi_or_id* looks like a DOI (contains ``/``), it is sent as
+    ``doi:<doi>``; otherwise it is treated as an OpenAlex ID (e.g.
+    ``W123456789``).
+    """
+    if "/" in doi_or_id:
+        url = f"{OPENALEX_BASE_URL}/doi:{quote(doi_or_id, safe='')}"
+    else:
+        url = f"{OPENALEX_BASE_URL}/{quote(doi_or_id, safe='')}"
+
+    try:
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+            response = await client.get(url)
+    except httpx.TimeoutException as exc:
+        raise UpstreamError(f"OpenAlex timeout: {exc}") from exc
+    except httpx.RequestError as exc:
+        raise UpstreamError(f"OpenAlex request failed: {exc}") from exc
+
+    if response.status_code == 404:
+        raise ResourceNotFoundError(f"OpenAlex work not found: {doi_or_id}")
+    if response.status_code >= 400:
+        raise UpstreamError(
+            f"OpenAlex returned status {response.status_code} for {doi_or_id}"
+        )
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise UpstreamError(f"OpenAlex returned non-JSON body: {exc}") from exc
+
+    title = (payload.get("title") or "").strip()
+    if not title:
+        raise ResourceNotFoundError(f"OpenAlex record for {doi_or_id} has no title")
+
+    authorships = payload.get("authorships") or []
+    authors = [
+        a["author"]["display_name"].strip()
+        for a in authorships
+        if a.get("author") and a["author"].get("display_name")
+    ]
+    if not authors:
+        raise ResourceNotFoundError(
+            f"OpenAlex record for {doi_or_id} has no authors"
+        )
+
+    year = payload.get("publication_year")
+    if year is not None:
+        try:
+            year = int(year)
+        except (TypeError, ValueError):
+            year = None
+
+    # primary_location → source → display_name as venue.
+    venue = None
+    primary_location = payload.get("primary_location") or {}
+    source = primary_location.get("source") or {}
+    if source.get("display_name"):
+        venue = source["display_name"].strip()
+
+    # publisher from primary_location or top-level publisher field.
+    publisher = None
+    if source.get("host_organization_name"):
+        publisher = source["host_organization_name"].strip()
+    if not publisher:
+        publisher = (payload.get("publisher") or "").strip() or None
+
+    biblio = payload.get("biblio") or {}
+    volume = (biblio.get("volume") or "").strip() or None
+    issue = (biblio.get("issue") or "").strip() or None
+    pages = (biblio.get("pages") or "").strip() or None
+
+    doi = (payload.get("doi") or "").strip() or None
+    # OpenAlex returns DOIs as full URLs (https://doi.org/10.xxx).
+    if doi and doi.startswith("https://doi.org/"):
+        doi = doi[len("https://doi.org/"):]
+
+    # short_container_title from primary_location → source → display_name
+    short_container_title = None
+    if source.get("display_name"):
+        short_container_title = source["display_name"].strip() or None
+
+    abstract = _invert_abstract(payload.get("abstract_inverted_index"))
+
+    return IngestResource(
+        title=title,
+        type="paper",
+        authors=authors,
+        year=year,
+        venue=venue,
+        discipline="unknown",
+        tags=[],
+        abstract=abstract,
+        doi=doi,
+        publisher=publisher,
+        volume=volume,
+        issue=issue,
+        pages=pages,
+        short_container_title=short_container_title,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Semantic Scholar
+# ---------------------------------------------------------------------------
+
+SEMANTIC_SCHOLAR_BASE_URL = "https://api.semanticscholar.org/graph/v1/paper"
+
+
+async def fetch_semantic_scholar(paper_id: str) -> IngestResource:
+    """Fetch a single paper from the Semantic Scholar Graph API.
+
+    *paper_id* can be a Semantic Scholar ID (e.g. ``abc123def``), a DOI
+    prefixed with ``DOI:`` (e.g. ``DOI:10.1000/xyz123``), or an arXiv ID
+    prefixed with ``arXiv:``.
+    """
+    url = (
+        f"{SEMANTIC_SCHOLAR_BASE_URL}/{quote(paper_id, safe=':')}"
+        "?fields=title,authors,year,venue,abstract,externalIds"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+            response = await client.get(url)
+    except httpx.TimeoutException as exc:
+        raise UpstreamError(f"Semantic Scholar timeout: {exc}") from exc
+    except httpx.RequestError as exc:
+        raise UpstreamError(f"Semantic Scholar request failed: {exc}") from exc
+
+    if response.status_code == 404:
+        raise ResourceNotFoundError(
+            f"Semantic Scholar paper not found: {paper_id}"
+        )
+    if response.status_code >= 400:
+        raise UpstreamError(
+            f"Semantic Scholar returned status {response.status_code} for {paper_id}"
+        )
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise UpstreamError(
+            f"Semantic Scholar returned non-JSON body: {exc}"
+        ) from exc
+
+    title = (payload.get("title") or "").strip()
+    if not title:
+        raise ResourceNotFoundError(
+            f"Semantic Scholar record for {paper_id} has no title"
+        )
+
+    authors_raw = payload.get("authors") or []
+    authors = [a["name"].strip() for a in authors_raw if a.get("name")]
+    if not authors:
+        raise ResourceNotFoundError(
+            f"Semantic Scholar record for {paper_id} has no authors"
+        )
+
+    year = payload.get("year")
+    if year is not None:
+        try:
+            year = int(year)
+        except (TypeError, ValueError):
+            year = None
+
+    venue = (payload.get("venue") or "").strip() or None
+
+    external_ids = payload.get("externalIds") or {}
+    doi = None
+    if external_ids.get("DOI"):
+        doi = external_ids["DOI"].strip()
+
+    abstract = (payload.get("abstract") or "").strip()
+
+    return IngestResource(
+        title=title,
+        type="paper",
+        authors=authors,
+        year=year,
+        venue=venue,
+        discipline="unknown",
+        tags=[],
+        abstract=abstract,
+        doi=doi,
+    )
+
+
 def _safe_parse_year(text: str) -> int | None:
     try:
         return int(text)
@@ -241,8 +523,14 @@ __all__ = [
     "CROSSREF_BASE_URL",
     "CROSSREF_MAILTO",
     "HTTP_TIMEOUT",
+    "OPENALEX_BASE_URL",
+    "PUBMED_BASE_URL",
+    "SEMANTIC_SCHOLAR_BASE_URL",
     "ResourceNotFoundError",
     "UpstreamError",
     "fetch_arxiv",
     "fetch_crossref",
+    "fetch_openalex",
+    "fetch_pubmed",
+    "fetch_semantic_scholar",
 ]

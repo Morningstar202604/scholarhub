@@ -19,6 +19,9 @@ from app.modules.ingest.fetchers import (
     UpstreamError,
     fetch_arxiv,
     fetch_crossref,
+    fetch_openalex,
+    fetch_pubmed,
+    fetch_semantic_scholar,
 )
 from app.modules.ingest.parsers import parse_bibtex, parse_csv, parse_ris
 from app.modules.ingest.schemas import (
@@ -66,11 +69,17 @@ async def fetch_endpoint(
     payload: FetchRequest,
     _: User = Depends(get_current_user),
 ) -> IngestResource:
-    """Fetch metadata for a single DOI or arXiv ID from the upstream API."""
+    """Fetch metadata from the upstream API for the given source and id."""
     try:
         if payload.source == "crossref":
             return await fetch_crossref(payload.id)
-        return await fetch_arxiv(payload.id)
+        if payload.source == "arxiv":
+            return await fetch_arxiv(payload.id)
+        if payload.source == "pubmed":
+            return await fetch_pubmed(payload.id)
+        if payload.source == "openalex":
+            return await fetch_openalex(payload.id)
+        return await fetch_semantic_scholar(payload.id)
     except ResourceNotFoundError:
         # Do not echo user input back in the error detail — a reflected
         # value would land in log aggregators and could be leveraged for

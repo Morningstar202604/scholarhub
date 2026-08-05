@@ -34,7 +34,7 @@ IngestResourceType = Literal[
 ]
 
 ParseFormat = Literal["bibtex", "ris", "csv"]
-FetchSource = Literal["crossref", "arxiv"]
+FetchSource = Literal["crossref", "arxiv", "pubmed", "openalex", "semantic_scholar"]
 
 
 class IngestResource(BaseModel):
