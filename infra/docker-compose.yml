@@ -30,6 +30,21 @@ services:
       timeout: 3s
       retries: 10
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    environment:
+      MEILI_MASTER_KEY: scholarhub_dev_meili_key
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7700/health | grep -q 'status.*available'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ..
@@ -39,10 +54,14 @@ services:
     environment:
       # Override the .env's localhost URL to point at the compose service.
       SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:scholarhub_dev@postgres:5432/scholarhub
+      SCHOLARHUB_MEILISEARCH_URL: http://meilisearch:7700
+      SCHOLARHUB_MEILISEARCH_API_KEY: scholarhub_dev_meili_key
     ports:
       - "8000:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      meilisearch:
         condition: service_healthy
     # If .env already runs migrations on boot (the image's default CMD),
     # this override keeps the same behavior. Drop it to start uvicorn only.
@@ -50,3 +69,4 @@ services:
 
 volumes:
   pgdata:
+  meilisearch_data:
