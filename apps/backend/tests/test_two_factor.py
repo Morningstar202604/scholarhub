@@ -60,7 +60,7 @@ async def test_status_is_disabled_by_default(
     """2FA 是 opt-in：新账号默认关闭，且没有恢复码。"""
     resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
     assert resp.status_code == 200
-    assert resp.json() == {"enabled": False, "recovery_codes_remaining": 0}
+    assert resp.json() == {"enabled": False, "backup_codes_remaining": 0}
 
 
 async def test_setup_does_not_activate_two_factor(
@@ -122,7 +122,7 @@ async def test_enable_returns_recovery_codes_and_flips_status(
     status_resp = await client.get(
         "/api/users/me/2fa", headers=auth_headers(test_user)
     )
-    assert status_resp.json() == {"enabled": True, "recovery_codes_remaining": 8}
+    assert status_resp.json() == {"enabled": True, "backup_codes_remaining": 8}
 
 
 async def test_setup_again_after_enabled_is_conflict(
@@ -290,7 +290,7 @@ async def test_recovery_code_works_once(
     status_resp = await client.get(
         "/api/users/me/2fa", headers=auth_headers(test_user)
     )
-    assert status_resp.json()["recovery_codes_remaining"] == 7
+    assert status_resp.json()["backup_codes_remaining"] == 7
 
 
 async def test_recovery_code_is_case_insensitive(
@@ -350,7 +350,7 @@ async def test_disable_with_password_restores_plain_login(
     status_resp = await client.get(
         "/api/users/me/2fa", headers=auth_headers(test_user)
     )
-    assert status_resp.json() == {"enabled": False, "recovery_codes_remaining": 0}
+    assert status_resp.json() == {"enabled": False, "backup_codes_remaining": 0}
 
     login = await client.post(
         "/api/auth/login",

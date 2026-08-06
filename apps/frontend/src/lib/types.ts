@@ -641,5 +641,25 @@ export interface ReviewModeResponse {
   review_mode: ReviewMode
 }
 
+// --- Volume / Issue management (admin) ---
+export interface VolumeInfo {
+  volume: string
+  articleCount: number
+  issueCount: number
+}
+
+export interface IssueInfo {
+  issue: string
+  articleCount: number
+  firstYear: number
+  lastYear: number
+}
+
+export interface JournalSettings {
+  issn: string
+  publisher: string
+  short_container_title: string
+}
+
 // --- Export ---
 export type ExportFormat = 'bibtex' | 'ris' | 'csv' | 'json'

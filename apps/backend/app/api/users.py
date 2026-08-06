@@ -130,7 +130,7 @@ async def two_factor_status(
 ) -> TwoFactorStatusResponse:
     return TwoFactorStatusResponse(
         enabled=current_user.two_factor_enabled,
-        recovery_codes_remaining=len(current_user.two_factor_recovery_codes or []),
+        backup_codes_remaining=len(current_user.two_factor_recovery_codes or []),
     )
 
 

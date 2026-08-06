@@ -18,6 +18,7 @@ transaction pooling.
 
 from __future__ import annotations
 
+import time
 import uuid
 from contextvars import ContextVar
 from typing import Any
@@ -28,6 +29,35 @@ from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger("scholarhub.tenant")
+
+# ---------------------------------------------------------------------------
+# Host → tenant cache (in-memory, TTL-based)
+# ---------------------------------------------------------------------------
+# In multi-tenant mode, every request does a host-header lookup. Without a
+# cache, this would hit the DB on every single request. The cache is a
+# simple dict — no lock needed because writes are atomic in CPython, and
+# even a stale read is harmless (worst case: one extra DB query).
+#
+# TTL is intentionally short so that an admin removing a host mapping takes
+# effect within a few minutes. Long enough to absorb bursts, short enough
+# to not require a cache-invalidation API for normal operations.
+_HOST_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+_host_cache: dict[str, tuple[uuid.UUID, float]] = {}
+"""Mapping of host (lowercased, port-stripped) → (tenant_id, expiry_ts)."""
+
+
+def invalidate_host_cache(host: str | None = None) -> None:
+    """Invalidate the host→tenant cache.
+
+    If ``host`` is provided, remove only that entry. If ``None``, clear
+    the entire cache. Called by the admin API after CRUD on tenant_hosts.
+    """
+    global _host_cache
+    if host is None:
+        _host_cache = {}
+    else:
+        _host_cache.pop(host.lower(), None)
 
 
 def _generate_tenant_uuid() -> uuid.UUID:
@@ -132,10 +162,61 @@ class TenantContextMiddleware:
                 break
         if host is None:
             return None
-        # Multi-tenant resolution requires DB lookup; deferred to next phase.
-        # For now, single mode is the only working path.
-        logger.warning("multi_tenant_mode_not_yet_implemented_host_ignored", host=host)
-        return None
+
+        # Strip the port (e.g. "example.com:8080" → "example.com").
+        host = host.split(":", 1)[0].strip().lower()
+        if not host:
+            return None
+
+        return await self._resolve_tenant_by_host(host)
+
+    async def _resolve_tenant_by_host(self, host: str) -> uuid.UUID | None:
+        """Look up a tenant by host header, with in-memory caching.
+
+        Cache hit: return the cached tenant_id if still valid.
+        Cache miss: query the ``tenant_hosts`` table, cache the result
+        (including negative results with a short TTL to avoid thundering
+        on unknown hosts).
+        """
+        now = time.monotonic()
+
+        # Check cache first.
+        cached = _host_cache.get(host)
+        if cached is not None:
+            tenant_id, expiry = cached
+            if now < expiry:
+                return tenant_id
+            # Expired — remove and fall through to DB query.
+            _host_cache.pop(host, None)
+
+        # Cache miss: query the DB.
+        from sqlalchemy import select
+
+        from app.core.db import async_session_factory
+        from app.models import TenantHost
+
+        try:
+            async with async_session_factory() as session:
+                result = await session.execute(
+                    select(TenantHost.tenant_id).where(
+                        TenantHost.host == host,
+                        TenantHost.is_active,
+                    )
+                )
+                row = result.first()
+        except Exception:
+            logger.exception("tenant_host_lookup_failed", host=host)
+            return None
+
+        if row is None:
+            # Negative cache: cache the miss for a short time so
+            # repeated requests to unknown hosts don't hammer the DB.
+            _host_cache[host] = (None, now + _HOST_CACHE_TTL_SECONDS)  # type: ignore[arg-type]
+            return None
+
+        tenant_id = row[0]
+        _host_cache[host] = (tenant_id, now + _HOST_CACHE_TTL_SECONDS)
+        return tenant_id
 
     async def _ensure_bootstrap_tenant(self) -> uuid.UUID:
         """Resolve (or lazily create) the bootstrap tenant in single mode.

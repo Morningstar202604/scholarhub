@@ -102,6 +102,7 @@ export function MobileAppShell() {
 
   // 路由切换后关闭抽屉，避免点击导航后抽屉仍遮挡内容
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSheetOpen(false)
   }, [location.pathname])
 

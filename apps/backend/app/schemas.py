@@ -59,7 +59,7 @@ class TwoFactorSetupResponse(BaseModel):
 
     secret: str
     otpauth_uri: str
-    backup_codes: list[str]
+    backup_codes: list[str] = Field(default_factory=list)
 
 
 class TwoFactorVerifyRequest(BaseModel):
@@ -117,14 +117,6 @@ class TwoFactorLoginRequest(BaseModel):
     code: str = Field(min_length=6, max_length=32)
 
 
-class TwoFactorSetupResponse(BaseModel):
-    """Secret + otpauth URI for the enrolment QR code. 2FA is NOT yet
-    active — the user must confirm with a valid code via /2fa/enable."""
-
-    secret: str
-    otpauth_uri: str
-
-
 class TwoFactorEnableRequest(BaseModel):
     code: str = Field(min_length=6, max_length=32)
 
@@ -133,17 +125,6 @@ class TwoFactorEnableResponse(BaseModel):
     enabled: Literal[True] = True
     # Shown exactly once at enable time; only hashes are stored.
     recovery_codes: list[str]
-
-
-class TwoFactorDisableRequest(BaseModel):
-    # Require the account password so a hijacked session can't
-    # silently strip the second factor.
-    password: str = Field(min_length=1)
-
-
-class TwoFactorStatusResponse(BaseModel):
-    enabled: bool
-    recovery_codes_remaining: int
 
 
 # --- Email verification + password reset ---
@@ -308,3 +289,24 @@ class TenantResponse(BaseModel):
     name: str
     tenant_type: str
     is_active: bool
+
+
+# --- Tenant Host ---
+class TenantHostCreate(BaseModel):
+    """Body for POST /api/admin/tenant-hosts — add a host mapping."""
+
+    host: str = Field(
+        min_length=1,
+        max_length=255,
+        pattern=r"^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$",
+    )
+
+
+class TenantHostResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tenant_id: UUID
+    host: str
+    is_active: bool
+    created_at: datetime

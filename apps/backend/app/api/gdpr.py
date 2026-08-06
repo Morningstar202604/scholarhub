@@ -293,9 +293,9 @@ async def delete_my_account(
     current_user.is_email_verified = False
     # Destroy the TOTP secret so even a future restore + new password
     # would need to re-enroll 2FA.
-    current_user.totp_secret_encrypted = None
+    current_user.two_factor_secret = None
     current_user.totp_enabled_at = None
-    current_user.totp_backup_codes_hashed = None
+    current_user.two_factor_recovery_codes = None
     current_user.deleted_at = datetime.now(UTC)
     # Invalidate every active session immediately. The bump below is
     # enough — no separate "log out everywhere" call is needed.

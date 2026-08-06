@@ -50,13 +50,20 @@ def _create_token(
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
-def _random_jti() -> str:
-    """Short random token id to disambiguate two same-type tokens issued
-    for the same user (not currently enforced server-side, but lets a
-    future denylist target individual tokens without revoking all)."""
+def random_jti() -> str:
+    """Short random token id for disambiguating tokens for the same user.
+
+    Used by the token denylist to target individual tokens without
+    revoking all sessions. 16 url-safe bytes = 128 bits of entropy.
+    """
     import secrets
 
     return secrets.token_urlsafe(16)
+
+
+def _random_jti() -> str:
+    """Backward-compatible alias for ``random_jti``."""
+    return random_jti()
 
 
 def create_email_verification_token(user_id: int, token_version: int) -> str:

@@ -9,14 +9,17 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // router-plugin 必须先于 react 执行：先扫描 routes/ 生成 routeTree.gen.ts，再让 react 处理 JSX
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const routerPlugin = TanStackRouterVite({
+  target: 'react',
+  autoCodeSplitting: true,
+  routesDirectory: './src/routes',
+  generatedRouteTree: './src/routeTree.gen.ts',
+}) as any
+
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({
-      target: 'react',
-      autoCodeSplitting: true,
-      routesDirectory: './src/routes',
-      generatedRouteTree: './src/routeTree.gen.ts',
-    }),
+    routerPlugin,
     react(),
     tailwindcss(),
   ],

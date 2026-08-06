@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { AxiosError } from 'axios'
 import { Info } from 'lucide-react'
@@ -47,14 +47,12 @@ const REVIEW_MODE_OPTIONS: {
 function AdminSettingsPage() {
   const { data, isLoading, isError, refetch } = useReviewMode()
   const setMode = useSetReviewMode()
-  // 本地暂存选择，点“保存”才提交，避免误点即生效
+  // 本地暂存选择，点"保存"才提交，避免误点即生效
   const [draft, setDraft] = useState<ReviewMode | null>(null)
-
-  // 服务端值到达/变化后同步到草稿（未保存的改动不会被覆盖，因为 draft 已非空）
-  useEffect(() => {
-    if (data && draft === null) setDraft(data.review_mode)
-  }, [data, draft])
-
+  // 当 draft 为 null 且 data 到达时初始化（仅首次）
+  if (draft === null && data) {
+    setDraft(data.review_mode)
+  }
   const current = data?.review_mode
   const dirty = draft !== null && draft !== current
 

@@ -113,6 +113,16 @@ class Settings(BaseSettings):
     # compatibility; flip on once the SPA echoes ``X-CSRF-Token``.
     csrf_enabled: bool = False
 
+    # --- WebAuthn / Passkeys ---
+    # Relying Party identifier — typically the domain serving the app
+    # (e.g. "scholarhub.example.com" or "localhost" for dev).
+    webauthn_rp_id: str = "localhost"
+    # Human-readable RP name, e.g. "ScholarHUB".
+    webauthn_rp_name: str = "ScholarHUB"
+    # Expected origin for WebAuthn ceremonies. Must match the origin
+    # the browser sends — typically the SPA base URL (e.g. "http://localhost:5173").
+    webauthn_origin: str = "http://localhost:5173"
+
     # --- Admin 2FA policy ---
     # When True, callers reaching /api/admin/* must have TOTP enabled
     # on their account. Off by default so existing admin accounts do

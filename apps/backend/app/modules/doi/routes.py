@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_current_admin_user, require_tenant_id
+from app.api.deps import get_current_user, require_admin, require_tenant_id
 from app.core.db import get_db
 from app.core.time import utcnow
 from app.models import User
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/doi", tags=["doi"])
 @router.post("/register", response_model=DOIRegistrationResponse)
 async def register_doi(
     payload: DOIRegisterRequest,
-    current_user: User = Depends(get_current_admin_user),
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> DOIRegistrationResponse:
     """Mint a new DOI for a catalog resource.

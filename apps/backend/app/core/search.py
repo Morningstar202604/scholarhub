@@ -21,6 +21,7 @@ import logging
 from typing import Any
 
 from app.core.config import get_settings
+from app.core.config import settings as _cached_settings
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ _FILTERABLE = ["tenant_id", "type", "discipline", "year"]
 
 def search_enabled() -> bool:
     """True when a Meilisearch URL is configured (regardless of health)."""
-    return bool(get_settings().meilisearch_url)
+    return bool(_cached_settings.meilisearch_url)
 
 
 def _index_name() -> str:

@@ -3,10 +3,13 @@ import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import {
   Bell,
   BookOpen,
+  Building2,
+  CalendarDays,
   ChevronLeft,
   ClipboardCheck,
   Heart,
   Home,
+  Layers,
   Library,
   Lightbulb,
   type LucideIcon,
@@ -56,6 +59,9 @@ const NAV: NavItem[] = [
   { to: '/recommendations', label: '推荐', icon: Lightbulb, auth: true },
   { to: '/notifications', label: '通知', icon: Bell, auth: true },
   { to: '/admin/users', label: '用户管理', icon: Users, auth: true, adminOnly: true },
+  { to: '/admin/volumes', label: '卷管理', icon: Layers, auth: true, adminOnly: true },
+  { to: '/admin/issues', label: '期管理', icon: CalendarDays, auth: true, adminOnly: true },
+  { to: '/admin/journal', label: '期刊信息', icon: Building2, auth: true, adminOnly: true },
   { to: '/admin/audit-logs', label: '审计日志', icon: ShieldCheck, auth: true, adminOnly: true },
   { to: '/admin/settings', label: '期刊设置', icon: Settings, auth: true, adminOnly: true },
 ]
@@ -79,6 +85,7 @@ export function AppShell() {
 
   // 路由变化时关闭移动端抽屉，避免点击导航后抽屉仍挡住内容
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false)
   }, [location.pathname])
 

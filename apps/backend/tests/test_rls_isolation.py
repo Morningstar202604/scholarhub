@@ -148,7 +148,7 @@ async def test_experiment_a_own_tenant_returns_all_rows(pg_engine):
 
         # Set RLS context to tenant A.
         await session.execute(
-            text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)}
+            text(f"SELECT set_config('app.current_tenant_id', '{tenant_a}', true)")
         )
         result = await session.execute(
             text("SELECT count(*) FROM resources WHERE tenant_id = :tid"),
@@ -178,7 +178,7 @@ async def test_experiment_b_rls_catches_cross_tenant_leak(pg_engine):
 
         # RLS context = tenant A.
         await session.execute(
-            text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)}
+            text(f"SELECT set_config('app.current_tenant_id', '{tenant_a}', true)")
         )
         # Deliberately flawed query: asks for tenant B's resources without
         # the correct app filter — only the tenant_id in the WHERE clause
@@ -215,7 +215,7 @@ async def test_experiment_c_disabling_rls_causes_leak(pg_engine):
         await session.execute(text("ALTER TABLE resources NO FORCE ROW LEVEL SECURITY"))
         # RLS context = tenant A (now irrelevant since FORCE is off).
         await session.execute(
-            text("SET LOCAL app.current_tenant_id = :tid"), {"tid": str(tenant_a)}
+            text(f"SELECT set_config('app.current_tenant_id', '{tenant_a}', true)")
         )
         # Flawed filter: asks for tenant B's resources.
         result = await session.execute(

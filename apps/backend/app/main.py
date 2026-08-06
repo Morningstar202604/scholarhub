@@ -23,7 +23,7 @@ from tenacity import (
 )
 
 from app import __version__
-from app.api import admin, auth, health, modules, users
+from app.api import admin, auth, gdpr, health, metrics, modules, privacy, tenant_hosts, two_factor, users, webauthn
 from app.api.oidc import router as oidc_router
 from app.core.bootstrap import run_bootstrap
 from app.core.config import settings
@@ -32,6 +32,8 @@ from app.core.logging import configure_logging, get_logger
 from app.core.modules import load_all, registry
 from app.core.monitoring import init_monitoring
 from app.core.tenant import TenantContextMiddleware
+from app.middleware.csrf import CSRFMiddleware
+from app.middleware.metrics import HTTPMetricsMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 
@@ -96,6 +98,9 @@ app = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    from app.core.tenant import REQUEST_ID_CTX
+
+    request_id = REQUEST_ID_CTX.get()
     errors = []
     for err in exc.errors():
         loc = ".".join(str(part) for part in err.get("loc", []))
@@ -108,16 +113,39 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         )
     return JSONResponse(
         status_code=422,
-        content={"detail": "Validation error", "errors": errors},
+        content={
+            "status": 422,
+            "title": "Validation error",
+            "type": "https://httpstatuses.org/422",
+            "instance": str(request.url.path),
+            "detail": "Validation error",
+            "errors": errors,
+            "trace_id": request_id or "",
+        },
+        headers={"Content-Type": "application/problem+json"},
     )
 
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    from app.core.tenant import REQUEST_ID_CTX
+
+    request_id = REQUEST_ID_CTX.get()
+    exc_headers = exc.headers or {}
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail},
-        headers=getattr(exc, "headers", None),
+        content={
+            "status": exc.status_code,
+            "title": "HTTP error",
+            "type": f"https://httpstatuses.org/http-{exc.status_code}",
+            "instance": str(request.url.path),
+            "detail": exc.detail,
+            "trace_id": request_id or "",
+        },
+        headers={
+            **exc_headers,
+            "Content-Type": "application/problem+json",
+        },
     )
 
 
@@ -150,6 +178,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 #   4. CORSMiddleware
 #   5. TrustedHostMiddleware (production only)
 # Tenant MUST run before auth, because auth depends on tenant scope.
+app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitMiddleware, default_per_minute=settings.rate_limit_per_minute)
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -169,13 +198,30 @@ if settings.is_production:
 # Tenant must be outermost — register LAST so it runs first.
 app.add_middleware(TenantContextMiddleware)
 
+# HTTP metrics middleware — registers AFTER tenant so scope["route"] is
+# populated by FastAPI's router, but before the app processes the request.
+app.add_middleware(HTTPMetricsMiddleware)
+
 
 # --- Core routers (always present) ---
-app.include_router(health.router, prefix="/api")
+# Health probes at root (Kubernetes convention) + legacy at /api prefix.
+app.include_router(health.router)
+app.include_router(health.legacy_router, prefix="/api")
+# Metrics at root for Prometheus scrapers.
+app.include_router(metrics.router)
+# All other core routers under /api.
+# Privacy is also mounted at root so it's accessible without /api prefix.
+app.include_router(privacy.router)
+app.include_router(privacy.router, prefix="/api")
+app.include_router(two_factor.router, prefix="/api")
+app.include_router(gdpr.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(tenant_hosts.router, prefix="/api")
 app.include_router(modules.router, prefix="/api")
+# WebAuthn / Passkeys as an alternative to TOTP 2FA.
+app.include_router(webauthn.router, prefix="/api")
 # OIDC routes always mount; each endpoint 503s when OIDC is not configured
 # (default). This avoids a shape change when an operator flips the env flag.
 app.include_router(oidc_router, prefix="/api")

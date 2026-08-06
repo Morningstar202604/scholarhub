@@ -3,10 +3,13 @@ email verification, password reset.
 
 JWT-based: access token (short-lived) + refresh token (long-lived in
 httpOnly cookie). ``token_version`` on the User row invalidates all
-outstanding access tokens on logout/password change. ``refresh_token_version``
-independently rotates refresh tokens: each ``/auth/refresh`` call bumps
-it, so the consumed refresh token (and any older ones) become invalid
-without affecting access tokens or other devices.
+outstanding access tokens on logout/password change.
+
+Refresh tokens use a JTI-based denylist for fine-grained per-token
+revocation: each ``/auth/refresh`` adds the consumed token's ``jti``
+to the denylist, so the same refresh token cannot be replayed without
+affecting other devices. ``refresh_token_version`` is reserved for
+bulk revocation (revoke-all, password change).
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant_id, get_current_user, require_tenant_id
+from app.core.captcha import verify_captcha_token
 from app.core.config import settings
 from app.core.db import get_db
 from app.core.email import get_email_sender
@@ -31,12 +35,14 @@ from app.core.security import (
     token_version_matches,
     verify_password,
 )
+from app.core.token_denylist import get_denylist
 from app.core.tokens import (
     RESET_PASSWORD_TOKEN_TYPE,
     VERIFY_EMAIL_TOKEN_TYPE,
     create_email_verification_token,
     create_password_reset_token,
     decode_token,
+    random_jti,
 )
 from app.core.twofactor import (
     consume_recovery_code,
@@ -47,6 +53,7 @@ from app.core.twofactor import (
 from app.models import User
 from app.schemas import (
     ForgotPasswordRequest,
+    ORCIDUpdateRequest,
     RefreshTokenRequest,
     ResendVerificationRequest,
     ResetPasswordRequest,
@@ -117,6 +124,9 @@ async def register(
     effort when SMTP is configured) so they can act on it; the caller
     cannot tell whether the registration succeeded.
     """
+    # CAPTCHA check if the policy is enabled.
+    await verify_captcha_token(request, payload.captcha_token)
+
     tenant_id = get_current_tenant_id()
     if tenant_id is None:
         raise HTTPException(
@@ -274,11 +284,11 @@ async def refresh(
 ) -> TokenResponse:
     """Exchange a refresh token for a fresh access + refresh token pair.
 
-    Refresh token rotation: the consumed refresh token's ``rtv`` is
-    checked against ``User.refresh_token_version``; if it matches, the
-    counter is bumped before the new token pair is issued, so the same
-    refresh token cannot be replayed (and any older refresh tokens
-    for this user are also invalidated). Access tokens are unaffected.
+    Per-token revocation via JTI denylist: the consumed refresh token's
+    ``jti`` is added to the denylist so it cannot be replayed. The
+    ``rtv`` (refresh_token_version) is NOT bumped here — other devices'
+    refresh tokens remain valid (fine-grained). Bulk revocation
+    (password change, revoke-all) still bumps ``rtv``.
     """
     body_token = payload.refresh_token if payload else None
     raw_token = _extract_refresh_token(request, body_token)
@@ -291,6 +301,16 @@ async def refresh(
     if decoded is None or "sub" not in decoded:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
+
+    # Per-token denylist check — a previously-consumed refresh token
+    # (e.g. rotated or logged out) must be rejected.
+    denylist = await get_denylist()
+    token_jti = decoded.get("jti")
+    if token_jti and await denylist.is_denied(str(token_jti)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked",
         )
 
     try:
@@ -309,9 +329,9 @@ async def refresh(
             # against tenant B's deployment.
             User.tenant_id == require_tenant_id(),
         )
-        # Row lock serializes concurrent refresh attempts: the first commit
-        # bumps refresh_token_version, the second reader sees the new value
-        # and fails the rtv check.
+        # Row lock serializes concurrent refresh attempts: the first caller
+        # adds the JTI to the denylist and commits, the second caller sees
+        # the denylist entry and fails.
         .with_for_update()
     )
     user = result.scalar_one_or_none()
@@ -324,31 +344,68 @@ async def refresh(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
-    # rtv check enforces rotation — a replayed refresh token is refused.
+    # rtv check enforces bulk revocation (revoke-all, password change).
     if not refresh_token_version_matches(decoded, user.refresh_token_version):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token has been rotated"
         )
 
-    # Bump refresh_token_version BEFORE issuing the new pair so the old
-    # refresh token (and any other outstanding ones) cannot be replayed.
-    user.refresh_token_version += 1
+    # Per-token revocation: add the consumed token's JTI to the denylist
+    # so it cannot be replayed. The new token pair gets a fresh JTI.
+    if token_jti and "exp" in decoded:
+        await denylist.add(str(token_jti), float(decoded["exp"]))
+
+    # Commit releases the row lock. We do NOT bump refresh_token_version
+    # here — the denylist handles per-token rotation so other devices'
+    # refresh tokens are unaffected.
     await db.commit()
     await db.refresh(user)
 
     return _issue_tokens(user, response)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(
+@router.post("/revoke-all", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_all(
     response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Bump token_version + refresh_token_version to invalidate all
-    outstanding access AND refresh tokens, then clear the cookie."""
+    outstanding access AND refresh tokens."""
     current_user.token_version += 1
     current_user.refresh_token_version += 1
+    await db.commit()
+    _clear_refresh_cookie(response)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    request: Request,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Log out the current session only (fine-grained).
+
+    Adds the current refresh token's ``jti`` to the denylist so it
+    cannot be replayed, and bumps ``token_version`` to invalidate the
+    current access token. Other sessions' refresh tokens are unaffected
+    — this is a per-session logout, not a logout-everywhere.
+
+    For bulk revocation (all sessions), use ``/auth/revoke-all``.
+    """
+    # Denylist the current refresh token (per-session revocation).
+    raw_token = _extract_refresh_token(request, None)
+    if raw_token:
+        decoded = decode_refresh_token(raw_token)
+        if decoded and "jti" in decoded and "exp" in decoded:
+            denylist = await get_denylist()
+            await denylist.add(str(decoded["jti"]), float(decoded["exp"]))
+
+    # Bump token_version to invalidate the current access token.
+    # We do NOT bump refresh_token_version — the JTI denylist above
+    # handles per-token refresh revocation, so other sessions survive.
+    current_user.token_version += 1
     await db.commit()
     _clear_refresh_cookie(response)
 
@@ -358,19 +415,47 @@ async def me(current_user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(current_user)
 
 
+@router.patch("/me/orcid", response_model=UserResponse)
+async def patch_orcid(
+    payload: ORCIDUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Update the current user's ORCID iD.
+
+    Accepts ``{"orcid": "0000-0002-1825-0097"}`` (set),
+    ``{"orcid": ""}`` (clear), or ``{}`` (no-op). The canonical
+    ORCID iD (19-char hyphenated form) is stored on the User row.
+    """
+    # Check if the orcid field was explicitly provided in the request body.
+    # payload.orcid is None both when the field is omitted (no-op) and when
+    # empty string is sent (validator converts "" to None). Use
+    # exclude_unset to distinguish the two cases.
+    if "orcid" in payload.model_dump(exclude_unset=True):
+        current_user.orcid = payload.orcid
+        await db.commit()
+        await db.refresh(current_user)
+    return UserResponse.model_validate(current_user)
+
+
 def _issue_tokens(user: User, response: Response) -> TokenResponse:
     """Helper: build access+refresh tokens and set the refresh cookie.
 
     Access token carries ``token_version`` (invalidated on logout /
     password change). Refresh token additionally carries ``rtv``
-    (refresh_token_version) — a separate counter bumped on each refresh
-    so refresh rotation does not log out other devices.
+    (refresh_token_version) — a separate counter bumped on revoke-all
+    so bulk revocation does not depend on the JTI denylist — and a
+    unique ``jti`` (JWT ID) for per-token revocation via the denylist.
     """
     base_claims = {"sub": str(user.id), "token_version": user.token_version}
     access_token = create_access_token(base_claims)
     # Refresh token gets its own version claim so it can be rotated
-    # independently of the access token.
-    refresh_claims = {**base_claims, "rtv": user.refresh_token_version}
+    # independently of the access token, and a unique jti for the denylist.
+    refresh_claims = {
+        **base_claims,
+        "rtv": user.refresh_token_version,
+        "jti": random_jti(),
+    }
     refresh_token = create_refresh_token(refresh_claims)
     _set_refresh_cookie(response, refresh_token)
     return TokenResponse(

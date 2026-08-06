@@ -461,7 +461,7 @@ async def test_fetch_unknown_source_rejected(
     """Pydantic Literal on ``FetchRequest.source`` rejects unknown values."""
     response = await client.post(
         "/api/ingest/fetch",
-        json={"source": "pubmed", "id": "12345"},
+        json={"source": "invalid_source", "id": "12345"},
         headers=auth_headers(test_user),
     )
     assert response.status_code == 422

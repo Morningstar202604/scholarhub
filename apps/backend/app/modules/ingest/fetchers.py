@@ -14,12 +14,12 @@ no real network request is ever made in the suite.
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 from collections.abc import Mapping
 from typing import Any
 from urllib.parse import quote
 
 import httpx
+from defusedxml import ElementTree as ET
 
 from app.core.config import settings
 from app.modules.ingest.schemas import IngestResource

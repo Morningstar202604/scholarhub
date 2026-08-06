@@ -15,6 +15,8 @@ import type {
   FollowStatusResponse,
   HealthResponse,
   IngestResource,
+  IssueInfo,
+  JournalSettings,
   MessageResponse,
   ModuleInfo,
   NotificationListResponse,
@@ -51,6 +53,7 @@ import type {
   SubscriptionStatusResponse,
   UnreadCountResponse,
   UserResponse,
+  VolumeInfo,
 } from '@/lib/types'
 
 // query key 工厂，避免散落字符串
@@ -100,6 +103,9 @@ export const keys = {
     users: (limit = 50, offset = 0) => ['admin', 'users', limit, offset] as const,
     audit: (limit = 50, offset = 0) => ['admin', 'audit', limit, offset] as const,
     reviewMode: () => ['admin', 'review-mode'] as const,
+    volumes: () => ['admin', 'volumes'] as const,
+    issues: (volume: string) => ['admin', 'issues', volume] as const,
+    journalSettings: () => ['admin', 'journal-settings'] as const,
   },
   follows: {
     author: (name: string) => ['follows', 'author', name] as const,
@@ -925,6 +931,94 @@ export function useAdminAuditLogs(limit = 50, offset = 0) {
     queryKey: keys.admin.audit(limit, offset),
     queryFn: async () =>
       (await api.get<AuditLogEntry[]>('/admin/audit-logs', { params: { limit, offset } })).data,
+  })
+}
+
+// --- Volume / Issue management (admin) ---
+
+export function useVolumeList() {
+  return useQuery<VolumeInfo[]>({
+    queryKey: keys.admin.volumes(),
+    queryFn: async () => {
+      const res = await api.get<ResourceListResponse>('/catalog', {
+        params: { page_size: 100, sort: 'year', order: 'desc' },
+      })
+      const resources = res.data.data
+      const volumeMap = new Map<string, { articles: number; issues: Set<string> }>()
+      for (const r of resources) {
+        if (!r.volume) continue
+        const v = volumeMap.get(r.volume) ?? { articles: 0, issues: new Set<string>() }
+        v.articles++
+        if (r.issue) v.issues.add(r.issue)
+        volumeMap.set(r.volume, v)
+      }
+      return Array.from(volumeMap.entries())
+        .map(([volume, info]) => ({
+          volume,
+          articleCount: info.articles,
+          issueCount: info.issues.size,
+        }))
+        .sort((a, b) => {
+          const na = Number(a.volume)
+          const nb = Number(b.volume)
+          if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
+          return b.volume.localeCompare(a.volume)
+        })
+    },
+    staleTime: 2 * 60_000,
+  })
+}
+
+export function useIssueList(volume: string) {
+  return useQuery<IssueInfo[]>({
+    queryKey: keys.admin.issues(volume),
+    queryFn: async () => {
+      const res = await api.get<ResourceListResponse>('/catalog', {
+        params: { page_size: 100, sort: 'year', order: 'desc' },
+      })
+      const resources = res.data.data.filter((r) => r.volume === volume)
+      const issueMap = new Map<string, { articles: number; years: number[] }>()
+      for (const r of resources) {
+        if (!r.issue) continue
+        const v = issueMap.get(r.issue) ?? { articles: 0, years: [] as number[] }
+        v.articles++
+        v.years.push(r.year)
+        issueMap.set(r.issue, v)
+      }
+      return Array.from(issueMap.entries())
+        .map(([issue, info]) => ({
+          issue,
+          articleCount: info.articles,
+          firstYear: Math.min(...info.years),
+          lastYear: Math.max(...info.years),
+        }))
+        .sort((a, b) => {
+          const na = Number(a.issue)
+          const nb = Number(b.issue)
+          if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
+          return b.issue.localeCompare(a.issue)
+        })
+    },
+    enabled: !!volume,
+    staleTime: 2 * 60_000,
+  })
+}
+
+export function useJournalSettings() {
+  return useQuery<JournalSettings>({
+    queryKey: keys.admin.journalSettings(),
+    queryFn: async () => {
+      const res = await api.get<ResourceListResponse>('/catalog', {
+        params: { page_size: 100, sort: 'created_at', order: 'desc' },
+      })
+      const resources = res.data.data
+      const issn = resources.find((r) => r.issn)?.issn ?? ''
+      const publisher = resources.find((r) => r.publisher)?.publisher ?? ''
+      const short_container_title =
+        resources.find((r) => r.short_container_title)?.short_container_title ?? ''
+      return { issn, publisher, short_container_title }
+    },
+    staleTime: 5 * 60_000,
   })
 }
 

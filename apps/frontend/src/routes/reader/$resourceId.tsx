@@ -63,28 +63,31 @@ function ReaderPage() {
   // 从服务端进度初始化本地状态（仅首次加载时）。
   // 用 isFetched 而非 isLoading 判断 query 完成：React Query v5 中 isLoading
   // 在 query pending 时为 true，但对于 404 + retry=1 的场景，retry 期间 isLoading
-  // 仍是 true。如果用户在 retry 期间点击保存进度，useEffect 还没把 hasSyncedRef
-  // 设为 true，flush 会 early-return，PUT 永远不发。isFetched 在 query 第一次
+  // 仍是 true。如果用户在 retry 期间点击保存进度，hasSyncedRef 还没设为 true，
+  // flush 会 early-return，PUT 永远不发。isFetched 在 query 第一次
   // 完成（无论成功失败）后变 true 且不会被 retry 重置，更稳健。
   // 新用户在服务端没有 history，GET /progress 返回 404，progress.data 为
-  // undefined，但 hasSyncedRef 仍需设为 true，否则用户的输入永远无法上报。
-  // hasSyncedRef 同时作为"已初始化"标志：PUT 成功后 onSuccess 会更新
-  // progress.data，触发 useEffect 重新执行，但此时不应再用 server 数据覆盖
-  // 本地 state（用户可能正在继续修改）。
-  useEffect(() => {
-    if (!progress.isFetched) return
-    if (hasSyncedRef.current) return
+  // undefined，但 hasSynced 仍需设为 true，否则用户的输入永远无法上报。
+  // hasSynced 同时作为"已初始化"标志：PUT 成功后 onSuccess 会更新
+  // progress.data，但此时不应再用 server 数据覆盖本地 state。
+  const [hasSynced, setHasSynced] = useState(false)
+  // 同步 ref 以便 flush 闭包读取
+  if (hasSynced) {
+    // eslint-disable-next-line react-hooks/refs
+    hasSyncedRef.current = true
+  }
+  // render-time 初始化：服务端数据到达后同步到本地状态，非 effect
+  if (progress.isFetched && !hasSynced) {
+    setHasSynced(true)
     if (progress.data) {
       setPage(progress.data.page ?? 1)
       setProgressPercent(progress.data.progress_percent ?? 0)
       setCompleted(progress.data.completed)
     }
-    hasSyncedRef.current = true
-  }, [progress.isFetched, progress.data])
+  }
 
   // 用 ref 持有最新值，让 setInterval 回调读取时不被闭包冻结
   const stateRef = useRef({ page, progressPercent, completed, localDuration })
-  stateRef.current = { page, progressPercent, completed, localDuration }
 
   const flush = async () => {
     // 首次 mount 未同步完成前不 flush，避免 StrictMode 双挂载时
@@ -109,10 +112,13 @@ function ReaderPage() {
     }
   }
 
-  // 每秒累加时长；每 30s 自动 flush
-  // flush ref to keep it stable — prevent interval recreation on every render
   const flushRef = useRef(flush)
-  flushRef.current = flush
+
+  // 在 effect 中同步 ref，避免 render 阶段直接修改 ref
+  useEffect(() => {
+    stateRef.current = { page, progressPercent, completed, localDuration }
+    flushRef.current = flush
+  })
   useEffect(() => {
     const ticker = setInterval(() => {
       setLocalDuration((s) => s + 1)

@@ -75,6 +75,35 @@ class Tenant(Base):
     users: Mapped[list[User]] = relationship(
         back_populates="tenant", cascade="all, delete-orphan"
     )
+    hosts: Mapped[list[TenantHost]] = relationship(
+        back_populates="tenant", cascade="all, delete-orphan"
+    )
+
+
+class TenantHost(Base):
+    """Maps a host-header domain name to a tenant.
+
+    Used in multi-tenant mode to resolve which tenant a request belongs to
+    based on the ``Host`` header. One tenant can have multiple hostnames
+    (e.g. ``journal-a.example.com`` and ``www.journal-a.org``).
+    """
+
+    __tablename__ = "tenant_hosts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    host: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+
+    tenant: Mapped[Tenant] = relationship(back_populates="hosts")
 
 
 class User(Base):
@@ -126,6 +155,24 @@ class User(Base):
     # SHA-256 digests of the still-unused single-use recovery codes.
     two_factor_recovery_codes: Mapped[list[str] | None] = mapped_column(
         JSONBVariant, nullable=True
+    )
+    # Timestamp when 2FA was enabled (used for the privacy audit log).
+    totp_enabled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # --- WebAuthn / Passkeys ---
+    # JSON array of registered credential dicts:
+    #   [{"id": "...", "public_key": "...", "sign_count": 0, "name": "...", "created_at": "..."}]
+    webauthn_credentials: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONBVariant, nullable=True
+    )
+    # OpenID Connect ORCID iD linked to this user (optional).
+    orcid: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Soft-delete timestamp. Set when the user requests account deletion
+    # (GDPR right-to-erasure). The row is anonymised in place, and a
+    # background job hard-deletes it after the grace window.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
@@ -289,6 +336,7 @@ __all__ = [
     "ModuleState",
     "Role",
     "Tenant",
+    "TenantHost",
     "User",
     "UserRole",
 ]

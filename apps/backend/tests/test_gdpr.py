@@ -142,9 +142,9 @@ async def test_delete_anonymises_user(auth_client, db_session):
     assert user.username.startswith("deleted-")
     assert user.is_active is False
     assert user.deleted_at is not None
-    assert user.totp_secret_encrypted is None
+    assert user.two_factor_secret is None
     assert user.totp_enabled_at is None
-    assert user.totp_backup_codes_hashed is None
+    assert user.two_factor_recovery_codes is None
 
 
 async def test_delete_invalidates_tokens(auth_client):

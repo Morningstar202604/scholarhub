@@ -194,6 +194,6 @@ async def get_doi_metadata(doi: str) -> dict[str, Any] | None:
 
 __all__ = [
     "datacite_enabled",
-    "mint_doi",
     "get_doi_metadata",
+    "mint_doi",
 ]

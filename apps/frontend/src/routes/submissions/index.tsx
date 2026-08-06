@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   createFileRoute,
   Link,
@@ -44,6 +44,7 @@ import { PageHeader } from '@/components/common/page-header'
 import { Pagination } from '@/components/common/pagination'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
+import WorkflowTimeline from '@/components/WorkflowTimeline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -286,12 +287,13 @@ function SubmissionsPage() {
   const preset = useRouterState({
     select: (s) => s.location.state?.preset,
   })
-  useEffect(() => {
-    if (preset) {
-      setForm(presetToForm(preset))
-      setCreateOpen(true)
-    }
-  }, [preset])
+  const presetHandled = useRef(false)
+  // eslint-disable-next-line react-hooks/refs
+  if (preset && !presetHandled.current) {
+    presetHandled.current = true
+    setForm(presetToForm(preset))
+    setCreateOpen(true)
+  }
 
   const updateSearch = (patch: Partial<SubmissionSearch>) => {
     void navigate({
@@ -488,6 +490,12 @@ function SubmissionsPage() {
                 <span className="text-muted-foreground">{detail.discipline}</span>
                 <span className="text-muted-foreground">{detail.year}</span>
               </div>
+              <WorkflowTimeline
+                status={detail.status}
+                submittedAt={new Date(detail.submitted_at)}
+                reviewedAt={detail.reviewed_at ? new Date(detail.reviewed_at) : null}
+                reviewedBy={detail.reviewed_by ?? null}
+              />
               <div>
                 <span className="text-muted-foreground">作者：</span>
                 {detail.authors.join(', ')}
