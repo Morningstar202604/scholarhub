@@ -35,16 +35,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 import webauthn
+from webauthn.helpers.exceptions import (
+    InvalidAuthenticationResponse,
+    InvalidRegistrationResponse,
+)
 from webauthn.helpers.structs import (
     AttestationConveyancePreference,
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
     UserVerificationRequirement,
-)
-from webauthn.helpers.exceptions import (
-    InvalidAuthenticationResponse,
-    InvalidRegistrationResponse,
 )
 
 from app.core.config import settings

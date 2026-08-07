@@ -23,7 +23,19 @@ from tenacity import (
 )
 
 from app import __version__
-from app.api import admin, auth, gdpr, health, metrics, modules, privacy, tenant_hosts, two_factor, users, webauthn
+from app.api import (
+    admin,
+    auth,
+    gdpr,
+    health,
+    metrics,
+    modules,
+    privacy,
+    tenant_hosts,
+    two_factor,
+    users,
+    webauthn,
+)
 from app.api.oidc import router as oidc_router
 from app.core.bootstrap import run_bootstrap
 from app.core.config import settings

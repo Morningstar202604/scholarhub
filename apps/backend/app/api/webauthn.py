@@ -262,7 +262,7 @@ async def authenticate_complete(
         credential_dict["rawId"] = credential_dict.get("id", "")
 
     try:
-        stored_cred = verify_authentication_response(user, credential_dict)
+        verify_authentication_response(user, credential_dict)
     except ValueError as exc:
         logger.warning(
             "webauthn_authenticate_complete_failed",
