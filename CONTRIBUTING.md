@@ -10,7 +10,6 @@ Thank you for your interest in contributing! This document outlines the workflow
 - [Commit Conventions](#commit-conventions)
 - [Code Standards](#code-standards)
 - [Issue Guidelines](#issue-guidelines)
-- [Mirror Notice](#mirror-notice)
 
 ## Getting Started
 
@@ -143,12 +142,7 @@ null. Adds explicit null check and returns 404 instead.
 
 ## Repository
 
-This repository is hosted on two mirrors with identical content:
-
-- **GitCode (primary)**: https://gitcode.com/badhope/scholarhub
-- **GitHub (mirror)**: https://github.com/weed33834/scholarhub
-
-Issues and pull requests are accepted on both platforms.
+- **GitHub**: https://github.com/weed33834/scholarhub
 
 ## Questions?
 

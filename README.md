@@ -27,8 +27,7 @@ Submissions, peer review, publication, catalog, reader, and subscriptions are in
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square&logo=github&logoColor=white)](CONTRIBUTING.md)
 
-[![GitCode](https://img.shields.io/badge/mirror-GitCode-1677FF?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyTDIgMjJoMjBMMTIgMnptMCA0bDYgMTJINmw2LTEyeiIvPjwvc3ZnPg==&logoColor=white)](https://gitcode.com/badhope/scholarhub)
-[![GitHub](https://img.shields.io/badge/mirror-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
+[![GitHub](https://img.shields.io/badge/GitHub-weed33834%2Fscholarhub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#documentation)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
@@ -443,23 +442,19 @@ All 10 modules are shipped; backend + frontend + database migrations + unit test
 
 ## Contributing
 
-Issues and PRs are welcome on either mirror:
+Issues and PRs are welcome:
 
-- **GitCode (primary)**: https://gitcode.com/badhope/scholarhub
-- **GitHub (mirror)**: https://github.com/weed33834/scholarhub
+- **GitHub**: https://github.com/weed33834/scholarhub
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and conventions.
 
 ---
 
-## Mirror repositories
+## Repository
 
-This repository is mirrored on two platforms with identical content:
+This repository is hosted at:
 
-- **GitCode (primary)**: https://gitcode.com/badhope/scholarhub
-- **GitHub (mirror)**: https://github.com/weed33834/scholarhub
-
-Issues and PRs are accepted on both. The maintainer periodically syncs content and discussions across the two.
+- **GitHub**: https://github.com/weed33834/scholarhub
 
 ---
 

@@ -37,6 +37,8 @@ env/
 *.sqlite
 *.sqlite3
 *.db
+*.db-shm
+*.db-wal
 *.db-journal
 
 # Dev preview scripts (local only — not for production)
@@ -79,6 +81,8 @@ coverage/
 .qclaw/
 .qclaw-*
 .qclaw-*.md
+AGENTS.md
+provenance/
 
 # Diagnostic scripts (keep in scripts/ but never commit into repo)
 scripts/scan_secrets.py

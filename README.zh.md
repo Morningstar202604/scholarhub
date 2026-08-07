@@ -27,8 +27,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square&logo=github&logoColor=white)](CONTRIBUTING.md)
 
-[![GitCode](https://img.shields.io/badge/mirror-GitCode-1677FF?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyTDIgMjJoMjBMMTIgMnptMCA0bDYgMTJINmw2LTEyeiIvPjwvc3ZnPg==&logoColor=white)](https://gitcode.com/badhope/scholarhub)
-[![GitHub](https://img.shields.io/badge/mirror-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
+[![GitHub](https://img.shields.io/badge/GitHub-weed33834%2Fscholarhub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#文档)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
@@ -400,23 +399,19 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 ## 贡献
 
-欢迎在两个镜像上提 issue 或 PR:
+欢迎提 issue 或 PR:
 
-- **GitCode(主仓)**:https://gitcode.com/badhope/scholarhub
-- **GitHub(镜像)**:https://github.com/weed33834/scholarhub
+- **GitHub**:https://github.com/weed33834/scholarhub
 
 流程与规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 
-## 镜像仓库
+## 仓库地址
 
-本仓库在两个平台同步镜像,内容完全一致:
+本仓库托管在:
 
-- **GitCode(主仓)**:https://gitcode.com/badhope/scholarhub
-- **GitHub(镜像)**:https://github.com/weed33834/scholarhub
-
-issue 与 PR 在两边都接受。维护者会定期同步两边的内容与讨论。
+- **GitHub**:https://github.com/weed33834/scholarhub
 
 ---
 

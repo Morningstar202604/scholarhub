@@ -27,8 +27,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square&logo=github&logoColor=white)](CONTRIBUTING.md)
 
-[![GitCode](https://img.shields.io/badge/mirror-GitCode-1677FF?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyTDIgMjJoMjBMMTIgMnptMCA0bDYgMTJINmw2LTEyeiIvPjwvc3ZnPg==&logoColor=white)](https://gitcode.com/badhope/scholarhub)
-[![GitHub](https://img.shields.io/badge/mirror-GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
+[![GitHub](https://img.shields.io/badge/GitHub-weed33834%2Fscholarhub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#ドキュメント)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
@@ -400,23 +399,19 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 
 ## コントリビュート
 
-どちらのミラーでも issue と PR を歓迎します:
+issue と PR を歓迎します:
 
-- **GitCode(主)**: https://gitcode.com/badhope/scholarhub
-- **GitHub(ミラー)**: https://github.com/weed33834/scholarhub
+- **GitHub**: https://github.com/weed33834/scholarhub
 
 手順と規約は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
 ---
 
-## ミラーリポジトリ
+## リポジトリ
 
-本リポジトリは二つのプラットフォームでミラーリングされており、内容は完全に同一です:
+本リポジトリは以下でホストされています:
 
-- **GitCode(主)**: https://gitcode.com/badhope/scholarhub
-- **GitHub(ミラー)**: https://github.com/weed33834/scholarhub
-
-issue と PR は両方で受け付けています。管理者が定期的に内容と議論を同期します。
+- **GitHub**: https://github.com/weed33834/scholarhub
 
 ---
 

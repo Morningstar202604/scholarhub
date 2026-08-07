@@ -39,7 +39,7 @@
 
 ## 执行
 
-若有人违反本准则,请向维护者举报:**badhope@noreply.gitcode.com**。
+若有人违反本准则,请通过 GitHub issue 或 [SECURITY.md](SECURITY.md) 中列出的渠道向维护者举报。
 所有举报都会被严肃、公正地审查,并保密处理。
 
 ## 致谢
