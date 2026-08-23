@@ -16,7 +16,7 @@ not patched in-place; please upgrade.
 private channels below:
 
 1. **GitHub Security Advisories** (preferred) — open a draft at
-   <https://github.com/weed33834/scholarhub/security/advisories/new>.
+   <https://gitcode.com/badhope/scholarhub/security/advisories/new>.
    The repo owner is automatically CC'd and the report stays private
    until disclosure is agreed.
 2. **Email** — reach the maintainer via the address listed on the

@@ -15,7 +15,7 @@ ScholarHUB 仍处于 pre-alpha 阶段,以下是获取帮助与反馈问题的几
 
 ## 2. 搜索已有 issue
 
-提问前请先在 [GitHub issue 列表](https://github.com/weed33834/scholarhub/issues)
+提问前请先在 [GitHub issue 列表](https://gitcode.com/badhope/scholarhub/issues)
 搜索关键词,可能已经有人问过同样的问题。
 
 ## 3. 提 issue
@@ -23,7 +23,7 @@ ScholarHUB 仍处于 pre-alpha 阶段,以下是获取帮助与反馈问题的几
 如果文档没解答你的问题,请按下面的类型选择对应的入口:
 
 - **Bug 报告 / 功能请求** → 使用仓库的 issue 模板
-  ([GitHub](https://github.com/weed33834/scholarhub/issues/new))
+  ([GitHub](https://gitcode.com/badhope/scholarhub/issues/new))
 - **安全漏洞** → 不要公开提 issue,见 [SECURITY.md](SECURITY.md) 私密上报流程
 - **使用疑问 / 设计讨论** → issue 加 `question` 标签
 

@@ -142,7 +142,7 @@ null. Adds explicit null check and returns 404 instead.
 
 ## Repository
 
-- **GitHub**: https://github.com/weed33834/scholarhub
+- **GitHub**: https://gitcode.com/badhope/scholarhub
 
 ## Questions?
 

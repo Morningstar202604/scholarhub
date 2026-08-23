@@ -25,9 +25,7 @@
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#テスト)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#プロジェクトステータス)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square&logo=github&logoColor=white)](CONTRIBUTING.md)
 
-[![GitHub](https://img.shields.io/badge/GitHub-weed33834%2Fscholarhub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#ドキュメント)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
@@ -401,7 +399,7 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 
 issue と PR を歓迎します:
 
-- **GitHub**: https://github.com/weed33834/scholarhub
+- **GitHub**: https://gitcode.com/badhope/scholarhub
 
 手順と規約は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
@@ -411,7 +409,7 @@ issue と PR を歓迎します:
 
 本リポジトリは以下でホストされています:
 
-- **GitHub**: https://github.com/weed33834/scholarhub
+- **GitHub**: https://gitcode.com/badhope/scholarhub
 
 ---
 

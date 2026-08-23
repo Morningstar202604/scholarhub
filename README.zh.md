@@ -25,9 +25,7 @@
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#测试)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#项目状态)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square&logo=github&logoColor=white)](CONTRIBUTING.md)
 
-[![GitHub](https://img.shields.io/badge/GitHub-weed33834%2Fscholarhub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#文档)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
@@ -401,7 +399,7 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 欢迎提 issue 或 PR:
 
-- **GitHub**:https://github.com/weed33834/scholarhub
+- **GitHub**:https://gitcode.com/badhope/scholarhub
 
 流程与规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
@@ -411,7 +409,7 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 本仓库托管在:
 
-- **GitHub**:https://github.com/weed33834/scholarhub
+- **GitHub**:https://gitcode.com/badhope/scholarhub
 
 ---
 

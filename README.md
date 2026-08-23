@@ -25,9 +25,7 @@ Submissions, peer review, publication, catalog, reader, and subscriptions are in
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#testing)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#project-status)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square&logo=github&logoColor=white)](CONTRIBUTING.md)
 
-[![GitHub](https://img.shields.io/badge/GitHub-weed33834%2Fscholarhub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/weed33834/scholarhub)
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#documentation)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
@@ -444,7 +442,7 @@ All 10 modules are shipped; backend + frontend + database migrations + unit test
 
 Issues and PRs are welcome:
 
-- **GitHub**: https://github.com/weed33834/scholarhub
+- **GitHub**: https://gitcode.com/badhope/scholarhub
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and conventions.
 
@@ -454,7 +452,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and conventions.
 
 This repository is hosted at:
 
-- **GitHub**: https://github.com/weed33834/scholarhub
+- **GitHub**: https://gitcode.com/badhope/scholarhub
 
 ---
 

@@ -75,5 +75,5 @@
 - 防御性 secret 校验:非 test 环境强制拒绝弱密钥/弱密码。
 - 审计日志:每个 admin 操作按租户记录。
 
-[Unreleased]: https://github.com/weed33834/scholarhub/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/weed33834/scholarhub/releases/tag/v0.1.0
+[Unreleased]: https://gitcode.com/badhope/scholarhub/compare/v0.1.0...HEAD
+[0.1.0]: https://gitcode.com/badhope/scholarhub/releases/tag/v0.1.0
