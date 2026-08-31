@@ -15,11 +15,18 @@ Strategy:
 from __future__ import annotations
 
 import os
+import tempfile
 from collections.abc import AsyncGenerator
 
 # Must run before any `app.*` import so Settings() reads test env.
 os.environ.setdefault("SCHOLARHUB_ENVIRONMENT", "test")
 os.environ.setdefault("SCHOLARHUB_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+# Uploads must go to a writable location in ANY environment (CI runners
+# have no permission to create /data). tmpdir is per-OS writable.
+os.environ.setdefault(
+    "SCHOLARHUB_STORAGE_PATH",
+    os.path.join(tempfile.gettempdir(), "scholarhub-test-uploads"),
+)
 
 import pytest_asyncio
 from asgi_lifespan import LifespanManager

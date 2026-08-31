@@ -25,7 +25,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.15.21  # keep in sync with apps/backend/uv.lock (ruff 0.15.21)
     hooks:
       - id: ruff
         args: ['--fix', '--config', 'apps/backend/pyproject.toml']
@@ -34,9 +34,9 @@ repos:
         files: '^apps/backend/'
 
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.12.0
+    rev: v10.4.1
     hooks:
       - id: eslint
         files: '^apps/frontend/src/.*\.(ts|tsx)$'
         additional_dependencies:
-          - eslint@9.12.0
+          - eslint@10.4.1

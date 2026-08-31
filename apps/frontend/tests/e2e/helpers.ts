@@ -149,4 +149,3 @@ export function captureRequests(page: Page, urlPattern: RegExp): Request[] {
   })
   return captured
 }
-
