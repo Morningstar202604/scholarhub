@@ -24,14 +24,11 @@ repos:
         args: ['--fix=lf']
       - id: detect-private-key
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.21  # keep in sync with apps/backend/uv.lock (ruff 0.15.21)
-    hooks:
-      - id: ruff
-        args: ['--fix', '--config', 'apps/backend/pyproject.toml']
-        files: '^apps/backend/'
-      - id: ruff-format
-        files: '^apps/backend/'
+  # NOTE: backend ruff lint/format is intentionally absent here — the CI
+  # backend job runs `uv run ruff check .` + `ruff format --check .` from
+  # apps/backend (the isort project root). pre-commit runs at the repo root,
+  # where isort classifies tests/conftest differently, producing a
+  # mutually-exclusive diff. Dev-env and CI stay the single authority.
 
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v10.4.1
