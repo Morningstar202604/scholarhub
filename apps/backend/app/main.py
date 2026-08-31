@@ -109,7 +109,9 @@ app = FastAPI(
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     from app.core.tenant import REQUEST_ID_CTX
 
     request_id = REQUEST_ID_CTX.get()

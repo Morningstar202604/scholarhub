@@ -30,16 +30,12 @@ _PAYLOAD = {
 
 
 async def _create(client: AsyncClient, user: dict) -> dict:
-    resp = await client.post(
-        "/api/submissions", json=_PAYLOAD, headers=auth_headers(user)
-    )
+    resp = await client.post("/api/submissions", json=_PAYLOAD, headers=auth_headers(user))
     resp.raise_for_status()
     return resp.json()
 
 
-async def _to_major_revision(
-    client: AsyncClient, admin_user: dict, submission_id: int
-) -> None:
+async def _to_major_revision(client: AsyncClient, admin_user: dict, submission_id: int) -> None:
     resp = await client.patch(
         f"/api/submissions/{submission_id}/decision",
         json={"decision": "major_revision", "editor_note": "Revise section 3."},
@@ -53,9 +49,7 @@ async def _to_major_revision(
 # ---------------------------------------------------------------------------
 
 
-async def test_creation_snapshots_version_one(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_creation_snapshots_version_one(client: AsyncClient, test_user: dict) -> None:
     """创建投稿时立刻产生 v1 快照，内容与提交的 payload 一致。"""
     submission = await _create(client, test_user)
 
@@ -82,9 +76,7 @@ async def test_creation_snapshots_version_one(
 # ---------------------------------------------------------------------------
 
 
-async def test_author_can_edit_pending_submission(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_author_can_edit_pending_submission(client: AsyncClient, test_user: dict) -> None:
     submission = await _create(client, test_user)
 
     resp = await client.patch(
@@ -180,9 +172,7 @@ async def test_stranger_cannot_edit_submission(
     assert resp.status_code == 403
 
 
-async def test_edit_validates_field_constraints(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_edit_validates_field_constraints(client: AsyncClient, test_user: dict) -> None:
     submission = await _create(client, test_user)
 
     resp = await client.patch(
@@ -269,12 +259,8 @@ async def test_resubmit_note_reaches_editor_notification(
         headers=auth_headers(test_user),
     )
 
-    inbox = await client.get(
-        "/api/notifications", headers=auth_headers(admin_user)
-    )
-    resubmitted = [
-        n for n in inbox.json()["data"] if n["type"] == "submission.resubmitted"
-    ]
+    inbox = await client.get("/api/notifications", headers=auth_headers(admin_user))
+    resubmitted = [n for n in inbox.json()["data"] if n["type"] == "submission.resubmitted"]
     assert resubmitted, "编辑应收到重投通知"
     assert "已补充稳健性检验" in resubmitted[0]["body"]
     assert "v2" in resubmitted[0]["body"]
@@ -298,9 +284,7 @@ async def test_editor_can_read_version_history(
     assert len(resp.json()["data"]) == 1
 
 
-async def test_stranger_cannot_read_version_history(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_stranger_cannot_read_version_history(client: AsyncClient, test_user: dict) -> None:
     submission = await _create(client, test_user)
 
     # 另一个普通用户
@@ -322,9 +306,7 @@ async def test_stranger_cannot_read_version_history(
     assert resp.status_code == 403
 
 
-async def test_version_history_requires_auth(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_version_history_requires_auth(client: AsyncClient, test_user: dict) -> None:
     submission = await _create(client, test_user)
     resp = await client.get(f"/api/submissions/{submission['id']}/versions")
     assert resp.status_code == 401

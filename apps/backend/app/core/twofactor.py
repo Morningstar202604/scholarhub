@@ -49,9 +49,7 @@ def generate_totp_secret() -> str:
 
 def build_otpauth_uri(secret: str, account_name: str) -> str:
     """otpauth:// URI the frontend renders as a QR code."""
-    return pyotp.totp.TOTP(secret).provisioning_uri(
-        name=account_name, issuer_name=ISSUER
-    )
+    return pyotp.totp.TOTP(secret).provisioning_uri(name=account_name, issuer_name=ISSUER)
 
 
 def verify_totp_code(secret: str, code: str) -> bool:

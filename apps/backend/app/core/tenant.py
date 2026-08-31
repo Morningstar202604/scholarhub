@@ -43,7 +43,7 @@ logger = get_logger("scholarhub.tenant")
 # to not require a cache-invalidation API for normal operations.
 _HOST_CACHE_TTL_SECONDS = 300  # 5 minutes
 
-_host_cache: dict[str, tuple[uuid.UUID, float]] = {}
+_host_cache: dict[str, tuple[uuid.UUID | None, float]] = {}
 """Mapping of host (lowercased, port-stripped) → (tenant_id, expiry_ts)."""
 
 
@@ -211,12 +211,14 @@ class TenantContextMiddleware:
         if row is None:
             # Negative cache: cache the miss for a short time so
             # repeated requests to unknown hosts don't hammer the DB.
-            _host_cache[host] = (None, now + _HOST_CACHE_TTL_SECONDS)  # type: ignore[arg-type]
+            _host_cache[host] = (None, now + _HOST_CACHE_TTL_SECONDS)
             return None
 
-        tenant_id = row[0]
-        _host_cache[host] = (tenant_id, now + _HOST_CACHE_TTL_SECONDS)
-        return tenant_id
+        resolved: uuid.UUID | None = row[0]
+        if resolved is None:
+            return None
+        _host_cache[host] = (resolved, now + _HOST_CACHE_TTL_SECONDS)
+        return resolved
 
     async def _ensure_bootstrap_tenant(self) -> uuid.UUID:
         """Resolve (or lazily create) the bootstrap tenant in single mode.

@@ -136,9 +136,7 @@ def _save_credentials(user: User, credentials: list[dict[str, Any]]) -> None:
     user.webauthn_credentials = credentials
 
 
-def _find_credential(
-    user: User, credential_id: str
-) -> tuple[dict[str, Any] | None, int]:
+def _find_credential(user: User, credential_id: str) -> tuple[dict[str, Any] | None, int]:
     """Return (credential_dict, index) for a credential id, or (None, -1)."""
     creds = _get_credentials(user)
     for i, c in enumerate(creds):
@@ -169,9 +167,7 @@ def generate_registration_options(
     existing_creds = _get_credentials(user)
     exclude_credentials: list[PublicKeyCredentialDescriptor] = []
     for c in existing_creds:
-        exclude_credentials.append(
-            PublicKeyCredentialDescriptor(id=_b64url_decode(c["id"]))
-        )
+        exclude_credentials.append(PublicKeyCredentialDescriptor(id=_b64url_decode(c["id"])))
 
     options = webauthn.generate_registration_options(
         rp_id=settings.webauthn_rp_id,
@@ -208,12 +204,12 @@ def generate_registration_options(
         ],
         "authenticatorSelection": {
             "residentKey": (
-                options.authenticator_selection.resident_key.value
+                options.authenticator_selection.resident_key.value  # type: ignore[union-attr]
                 if options.authenticator_selection
                 else "preferred"
             ),
             "userVerification": (
-                options.authenticator_selection.user_verification.value
+                options.authenticator_selection.user_verification.value  # type: ignore[union-attr]
                 if options.authenticator_selection
                 else "preferred"
             ),
@@ -315,7 +311,7 @@ def generate_authentication_options(
             }
             for c in allow_credentials
         ],
-        "userVerification": options.user_verification.value,
+        "userVerification": options.user_verification.value,  # type: ignore[union-attr]
     }
 
 

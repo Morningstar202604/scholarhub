@@ -13,6 +13,8 @@ All endpoints live under ``/api/auth/webauthn``.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -59,7 +61,7 @@ class WebAuthnCredentialBody(BaseModel):
     id: str
     rawId: str = Field(default="")
     type: str = Field(default="public-key")
-    response: dict = Field(default_factory=dict)
+    response: dict[str, Any] = Field(default_factory=dict)
 
 
 class WebAuthnRegisterCompleteRequest(BaseModel):
@@ -105,7 +107,7 @@ class WebAuthnCredentialsListResponse(BaseModel):
 @router.post("/register/begin")
 async def register_begin(
     current_user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     """Start passkey registration.
 
     Returns a ``PublicKeyCredentialCreationOptions`` payload the browser
@@ -154,9 +156,7 @@ async def register_complete(
             user_id=current_user.id,
             error=str(exc),
         )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     await db.commit()
     await db.refresh(current_user)
@@ -183,7 +183,7 @@ async def register_complete(
 async def authenticate_begin(
     payload: WebAuthnAuthenticateBeginRequest,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Start passkey login.
 
     Provide a username; the server returns a
@@ -212,9 +212,7 @@ async def authenticate_begin(
     try:
         options = generate_authentication_options(user)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
         logger.warning(
             "webauthn_authenticate_begin_failed",
@@ -269,9 +267,7 @@ async def authenticate_complete(
             user_id=user.id,
             error=str(exc),
         )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     await db.commit()
     await db.refresh(user)

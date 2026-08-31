@@ -139,9 +139,7 @@ class S3Storage:
         extra: dict[str, Any] = {}
         if content_type:
             extra["ContentType"] = content_type
-        await self._run(
-            self._client.put_object, Bucket=self._bucket, Key=key, Body=data, **extra
-        )
+        await self._run(self._client.put_object, Bucket=self._bucket, Key=key, Body=data, **extra)
 
     async def load(self, key: str) -> bytes:
         _validate_key(key)

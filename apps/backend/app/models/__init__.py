@@ -72,9 +72,7 @@ class Tenant(Base):
         nullable=False,
     )
 
-    users: Mapped[list[User]] = relationship(
-        back_populates="tenant", cascade="all, delete-orphan"
-    )
+    users: Mapped[list[User]] = relationship(back_populates="tenant", cascade="all, delete-orphan")
     hosts: Mapped[list[TenantHost]] = relationship(
         back_populates="tenant", cascade="all, delete-orphan"
     )
@@ -153,13 +151,14 @@ class User(Base):
     )
     two_factor_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # SHA-256 digests of the still-unused single-use recovery codes.
-    two_factor_recovery_codes: Mapped[list[str] | None] = mapped_column(
-        JSONBVariant, nullable=True
-    )
+    two_factor_recovery_codes: Mapped[list[str] | None] = mapped_column(JSONBVariant, nullable=True)
+    # TOTP 2FA secret encrypted at rest with Fernet (legacy column set from
+    # migration 012_user_totp; used by app/api/two_factor.py via core/totp.py).
+    totp_secret_encrypted: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # JSON array of SHA-256 hashes of the one-time backup codes.
+    totp_backup_codes_hashed: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     # Timestamp when 2FA was enabled (used for the privacy audit log).
-    totp_enabled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    totp_enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # --- WebAuthn / Passkeys ---
     # JSON array of registered credential dicts:
     #   [{"id": "...", "public_key": "...", "sign_count": 0, "name": "...", "created_at": "..."}]
@@ -171,9 +170,7 @@ class User(Base):
     # Soft-delete timestamp. Set when the user requests account deletion
     # (GDPR right-to-erasure). The row is anonymised in place, and a
     # background job hard-deletes it after the grace window.
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
@@ -199,9 +196,7 @@ class Role(Base):
     """
 
     __tablename__ = "roles"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[UUID] = mapped_column(

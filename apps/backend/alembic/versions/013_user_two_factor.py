@@ -50,9 +50,7 @@ def upgrade() -> None:
         _TABLE,
         sa.Column(
             "two_factor_recovery_codes",
-            postgresql.JSONB(astext_type=sa.Text()).with_variant(
-                sa.JSON(), "sqlite"
-            ),
+            postgresql.JSONB(astext_type=sa.Text()).with_variant(sa.JSON(), "sqlite"),
             nullable=True,
         ),
     )

@@ -39,9 +39,7 @@ def upgrade() -> None:
         _TABLE,
         sa.Column(
             "webauthn_credentials",
-            postgresql.JSONB(astext_type=sa.Text()).with_variant(
-                sa.JSON(), "sqlite"
-            ),
+            postgresql.JSONB(astext_type=sa.Text()).with_variant(sa.JSON(), "sqlite"),
             nullable=True,
         ),
     )

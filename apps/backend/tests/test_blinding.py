@@ -56,9 +56,7 @@ async def _register(client: AsyncClient, tag: str) -> dict:
 async def _grant_reviewer(db_session: AsyncSession, user_id: int) -> None:
     from app.models import Role, UserRole
 
-    tenant = (
-        await db_session.execute(select(Tenant).where(Tenant.slug == "default"))
-    ).scalar_one()
+    tenant = (await db_session.execute(select(Tenant).where(Tenant.slug == "default"))).scalar_one()
     role = (
         await db_session.execute(
             select(Role).where(Role.tenant_id == tenant.id, Role.name == "reviewer")
@@ -76,9 +74,7 @@ async def _setup(
     client: AsyncClient, admin_user: dict, test_user: dict, db_session: AsyncSession
 ) -> dict:
     """作者投稿 → 注册独立审稿人 → 授角色 → 指派。"""
-    created = await client.post(
-        "/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user)
-    )
+    created = await client.post("/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user))
     created.raise_for_status()
     submission = created.json()
 
@@ -113,28 +109,18 @@ async def _set_mode(client: AsyncClient, admin_user: dict, mode: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def test_default_mode_is_single_blind(
-    client: AsyncClient, admin_user: dict
-) -> None:
-    resp = await client.get(
-        "/api/admin/settings/review-mode", headers=auth_headers(admin_user)
-    )
+async def test_default_mode_is_single_blind(client: AsyncClient, admin_user: dict) -> None:
+    resp = await client.get("/api/admin/settings/review-mode", headers=auth_headers(admin_user))
     assert resp.status_code == 200
     assert resp.json()["review_mode"] == "single_blind"
 
 
-async def test_switch_mode_roundtrip_and_audited(
-    client: AsyncClient, admin_user: dict
-) -> None:
+async def test_switch_mode_roundtrip_and_audited(client: AsyncClient, admin_user: dict) -> None:
     await _set_mode(client, admin_user, "double_blind")
-    resp = await client.get(
-        "/api/admin/settings/review-mode", headers=auth_headers(admin_user)
-    )
+    resp = await client.get("/api/admin/settings/review-mode", headers=auth_headers(admin_user))
     assert resp.json()["review_mode"] == "double_blind"
     # 切换动作必须留审计
-    logs = await client.get(
-        "/api/admin/audit-logs?limit=10", headers=auth_headers(admin_user)
-    )
+    logs = await client.get("/api/admin/audit-logs?limit=10", headers=auth_headers(admin_user))
     actions = [entry["action"] for entry in logs.json()]
     assert "admin.settings.review_mode" in actions
     # 切回
@@ -151,9 +137,7 @@ async def test_invalid_mode_rejected(client: AsyncClient, admin_user: dict) -> N
 
 
 async def test_settings_require_admin(client: AsyncClient, test_user: dict) -> None:
-    resp = await client.get(
-        "/api/admin/settings/review-mode", headers=auth_headers(test_user)
-    )
+    resp = await client.get("/api/admin/settings/review-mode", headers=auth_headers(test_user))
     assert resp.status_code == 403
 
 
@@ -208,9 +192,7 @@ async def test_double_blind_admin_exempt(
     client: AsyncClient, admin_user: dict, test_user: dict, db_session: AsyncSession
 ) -> None:
     """admin 以审稿人身份查看时不剥离（平台运营需要能排障）。"""
-    created = await client.post(
-        "/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user)
-    )
+    created = await client.post("/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user))
     created.raise_for_status()
     assigned = await client.post(
         f"/api/submissions/{created.json()['id']}/assignments",

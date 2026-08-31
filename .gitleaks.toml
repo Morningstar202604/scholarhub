@@ -57,4 +57,7 @@ regexes = [
   '''(?i)test[-_]?key''',
   '''(?i)ci-test-''',
   '''\*{4,}''',  # already-redacted
+  # Explicitly-labelled test/dev placeholders (never real credentials)
+  '''(?i)test_only_do_not_use_in_production''',
+  '''scholarhub_dev''',
 ]

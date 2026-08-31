@@ -54,24 +54,18 @@ async def _enable(client: AsyncClient, user: dict) -> tuple[str, list[str]]:
 # ---------------------------------------------------------------------------
 
 
-async def test_status_is_disabled_by_default(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_status_is_disabled_by_default(client: AsyncClient, test_user: dict) -> None:
     """2FA 是 opt-in：新账号默认关闭，且没有恢复码。"""
     resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
     assert resp.status_code == 200
     assert resp.json() == {"enabled": False, "backup_codes_remaining": 0}
 
 
-async def test_setup_does_not_activate_two_factor(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_setup_does_not_activate_two_factor(client: AsyncClient, test_user: dict) -> None:
     """只跑 setup 不算启用——否则用户扫码失败就把自己锁在门外了。"""
     await _setup(client, test_user)
 
-    status_resp = await client.get(
-        "/api/users/me/2fa", headers=auth_headers(test_user)
-    )
+    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
     assert status_resp.json()["enabled"] is False
 
     # 登录仍然直接发 token
@@ -83,9 +77,7 @@ async def test_setup_does_not_activate_two_factor(
     assert "access_token" in login.json()
 
 
-async def test_enable_requires_valid_code(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_enable_requires_valid_code(client: AsyncClient, test_user: dict) -> None:
     """错误的验证码不能启用 2FA。"""
     await _setup(client, test_user)
     resp = await client.post(
@@ -97,9 +89,7 @@ async def test_enable_requires_valid_code(
     assert "Invalid two-factor code" in resp.json()["detail"]
 
 
-async def test_enable_without_setup_is_rejected(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_enable_without_setup_is_rejected(client: AsyncClient, test_user: dict) -> None:
     """没跑 setup 就 enable → 400，而不是 500。"""
     resp = await client.post(
         "/api/users/me/2fa/enable",
@@ -119,15 +109,11 @@ async def test_enable_returns_recovery_codes_and_flips_status(
     assert all("-" in c for c in codes)
     assert len(set(codes)) == 8  # 不重复
 
-    status_resp = await client.get(
-        "/api/users/me/2fa", headers=auth_headers(test_user)
-    )
+    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
     assert status_resp.json() == {"enabled": True, "backup_codes_remaining": 8}
 
 
-async def test_setup_again_after_enabled_is_conflict(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_setup_again_after_enabled_is_conflict(client: AsyncClient, test_user: dict) -> None:
     """已启用后再 setup → 409，避免误把现有 secret 冲掉。"""
     await _enable(client, test_user)
     resp = await client.post("/api/users/me/2fa/setup", headers=auth_headers(test_user))
@@ -168,9 +154,7 @@ async def test_wrong_password_still_401_when_2fa_enabled(
     assert resp.status_code == 401
 
 
-async def test_full_two_factor_login_chain(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_full_two_factor_login_chain(client: AsyncClient, test_user: dict) -> None:
     """完整链路：密码 → pending token → TOTP → 真正的 access token。"""
     secret, _ = await _enable(client, test_user)
 
@@ -196,9 +180,7 @@ async def test_full_two_factor_login_chain(
     assert me.status_code == 200
 
 
-async def test_wrong_totp_code_is_rejected(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_wrong_totp_code_is_rejected(client: AsyncClient, test_user: dict) -> None:
     await _enable(client, test_user)
     login = await client.post(
         "/api/auth/login",
@@ -232,9 +214,7 @@ async def test_access_token_cannot_be_used_as_pending_token(
     assert resp.status_code == 401
 
 
-async def test_pending_token_dies_with_token_version(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_pending_token_dies_with_token_version(client: AsyncClient, test_user: dict) -> None:
     """改密后 token_version 变了，之前签发的 pending token 立刻失效。"""
     secret, _ = await _enable(client, test_user)
     login = await client.post(
@@ -262,9 +242,7 @@ async def test_pending_token_dies_with_token_version(
 # ---------------------------------------------------------------------------
 
 
-async def test_recovery_code_works_once(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_recovery_code_works_once(client: AsyncClient, test_user: dict) -> None:
     """恢复码可以顶替 TOTP 登录，但只能用一次。"""
     _, codes = await _enable(client, test_user)
     recovery = codes[0]
@@ -287,15 +265,11 @@ async def test_recovery_code_works_once(
     # 第二次同一个码必须失败
     assert await _login_with(recovery) == 401
 
-    status_resp = await client.get(
-        "/api/users/me/2fa", headers=auth_headers(test_user)
-    )
+    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
     assert status_resp.json()["backup_codes_remaining"] == 7
 
 
-async def test_recovery_code_is_case_insensitive(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_recovery_code_is_case_insensitive(client: AsyncClient, test_user: dict) -> None:
     """恢复码是人手抄的，大小写/空格不该成为障碍。"""
     _, codes = await _enable(client, test_user)
     login = await client.post(
@@ -317,9 +291,7 @@ async def test_recovery_code_is_case_insensitive(
 # ---------------------------------------------------------------------------
 
 
-async def test_disable_requires_password(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_disable_requires_password(client: AsyncClient, test_user: dict) -> None:
     """被劫持的会话不能光凭 cookie 就把第二因子摘掉。"""
     await _enable(client, test_user)
     resp = await client.post(
@@ -329,9 +301,7 @@ async def test_disable_requires_password(
     )
     assert resp.status_code == 401
 
-    status_resp = await client.get(
-        "/api/users/me/2fa", headers=auth_headers(test_user)
-    )
+    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
     assert status_resp.json()["enabled"] is True
 
 
@@ -347,9 +317,7 @@ async def test_disable_with_password_restores_plain_login(
     )
     assert resp.status_code == 204
 
-    status_resp = await client.get(
-        "/api/users/me/2fa", headers=auth_headers(test_user)
-    )
+    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
     assert status_resp.json() == {"enabled": False, "backup_codes_remaining": 0}
 
     login = await client.post(
@@ -359,9 +327,7 @@ async def test_disable_with_password_restores_plain_login(
     assert "access_token" in login.json()
 
 
-async def test_disable_when_not_enabled_is_400(
-    client: AsyncClient, test_user: dict
-) -> None:
+async def test_disable_when_not_enabled_is_400(client: AsyncClient, test_user: dict) -> None:
     resp = await client.post(
         "/api/users/me/2fa/disable",
         json={"password": test_user["password"]},
@@ -378,9 +344,11 @@ async def test_two_factor_endpoints_require_auth(client: AsyncClient) -> None:
         ("post", "/api/users/me/2fa/enable", {"code": "123456"}),
         ("post", "/api/users/me/2fa/disable", {"password": "whatever"}),
     ):
-        resp = await getattr(client, method)(path, json=body) if body else await getattr(
-            client, method
-        )(path)
+        resp = (
+            await getattr(client, method)(path, json=body)
+            if body
+            else await getattr(client, method)(path)
+        )
         assert resp.status_code == 401, f"{method} {path} → {resp.status_code}"
 
 

@@ -49,18 +49,12 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["submission_id"], ["submissions.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["submission_id"], ["submissions.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "submission_id", "version", name="uq_submission_version_number"
-        ),
+        sa.UniqueConstraint("submission_id", "version", name="uq_submission_version_number"),
     )
-    op.create_index(
-        "ix_submission_versions_tenant_id", "submission_versions", ["tenant_id"]
-    )
+    op.create_index("ix_submission_versions_tenant_id", "submission_versions", ["tenant_id"])
     op.create_index(
         "ix_submission_versions_submission_id",
         "submission_versions",
@@ -124,8 +118,6 @@ def downgrade() -> None:
         op.execute("ALTER TABLE submission_versions NO FORCE ROW LEVEL SECURITY;")
         op.execute("ALTER TABLE submission_versions DISABLE ROW LEVEL SECURITY;")
 
-    op.drop_index(
-        "ix_submission_versions_submission_id", table_name="submission_versions"
-    )
+    op.drop_index("ix_submission_versions_submission_id", table_name="submission_versions")
     op.drop_index("ix_submission_versions_tenant_id", table_name="submission_versions")
     op.drop_table("submission_versions")

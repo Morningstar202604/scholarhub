@@ -101,6 +101,13 @@ plugins = ["pydantic.mypy"]
 module = ["bibtexparser.*", "rispy.*"]
 ignore_missing_imports = true
 
+# 运行时可选的集成依赖（Redis / S3 / Meilisearch）不一定随测试安装，
+# 且均无 py.typed 类型标注，允许缺失 stub 并放宽其返回类型
+[[tool.mypy.overrides]]
+module = ["redis", "redis.*", "boto3", "boto3.*", "meilisearch_python_sdk", "meilisearch_python_sdk.*", "defusedxml"]
+ignore_missing_imports = true
+follow_untyped_imports = true
+
 [tool.bandit]
 exclude_dirs = ["tests", "alembic"]
 level = "MEDIUM"

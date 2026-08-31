@@ -15,7 +15,7 @@ Terminology (COPE / ICMJE 通行定义):
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -42,7 +42,7 @@ async def get_review_mode(db: AsyncSession, tenant_id: UUID) -> ReviewMode:
         return DEFAULT_REVIEW_MODE
     mode = settings_blob.get("review_mode")
     if mode in VALID_REVIEW_MODES:
-        return mode  # type: ignore[return-value]
+        return cast(ReviewMode, mode)
     return DEFAULT_REVIEW_MODE
 
 
@@ -50,9 +50,7 @@ async def set_review_mode(db: AsyncSession, tenant_id: UUID, mode: ReviewMode) -
     """Persist the tenant's review mode (merged into the settings blob)."""
     if mode not in VALID_REVIEW_MODES:
         raise ValueError(f"Invalid review mode: {mode}")
-    tenant = (
-        await db.execute(select(Tenant).where(Tenant.id == tenant_id))
-    ).scalar_one_or_none()
+    tenant = (await db.execute(select(Tenant).where(Tenant.id == tenant_id))).scalar_one_or_none()
     if tenant is None:
         raise LookupError("Tenant not found")
     # JSON 列必须整体替换，原地改 dict 不会被 SQLAlchemy 识别为脏数据。

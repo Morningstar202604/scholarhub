@@ -65,7 +65,7 @@ async def list_resources(
 
     if q is not None and fulltext.search_enabled():
         hit = await fulltext.search_resource_ids(
-            tenant_id=tenant_id,
+            tenant_id=str(tenant_id),
             q=q,
             type_=type,
             discipline=discipline,

@@ -82,7 +82,7 @@ async def _get_client() -> Any | None:
 def _to_document(resource: Any) -> dict[str, Any]:
     return {
         "id": resource.id,
-        "tenant_id": resource.tenant_id,
+        "tenant_id": str(resource.tenant_id),
         "title": resource.title,
         "abstract": resource.abstract or "",
         "authors": resource.authors or [],
@@ -118,7 +118,7 @@ async def unindex_resource(resource_id: int) -> None:
 
 async def search_resource_ids(
     *,
-    tenant_id: int,
+    tenant_id: str,
     q: str,
     type_: str | None = None,
     discipline: str | None = None,

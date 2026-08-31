@@ -152,9 +152,7 @@ async def _submit_with_file(
 ) -> dict:
     monkeypatch.setattr(settings, "storage_path", str(tmp_path), raising=False)
     storage_mod.reset_storage_cache()
-    created = await client.post(
-        "/api/submissions", json=_PAYLOAD, headers=auth_headers(user)
-    )
+    created = await client.post("/api/submissions", json=_PAYLOAD, headers=auth_headers(user))
     assert created.status_code == 201
     submission = created.json()
     uploaded = await client.post(
@@ -216,12 +214,8 @@ async def test_stranger_cannot_download(
     assert resp.status_code == 403
 
 
-async def test_download_404_when_no_file(
-    client: AsyncClient, test_user: dict
-) -> None:
-    created = await client.post(
-        "/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user)
-    )
+async def test_download_404_when_no_file(client: AsyncClient, test_user: dict) -> None:
+    created = await client.post("/api/submissions", json=_PAYLOAD, headers=auth_headers(test_user))
     assert created.status_code == 201
     resp = await client.get(
         f"/api/submissions/{created.json()['id']}/files",

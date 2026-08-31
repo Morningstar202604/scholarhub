@@ -91,10 +91,20 @@ async def test_index_failure_never_raises(monkeypatch: pytest.MonkeyPatch) -> No
         return SimpleNamespace(index=lambda _n: FakeIndex())
 
     monkeypatch.setattr(fulltext, "_get_client", fake_get_client)
-    await fulltext.index_resource(SimpleNamespace(
-        id=1, tenant_id=1, title="t", abstract=None, authors=None,
-        keywords=None, tags=None, type="paper", discipline="cs", year=2024,
-    ))
+    await fulltext.index_resource(
+        SimpleNamespace(
+            id=1,
+            tenant_id=1,
+            title="t",
+            abstract=None,
+            authors=None,
+            keywords=None,
+            tags=None,
+            type="paper",
+            discipline="cs",
+            year=2024,
+        )
+    )
     await fulltext.unindex_resource(1)
 
 
@@ -107,9 +117,7 @@ async def test_search_builds_tenant_filter(monkeypatch: pytest.MonkeyPatch) -> N
         async def search(self, q: str, **kwargs: Any) -> Any:
             captured["q"] = q
             captured.update(kwargs)
-            return SimpleNamespace(
-                hits=[{"id": 7}, {"id": 3}], estimated_total_hits=2
-            )
+            return SimpleNamespace(hits=[{"id": 7}, {"id": 3}], estimated_total_hits=2)
 
     async def fake_get_client() -> Any:
         return SimpleNamespace(index=lambda _n: FakeIndex())

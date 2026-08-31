@@ -35,9 +35,7 @@ async def list_tenant_hosts(
     """List all host mappings for the current tenant."""
     tenant_id = require_tenant_id()
     result = await db.execute(
-        select(TenantHost)
-        .where(TenantHost.tenant_id == tenant_id)
-        .order_by(TenantHost.host)
+        select(TenantHost).where(TenantHost.tenant_id == tenant_id).order_by(TenantHost.host)
     )
     hosts = result.scalars().all()
     return [TenantHostResponse.model_validate(h) for h in hosts]

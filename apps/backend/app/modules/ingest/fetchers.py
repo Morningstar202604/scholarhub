@@ -19,7 +19,7 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
-from defusedxml import ElementTree as ET
+from defusedxml import ElementTree as ET  # type: ignore[attr-defined]
 
 from app.core.config import settings
 from app.modules.ingest.schemas import IngestResource
@@ -250,9 +250,7 @@ async def fetch_pubmed(pubmed_id: str) -> IngestResource:
     if response.status_code == 404:
         raise ResourceNotFoundError(f"PubMed ID not found: {pubmed_id}")
     if response.status_code >= 400:
-        raise UpstreamError(
-            f"PubMed returned status {response.status_code} for {pubmed_id}"
-        )
+        raise UpstreamError(f"PubMed returned status {response.status_code} for {pubmed_id}")
 
     try:
         payload = response.json()
@@ -347,9 +345,7 @@ async def fetch_openalex(doi_or_id: str) -> IngestResource:
     if response.status_code == 404:
         raise ResourceNotFoundError(f"OpenAlex work not found: {doi_or_id}")
     if response.status_code >= 400:
-        raise UpstreamError(
-            f"OpenAlex returned status {response.status_code} for {doi_or_id}"
-        )
+        raise UpstreamError(f"OpenAlex returned status {response.status_code} for {doi_or_id}")
 
     try:
         payload = response.json()
@@ -367,9 +363,7 @@ async def fetch_openalex(doi_or_id: str) -> IngestResource:
         if a.get("author") and a["author"].get("display_name")
     ]
     if not authors:
-        raise ResourceNotFoundError(
-            f"OpenAlex record for {doi_or_id} has no authors"
-        )
+        raise ResourceNotFoundError(f"OpenAlex record for {doi_or_id} has no authors")
 
     year = payload.get("publication_year")
     if year is not None:
@@ -400,7 +394,7 @@ async def fetch_openalex(doi_or_id: str) -> IngestResource:
     doi = (payload.get("doi") or "").strip() or None
     # OpenAlex returns DOIs as full URLs (https://doi.org/10.xxx).
     if doi and doi.startswith("https://doi.org/"):
-        doi = doi[len("https://doi.org/"):]
+        doi = doi[len("https://doi.org/") :]
 
     # short_container_title from primary_location → source → display_name
     short_container_title = None
@@ -454,9 +448,7 @@ async def fetch_semantic_scholar(paper_id: str) -> IngestResource:
         raise UpstreamError(f"Semantic Scholar request failed: {exc}") from exc
 
     if response.status_code == 404:
-        raise ResourceNotFoundError(
-            f"Semantic Scholar paper not found: {paper_id}"
-        )
+        raise ResourceNotFoundError(f"Semantic Scholar paper not found: {paper_id}")
     if response.status_code >= 400:
         raise UpstreamError(
             f"Semantic Scholar returned status {response.status_code} for {paper_id}"
@@ -465,22 +457,16 @@ async def fetch_semantic_scholar(paper_id: str) -> IngestResource:
     try:
         payload = response.json()
     except ValueError as exc:
-        raise UpstreamError(
-            f"Semantic Scholar returned non-JSON body: {exc}"
-        ) from exc
+        raise UpstreamError(f"Semantic Scholar returned non-JSON body: {exc}") from exc
 
     title = (payload.get("title") or "").strip()
     if not title:
-        raise ResourceNotFoundError(
-            f"Semantic Scholar record for {paper_id} has no title"
-        )
+        raise ResourceNotFoundError(f"Semantic Scholar record for {paper_id} has no title")
 
     authors_raw = payload.get("authors") or []
     authors = [a["name"].strip() for a in authors_raw if a.get("name")]
     if not authors:
-        raise ResourceNotFoundError(
-            f"Semantic Scholar record for {paper_id} has no authors"
-        )
+        raise ResourceNotFoundError(f"Semantic Scholar record for {paper_id} has no authors")
 
     year = payload.get("year")
     if year is not None:

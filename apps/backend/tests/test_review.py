@@ -416,9 +416,7 @@ async def test_decision_accept_notification_deep_links_to_resource(
 
     inbox = await client.get("/api/notifications", headers=auth_headers(test_user))
     assert inbox.status_code == 200
-    decisions = [
-        n for n in inbox.json()["data"] if n["type"] == "submission.decision"
-    ]
+    decisions = [n for n in inbox.json()["data"] if n["type"] == "submission.decision"]
     assert decisions, "作者应收到稿件决定通知"
     latest = decisions[0]
     assert latest["related_type"] == "resource"

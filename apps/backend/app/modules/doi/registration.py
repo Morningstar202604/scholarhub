@@ -14,7 +14,7 @@ https://support.datacite.org/docs/api-mds
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -57,14 +57,16 @@ def _build_doi(suffix: str) -> str:
 def _build_datacite_metadata(resource: Any, doi: str) -> dict[str, Any]:
     """Build a DataCite 4.x JSON metadata payload from a Resource model."""
     authors_list = []
-    for author in (resource.authors or []):
+    for author in resource.authors or []:
         if isinstance(author, dict):
-            authors_list.append({
-                "name": author.get("name", str(author)),
-                "nameType": "Personal",
-                "givenName": author.get("given_name", ""),
-                "familyName": author.get("family_name", ""),
-            })
+            authors_list.append(
+                {
+                    "name": author.get("name", str(author)),
+                    "nameType": "Personal",
+                    "givenName": author.get("given_name", ""),
+                    "familyName": author.get("family_name", ""),
+                }
+            )
         else:
             authors_list.append({"name": str(author), "nameType": "Personal"})
 
@@ -87,9 +89,7 @@ def _build_datacite_metadata(resource: Any, doi: str) -> dict[str, Any]:
                     else []
                 ),
                 "url": f"https://doi.org/{doi}",
-                "subjects": (
-                    [{"subject": tag} for tag in (resource.tags or [])[:10]]
-                ),
+                "subjects": ([{"subject": tag} for tag in (resource.tags or [])[:10]]),
             },
         }
     }
@@ -183,7 +183,7 @@ async def get_doi_metadata(doi: str) -> dict[str, Any] | None:
             if resp.status_code >= 400:
                 logger.warning("DataCite GET failed: %s %s", resp.status_code, resp.text[:200])
                 return None
-            return resp.json()
+            return cast(dict[str, Any], resp.json())
     except httpx.TimeoutException:
         logger.warning("DataCite GET timeout for %s", doi)
         return None

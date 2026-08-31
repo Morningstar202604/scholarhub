@@ -112,7 +112,7 @@ class RedisTokenDenylist:
         ttl = max(1, int(expires_at - time.time()))
         try:
             r = await self._get_redis()
-            await r.set(f"{_KEY_PREFIX}{token_jti}", "1", ex=ttl)
+            await r.set(f"{_KEY_PREFIX}{token_jti}", "1", ex=ttl)  # type: ignore[attr-defined]
         except Exception:
             logger.warning(
                 "redis_denylist_add_failed",
@@ -123,7 +123,7 @@ class RedisTokenDenylist:
     async def is_denied(self, token_jti: str) -> bool:
         try:
             r = await self._get_redis()
-            return await r.exists(f"{_KEY_PREFIX}{token_jti}") > 0
+            return (await r.exists(f"{_KEY_PREFIX}{token_jti}")) > 0  # type: ignore[attr-defined,no-any-return]
         except Exception:
             logger.warning(
                 "redis_denylist_check_failed_falling_open",
@@ -168,7 +168,7 @@ async def get_denylist() -> TokenDenylist:
                 candidate = RedisTokenDenylist(settings.redis_url)
                 # Quick connectivity check — fail-fast if Redis is down.
                 r = await candidate._get_redis()
-                await r.ping()
+                await r.ping()  # type: ignore[attr-defined]
                 _denylist = candidate
                 logger.info("token_denylist_using_redis")
             except Exception:
