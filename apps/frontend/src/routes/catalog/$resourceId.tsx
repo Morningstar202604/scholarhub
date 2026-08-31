@@ -82,10 +82,14 @@ function CatalogDetailPage() {
   // ref guard: avoid double recordView call under React StrictMode
   // 访客不上报浏览记录（后端该接口需要登录）。
   const viewRecordedRef = useRef(false)
+  // ref-stabilize the mutation so the effect deps stay [id, isAuthenticated]
+  // (the mutation object is recreated each render; depending on it directly
+  // would reset the guard and re-record on every render).
+  const recordViewRef = useRef(recordView)
   useEffect(() => {
     if (!isAuthenticated || viewRecordedRef.current) return
     viewRecordedRef.current = true
-    void recordView.mutateAsync(id).catch(() => {})
+    void recordViewRef.current.mutateAsync(id).catch(() => {})
     return () => {
       viewRecordedRef.current = false
     }
