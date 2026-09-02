@@ -397,35 +397,6 @@ CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ---
 
-## Project status
-
-**Version**: `0.1.0-alpha` · **Status**: pre-alpha
-
-All 10 modules are shipped; backend + frontend + database migrations + unit tests + E2E tests + deployment are all in place. The roadmap:
-
-- [x] Two-factor authentication (TOTP) — shipped
-- [x] JWT secret rotation (online, zero downtime) — shipped
-- [x] Redis-backed distributed rate limit (with in-memory fallback) — shipped
-- [x] GDPR endpoints (export + soft delete + 30-day restore) — shipped
-- [x] OIDC provider discovery endpoint + PKCE enforcement — shipped
-- [x] CI: ruff + mypy + pytest + frontend lint/typecheck/build + gitleaks + CodeQL + pip-audit — shipped
-- [x] CSRF protection (double-submit cookie) — shipped
-- [x] RFC 7807 error responses (application/problem+json) — shipped
-- [x] ORCID iD field (User + author metadata) — shipped
-- [x] Discipline/subdiscipline ontology tables — shipped
-- [x] Crossref enrichment (publisher / journal abbreviation / volume / issue / page / ISSN) — shipped
-- [x] Privacy page + cookie consent banner + retention policy — shipped
-- [ ] Multi-tenant mode (host-header → tenant mapping table)
-- [ ] Explicit refresh token denylist (currently relies on `token_version`)
-- [ ] WebAuthn / passkeys as an alternative to TOTP 2FA
-- [ ] Advanced volume/issue management UI
-- [ ] DOI registration and cross-linking
-- [ ] Full-text search (PostgreSQL FTS or Meilisearch)
-- [ ] Switch file storage from local to S3
-- [ ] Workflow visualization (submit → review → accept)
-
----
-
 ## Documentation
 
 - [Architecture contract](docs/ARCHITECTURE.md) — module dependencies, tenant isolation, module registry, migration strategy
@@ -433,7 +404,6 @@ All 10 modules are shipped; backend + frontend + database migrations + unit test
 - [Contributing](CONTRIBUTING.md) — branch naming, commit conventions, PR checklist
 - [Security policy](SECURITY.md) — vulnerability reporting, built-in security layers, local tooling
 - [Code of conduct](CODE_OF_CONDUCT.md)
-- [Getting help](SUPPORT.md)
 - [Changelog](CHANGELOG.md)
 
 ---
