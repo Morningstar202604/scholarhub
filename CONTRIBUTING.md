@@ -1,3 +1,10 @@
+## Working rules
+
+* Dependency updates: search the whole repository for every occurrence of a dependency (build files, lockfiles, CI workflows, docs) before bumping. A partial bump — declaration updated but lockfile or a pinned action left behind — is the most common cause of "works locally, CI fails". Keep lockfiles in the same commit as the declaration. Move version-coupled toolchain upgrades together in one commit.
+* Refactoring: pull latest main first, work on a fresh branch, keep commits atomic with messages that state the why, and always run the full check suite before pushing (for this repo: `cd apps/backend && uv run ruff check . && uv run mypy app && uv run pytest`, `cd apps/frontend && npm run lint && npm run typecheck && npm run build`, and the pre-commit hooks). A branch left behind main cannot be merged under the repository's branch protection.
+* Merge conflicts: resolve conflicts in the working tree against the latest main; never force-push shared branches; never resolve a conflict by blindly taking either side — re-read both sides and keep both changes when they are both valid.
+* Versioning: releases follow X.Y.Z starting at 0.0.0. Last digit = fixes, middle digit = feature work, first digit stays 0 until a stable release is declared. Bump the version in code, CHANGELOG.md and the tag in the same change.
+
 # Contributing to This Project
 
 Thank you for your interest in contributing! This document outlines the workflow and standards for all contributors.
