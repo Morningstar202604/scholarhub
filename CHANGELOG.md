@@ -17,7 +17,7 @@
 - 新增 `VERSION` 文件,声明项目版本 0.1.0。
 - 新增 `.github/workflows/ci.yml`:PR/push 自动跑 lint、typecheck、单元测试、后端 pytest。
 - 新增 `.vscode/extensions.json`:推荐项目开发所需 VS Code 扩展。
-- 新增 GitHub 镜像仓库 `weed33834/scholarhub`,与 GitCode 主仓同步发布。
+- 以 GitHub 仓库 `Morningstar202604/scholarhub` 为唯一托管与发布渠道,移除第三方镜像发布流程。
 - 新增项目 LOGO、投稿-审稿-发表流程图、系统架构图(均位于 `docs/assets/`)。
 - 新增 `CHANGELOG.md`、`CODE_OF_CONDUCT.md`、`SUPPORT.md`,补齐开源治理配套。
 
@@ -75,5 +75,5 @@
 - 防御性 secret 校验:非 test 环境强制拒绝弱密钥/弱密码。
 - 审计日志:每个 admin 操作按租户记录。
 
-[Unreleased]: https://gitcode.com/badhope/scholarhub/compare/v0.1.0...HEAD
-[0.1.0]: https://gitcode.com/badhope/scholarhub/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Morningstar202604/scholarhub/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Morningstar202604/scholarhub/releases/tag/v0.1.0
