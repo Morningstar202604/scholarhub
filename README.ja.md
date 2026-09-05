@@ -10,7 +10,7 @@
 
 投稿・査読・出版・目録・読者・購読まで、最初から揃っている。
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white&style=flat-square)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white&style=flat-square)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
@@ -19,8 +19,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
-[![Modules](https://img.shields.io/badge/modules-10-6366F1?style=flat-square&logo=modin&logoColor=white)](#モジュール一覧)
-[![E2E Specs](https://img.shields.io/badge/E2E_specs-56-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
+[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square&logo=modin&logoColor=white)](#モジュール一覧)
+[![E2E Specs](https://img.shields.io/badge/E2E_specs-12-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
 [![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#テスト)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#プロジェクトステータス)
@@ -91,6 +91,7 @@ ScholarHUB の全機能はこの三つのユーザーを中心に設計されて
 | `notifications` | ✓ shipped | アプリ内通知ストリーム、ユーザー単位で隔離 |
 | `ingest` | ✓ shipped | BibTeX / RIS / CSV 一括インポート + Crossref / arXiv メタデータ取得 |
 | `recommendations` | ✓ shipped | 閲読履歴に基づくパーソナライズ推薦 + 推薦理由 |
+| `doi` | ✓ shipped | DOI 登録・メタデータ検索・CrossRef 相互リンク |
 
 ---
 
@@ -223,7 +224,7 @@ scholarhub/
 ├── CODE_OF_CONDUCT.md             # 行動規範
 ├── SECURITY.md                    # セキュリティポリシー
 ├── SUPPORT.md                     # ヘルプ
-├── LICENSE                        # MIT
+├── LICENSE                        # Apache-2.0
 ├── VERSION                        # バージョンの単一ソース
 ├── apps/
 │   ├── backend/                   # FastAPI サービス(base + modules)
@@ -232,7 +233,7 @@ scholarhub/
 │   │   │   ├── api/               # トップレベルルート(admin/auth/oidc/users/health/modules)
 │   │   │   ├── core/              # 起動/設定/db/メール/テナンシー/tokens/security
 │   │   │   ├── middleware/        # rate_limit / security_headers
-│   │   │   └── modules/           # 10 個のドメインモジュール
+│   │   │   └── modules/           # 11 個のドメインモジュール
 │   │   ├── tests/                 # pytest + aiosqlite
 │   │   └── pyproject.toml         # uv + ruff + mypy + bandit 設定
 │   └── frontend/                  # React 19 SPA
@@ -252,21 +253,15 @@ scholarhub/
 │   ├── docker-compose.prod.yml    # 本番スタック(Caddy 付き)
 │   └── Caddyfile                  # TLS テンプレート
 └── .github/
-    ├── workflows/
-    │   ├── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
-    │   ├── release.yml             # タグ駆動 wheel + Docker イメージ + Release
-    │   └── dependabot-auto-merge.yml
-    ├── dependabot.yml             # 毎週 pip + npm + GHA + docker 依存更新
-    ├── CODEOWNERS                 # コード所有権
-    ├── SECURITY-MONITORING.md     # セキュリティ自動化レイヤー
-    └── ISSUE_TEMPLATE/            # issue テンプレート
+    └── workflows/
+        └── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
 ```
 
 ---
 
 ## 設定
 
-すべての変数に `SCHOLARHUB_` プレフィックスが付きます。完全なリストは [`apps/backend/app/core/config.py`](apps/backend/app/core/config) に、主要なものを以下に示します:
+すべての変数に `SCHOLARHUB_` プレフィックスが付きます。完全なリストは [`apps/backend/app/core/config.py`](apps/backend/app/core/config.py) に、主要なものを以下に示します:
 
 | 環境変数 | 必須 | 説明 |
 |---|:---:|---|
@@ -325,7 +320,7 @@ npm run test
 
 ### E2E テスト
 
-9 個の spec ファイル（53 個の Playwright test()）が完全なユーザージャーニーをカバーし、実際のブラウザクリックで各主フローを検証します:
+12 個の spec ファイル（64 個の Playwright test()）が完全なユーザージャーニーをカバーし、実際のブラウザクリックで各主フローを検証します:
 
 ```bash
 # バックエンドを起動(テストモード: SQLite + rate_limit スキップ)
@@ -356,9 +351,9 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 
 ## プロジェクトステータス
 
-**バージョン**: `0.1.0-alpha` · **状態**: pre-alpha
+**バージョン**: `0.1.0` · **状態**: pre-alpha
 
-10 個のモジュールすべてを出荷済み。バックエンド + フロントエンド + DB マイグレーション + ユニットテスト + E2E テスト + デプロイがすべて揃っています。今後の予定:
+11 個のモジュールすべてを出荷済み。バックエンド + フロントエンド + DB マイグレーション + ユニットテスト + E2E テスト + デプロイがすべて揃っています。今後の予定:
 
 - [x] 二要素認証 (TOTP) — shipped
 - [x] JWT キーローテーション (オンライン, 無停止) — shipped
@@ -399,8 +394,6 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 
 issue と PR を歓迎します:
 
-- **GitHub**: https://gitcode.com/badhope/scholarhub
-
 手順と規約は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
 
 ---
@@ -409,13 +402,11 @@ issue と PR を歓迎します:
 
 本リポジトリは以下でホストされています:
 
-- **GitHub**: https://gitcode.com/badhope/scholarhub
-
 ---
 
 ## ライセンス
 
-Copyright © 2026 badhope. [MIT License](LICENSE) の下で公開されています。
+Copyright © 2026 badhope. [Apache-2.0 License](LICENSE) の下で公開されています。
 
 著作権および許諾表示を保持する限り、商用・非商用を問わず、本ソフトウェアの使用・複製・変更・統合・公開・配布・サブライセンス・販売が自由に行えます。
 

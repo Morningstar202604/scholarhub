@@ -15,10 +15,9 @@ not patched in-place; please upgrade.
 **Do not open a public GitHub issue for security reports.** Use one of the
 private channels below:
 
-1. **GitHub Security Advisories** (preferred) — open a draft at
-   <https://gitcode.com/badhope/scholarhub/security/advisories/new>.
-   The repo owner is automatically CC'd and the report stays private
-   until disclosure is agreed.
+1. **GitHub Security Advisories** (preferred) — open a private draft on the
+   GitHub Security tab. The repo owner is automatically CC'd and the report
+   stays private until disclosure is agreed.
 2. **Email** — reach the maintainer via the address listed on the
    GitHub profile. (Avoid pasting secrets in the issue title.)
 
@@ -102,9 +101,6 @@ cd apps/frontend
 npm run lint
 npm run typecheck
 npm audit                            # npm dependency CVE scan
-
-# Repo-wide secret scan
-python scan_secrets.py
 ```
 
 ## Incident Response

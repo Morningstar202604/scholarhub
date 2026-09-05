@@ -15,15 +15,13 @@ ScholarHUB 仍处于 pre-alpha 阶段,以下是获取帮助与反馈问题的几
 
 ## 2. 搜索已有 issue
 
-提问前请先在 [GitHub issue 列表](https://gitcode.com/badhope/scholarhub/issues)
-搜索关键词,可能已经有人问过同样的问题。
+提问前请先在 GitHub 的 issue 列表搜索关键词,可能已经有人问过同样的问题。
 
 ## 3. 提 issue
 
 如果文档没解答你的问题,请按下面的类型选择对应的入口:
 
 - **Bug 报告 / 功能请求** → 使用仓库的 issue 模板
-  ([GitHub](https://gitcode.com/badhope/scholarhub/issues/new))
 - **安全漏洞** → 不要公开提 issue,见 [SECURITY.md](SECURITY.md) 私密上报流程
 - **使用疑问 / 设计讨论** → issue 加 `question` 标签
 
@@ -36,4 +34,4 @@ ScholarHUB 仍处于 pre-alpha 阶段,以下是获取帮助与反馈问题的几
 
 ## 4. 授权与商用
 
-本仓库采用 [MIT License](LICENSE),允许商业与非商业用途,无需单独授权。
+本仓库采用 [Apache-2.0 License](LICENSE),允许商业与非商业用途,无需单独授权。

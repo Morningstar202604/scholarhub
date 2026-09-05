@@ -149,8 +149,6 @@ null. Adds explicit null check and returns 404 instead.
 
 ## Repository
 
-- **GitHub**: https://gitcode.com/badhope/scholarhub
-
 ## Questions?
 
 Feel free to open an issue with the `question` label if anything is unclear.

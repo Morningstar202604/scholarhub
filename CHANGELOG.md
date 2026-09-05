@@ -12,7 +12,7 @@
 - 目录浏览、仪表盘、详情页、阅读页四个区域做了移动专属设计与适配:
   卡片流(非表格)、2 列大块+快捷操作、固定底部操作栏。
 - 新增 Playwright `mobile` 项目(iPhone 13 视口)与 `mobile-shell.spec.ts` 5 个 E2E 用例。
-- E2E 测试套件更新至 57 个 spec(56 chromium + 5 mobile,含 4 个共用 mobile/chromium 的用例)。
+- E2E 测试套件更新至 12 个 spec(56 chromium + 5 mobile,含 4 个共用 mobile/chromium 的用例)。
 - 新增 `npm run test:e2e` 脚本,便于新贡献者发现和执行 Playwright 测试。
 - 新增 `VERSION` 文件,声明项目版本 0.1.0。
 - 新增 `.github/workflows/ci.yml`:PR/push 自动跑 lint、typecheck、单元测试、后端 pytest。

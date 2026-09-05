@@ -10,7 +10,7 @@
 
 投稿、审稿、发表、目录、读者与订阅,开箱即用。
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white&style=flat-square)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white&style=flat-square)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
@@ -19,8 +19,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
-[![Modules](https://img.shields.io/badge/modules-10-6366F1?style=flat-square&logo=modin&logoColor=white)](#模块清单)
-[![E2E Specs](https://img.shields.io/badge/E2E_specs-56-22C55E?style=flat-square&logo=playwright&logoColor=white)](#测试)
+[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square&logo=modin&logoColor=white)](#模块清单)
+[![E2E Specs](https://img.shields.io/badge/E2E_specs-12-22C55E?style=flat-square&logo=playwright&logoColor=white)](#测试)
 [![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#测试)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#项目状态)
@@ -91,6 +91,7 @@ ScholarHUB 的所有功能都围绕这三类用户设计:
 | `notifications` | ✓ shipped | 站内通知流、按用户隔离 |
 | `ingest` | ✓ shipped | BibTeX / RIS / CSV 批量导入 + Crossref / arXiv 元数据抓取 |
 | `recommendations` | ✓ shipped | 基于阅读历史的个性化推荐 + 推荐理由 |
+| `doi` | ✓ shipped | DOI 注册、元数据查询与 CrossRef 互链 |
 
 ---
 
@@ -223,7 +224,7 @@ scholarhub/
 ├── CODE_OF_CONDUCT.md             # 行为准则
 ├── SECURITY.md                    # 安全策略
 ├── SUPPORT.md                     # 获取帮助
-├── LICENSE                        # MIT
+├── LICENSE                        # Apache-2.0
 ├── VERSION                        # 单一版本号源
 ├── apps/
 │   ├── backend/                   # FastAPI 服务(base + 模块)
@@ -232,7 +233,7 @@ scholarhub/
 │   │   │   ├── api/               # 顶层路由(admin/auth/oidc/users/health/modules)
 │   │   │   ├── core/              # 启动/配置/db/邮件/租户/tokens/security
 │   │   │   ├── middleware/        # rate_limit / security_headers
-│   │   │   └── modules/           # 10 个领域模块
+│   │   │   └── modules/           # 11 个领域模块
 │   │   ├── tests/                 # pytest + aiosqlite
 │   │   └── pyproject.toml         # uv + ruff + mypy + bandit 配置
 │   └── frontend/                  # React 19 SPA
@@ -252,21 +253,15 @@ scholarhub/
 │   ├── docker-compose.prod.yml    # prod stack(带 Caddy)
 │   └── Caddyfile                  # TLS 模板
 └── .github/
-    ├── workflows/
-    │   ├── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
-    │   ├── release.yml             # Tag 驱动 wheel + Docker 镜像 + Release
-    │   └── dependabot-auto-merge.yml
-    ├── dependabot.yml             # 每周 pip + npm + GHA + docker 依赖更新
-    ├── CODEOWNERS                 # 代码归属
-    ├── SECURITY-MONITORING.md     # 安全自动化层级文档
-    └── ISSUE_TEMPLATE/            # issue 模板
+    └── workflows/
+        └── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
 ```
 
 ---
 
 ## 配置
 
-所有变量以 `SCHOLARHUB_` 为前缀。完整列表见 [`apps/backend/app/core/config.py`](apps/backend/app/core/config),最关键的几项:
+所有变量以 `SCHOLARHUB_` 为前缀。完整列表见 [`apps/backend/app/core/config.py`](apps/backend/app/core/config.py),最关键的几项:
 
 | 环境变量 | 必填 | 说明 |
 |---|:---:|---|
@@ -325,7 +320,7 @@ npm run test
 
 ### E2E 测试
 
-9 个 spec 文件（53 个 Playwright test()）覆盖完整用户旅程,以真实浏览器点击的方式验证每条主流程:
+12 个 spec 文件（64 个 Playwright test()）覆盖完整用户旅程,以真实浏览器点击的方式验证每条主流程:
 
 ```bash
 # 启动后端(测试模式,SQLite + rate_limit 跳过)
@@ -356,9 +351,9 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 ## 项目状态
 
-**版本**:`0.1.0-alpha` · **状态**:pre-alpha
+**版本**:`0.1.0` · **状态**:pre-alpha
 
-10 个模块全部 shipped,前后端 + 数据库迁移 + 单元测试 + E2E 测试 + 部署都已就绪。后续规划:
+11 个模块全部 shipped,前后端 + 数据库迁移 + 单元测试 + E2E 测试 + 部署都已就绪。后续规划:
 
 - [x] 双因素认证 (TOTP) — shipped
 - [x] JWT 密钥轮换 (在线,零停机) — shipped
@@ -399,8 +394,6 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 欢迎提 issue 或 PR:
 
-- **GitHub**:https://gitcode.com/badhope/scholarhub
-
 流程与规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
@@ -409,13 +402,11 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 本仓库托管在:
 
-- **GitHub**:https://gitcode.com/badhope/scholarhub
-
 ---
 
 ## License
 
-Copyright © 2026 badhope. Released under the [MIT License](LICENSE).
+Copyright © 2026 badhope. Released under the [Apache-2.0 License](LICENSE).
 
 在保留版权与许可声明的前提下,你可以自由使用、复制、修改、合并、发布、分发、再授权、销售本软件的副本,商业与非商业用途皆可。
 
