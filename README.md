@@ -416,7 +416,7 @@ This repository is hosted at:
 
 ## License
 
-Copyright © 2026 badhope. Released under the [Apache-2.0 License](LICENSE).
+Copyright © 2026 Morningstar202604. Released under the [Apache-2.0 License](LICENSE).
 
 You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, for commercial and non-commercial purposes alike, provided the copyright notice and permission notice are included in all copies or substantial portions of the Software.
 

@@ -406,7 +406,7 @@ issue と PR を歓迎します:
 
 ## ライセンス
 
-Copyright © 2026 badhope. [Apache-2.0 License](LICENSE) の下で公開されています。
+Copyright © 2026 Morningstar202604. [Apache-2.0 License](LICENSE) の下で公開されています。
 
 著作権および許諾表示を保持する限り、商用・非商用を問わず、本ソフトウェアの使用・複製・変更・統合・公開・配布・サブライセンス・販売が自由に行えます。
 

@@ -406,7 +406,7 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 
 ## License
 
-Copyright © 2026 badhope. Released under the [Apache-2.0 License](LICENSE).
+Copyright © 2026 Morningstar202604. Released under the [Apache-2.0 License](LICENSE).
 
 在保留版权与许可声明的前提下,你可以自由使用、复制、修改、合并、发布、分发、再授权、销售本软件的副本,商业与非商业用途皆可。
 
