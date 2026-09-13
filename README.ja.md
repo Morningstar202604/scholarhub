@@ -29,6 +29,8 @@
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#ドキュメント)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
+<img src="docs/assets/hero.png" alt="ScholarHUB — 投稿、レビュー、公開、閲読" width="860" />
+
 **[概要](#概要) · [クイックスタート](#クイックスタート) · [アーキテクチャ](#アーキテクチャ) · [モジュール一覧](#モジュール一覧) · [テスト](#テスト) · [ドキュメント](#ドキュメント) · [コントリビュート](#コントリビュート)**
 
 </div>
