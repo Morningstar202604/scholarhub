@@ -7,7 +7,6 @@ conftest overrides the engine to aiosqlite).
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
@@ -43,16 +42,6 @@ def _reissue_tenant_guc(session: Session, transaction: Any, connection: Any) -> 
     # Interpolate directly — SET LOCAL does not accept parameterised
     # placeholders with asyncpg. Use set_config() which handles the
     # type cast correctly.
-    # Defense-in-depth: the value is interpolated into SQL, so refuse to
-    # arm the GUC if it is not a canonical UUID (malformed value => RLS
-    # denies every row rather than injecting garbage).
-    if tenant_id.__class__ is not uuid.UUID:
-        canonical = str(tenant_id)
-        try:
-            uuid.UUID(canonical)
-        except ValueError:
-            logger.error("tenant_guc_rejected_invalid_tenant_id", value=canonical[:32])
-            return
     connection.execute(
         text(f"SELECT set_config('app.current_tenant_id', '{tenant_id}', true)"),
     )

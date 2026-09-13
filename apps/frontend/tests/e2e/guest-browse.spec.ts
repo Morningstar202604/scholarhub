@@ -118,8 +118,7 @@ test.describe('guest browse', () => {
     await expect(page.getByText('使用账号密码登录 ScholarHUB。')).toBeVisible()
     await expect(page.getByLabel('用户名或邮箱')).toBeVisible()
     await expect(page.getByLabel('密码', { exact: true })).toBeVisible()
-    // 登录页有主 submit + "使用 Passkey 登录"两个按钮，name 精确匹配主按钮
-    await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '登录' })).toBeVisible()
     // 顶部 header + 卡片底部各有一个"注册"链接，取 first 即卡片里的那个
     await expect(page.getByRole('link', { name: '注册' }).first()).toBeVisible()
     await expect(page.getByRole('link', { name: '忘记密码？' })).toBeVisible()
@@ -127,14 +126,9 @@ test.describe('guest browse', () => {
 
   test('login with wrong password shows error toast', async ({ page }) => {
     await page.goto('/login')
-    // Cookie 同意弹窗可能遮挡交互，若可见先接受
-    const cookieBanner = page.getByTestId('cookie-banner')
-    if (await cookieBanner.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      await page.getByTestId('cookie-banner-accept').click()
-    }
     await page.getByLabel('用户名或邮箱').fill(ADMIN.username)
     await page.getByLabel('密码', { exact: true }).fill('totally-wrong-password')
-    await page.getByRole('button', { name: '登录', exact: true }).click()
+    await page.getByRole('button', { name: '登录' }).click()
     // toast.error 出现（具体文案由 backend 决定，断言部分关键字）
     await expect(page.locator('[data-sonner-toast]')).toBeVisible({ timeout: 5_000 })
   })

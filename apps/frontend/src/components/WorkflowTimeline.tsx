@@ -15,10 +15,10 @@ interface StepDef {
 }
 
 const STEPS: StepDef[] = [
-  { key: 'submitted', label: '已提交', icon: FileText },
-  { key: 'under_review', label: '审稿中', icon: Search },
-  { key: 'decision', label: '决定', icon: ThumbsUp },
-  { key: 'published', label: '已发表', icon: BookOpen },
+  { key: 'submitted', label: 'Submitted', icon: FileText },
+  { key: 'under_review', label: 'Under Review', icon: Search },
+  { key: 'decision', label: 'Decision', icon: ThumbsUp },
+  { key: 'published', label: 'Published', icon: BookOpen },
 ]
 
 /**
@@ -72,7 +72,7 @@ export default function WorkflowTimeline({
 
   return (
     <div className="rounded-md border p-4">
-      <h4 className="mb-4 text-sm font-medium">工作流</h4>
+      <h4 className="mb-4 text-sm font-medium">Workflow</h4>
 
       {/* Desktop: horizontal timeline */}
       <div className="hidden sm:flex sm:items-start sm:gap-0">
@@ -131,7 +131,7 @@ export default function WorkflowTimeline({
                 )}
                 {isCurrent && (
                   <p className="mt-0.5 text-[10px] text-muted-foreground">
-                    {getDate(idx) || '待定'}
+                    {getDate(idx) || 'Pending'}
                   </p>
                 )}
               </div>
@@ -194,7 +194,7 @@ export default function WorkflowTimeline({
                     {getDate(idx) || (
                       <span className="inline-flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        待定
+                        Pending
                       </span>
                     )}
                   </p>

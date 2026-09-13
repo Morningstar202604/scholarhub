@@ -6,9 +6,7 @@ core routers → module routers.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -86,87 +84,15 @@ logger.info(
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan: verify DB → bootstrap → yield → dispose."""
-    retention_task: asyncio.Task[None] | None = None
     if not settings.is_test:
         await _verify_db_with_retry()
         await run_bootstrap()
-        if settings.retention_cleanup_enabled:
-            retention_task = asyncio.create_task(
-                _retention_loop(settings.retention_cleanup_interval_hours)
-            )
-            logger.info(
-                "retention_cleanup_started",
-                interval_hours=settings.retention_cleanup_interval_hours,
-            )
 
     yield
 
     if not settings.is_test:
-        if retention_task is not None:
-            retention_task.cancel()
-            try:
-                await retention_task
-            except asyncio.CancelledError:
-                pass
         await dispose_engine()
         logger.info("database_engine_disposed")
-
-
-async def _retention_loop(interval_hours: int) -> None:
-    """Periodically run the retention cleanup (audit log purge + user
-    hard-delete after the grace window). Runs once at startup, then on
-    every interval. Errors are logged and the loop continues — one bad
-    run must never take the scheduler down.
-
-    Outside of a request the tenant GUC is not armed (no middleware),
-    so RLS would see zero rows; we resolve the bootstrap tenant for
-    single-tenant deployments and arm the ContextVar explicitly.
-    """
-    from app.core.db import async_session_factory
-    from app.core.retention import run_retention_cleanup
-    from app.core.tenant import TENANT_CONTEXT_VAR
-
-    while True:
-        tenant_id = await _resolve_retention_tenant()
-        if tenant_id is None:
-            logger.warning(
-                "retention_cleanup_skipped_no_tenant",
-                hint="multi-tenant mode has no per-tenant background job; use POST /api/admin/retention/cleanup",
-            )
-            await asyncio.sleep(max(60, interval_hours * 3600))
-            continue
-        token = TENANT_CONTEXT_VAR.set(tenant_id)
-        try:
-            async with async_session_factory() as session:
-                report = await run_retention_cleanup(session)
-                await session.commit()
-            logger.info("retention_cleanup_auto_ran", **report)
-        except Exception:
-            logger.exception("retention_cleanup_auto_failed")
-        finally:
-            TENANT_CONTEXT_VAR.reset(token)
-        await asyncio.sleep(max(60, interval_hours * 3600))
-
-
-async def _resolve_retention_tenant() -> uuid.UUID | None:
-    """Single-tenant deployments run the job for the bootstrap tenant;
-    multi-tenant deployments must trigger cleanup per tenant via the
-    admin API (the job has no way to pick one tenant on its own)."""
-    if settings.tenancy_mode != "single":
-        return None
-
-    from sqlalchemy import select
-
-    from app.core.db import async_session_factory
-    from app.models import Tenant
-
-    async with async_session_factory() as session:
-        tenant = (
-            await session.execute(
-                select(Tenant).where(Tenant.slug == settings.bootstrap_tenant_slug)
-            )
-        ).scalar_one_or_none()
-    return tenant.id if tenant is not None else None
 
 
 app = FastAPI(
@@ -257,18 +183,15 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     return JSONResponse(status_code=500, content={"detail": detail})
 
 
-# --- Middleware stack (note: Starlette is LIFO — last added runs first) ---
+# --- Middleware stack (note: FastAPI is LIFO — last added runs first) ---
 #
-# Inbound execution order (outermost first):
-#   1. HTTPMetricsMiddleware (outermost; reads scope only, no tenant needed)
-#   2. TenantContextMiddleware (resolves tenant, sets request_id; must run
-#      before auth, because auth depends on tenant scope)
-#   3. TrustedHostMiddleware (production only)
+# Execution order on inbound request (registered here bottom-up):
+#   1. TenantContextMiddleware   (resolves tenant, sets request_id)
+#   2. RateLimitMiddleware        (per-IP + per-auth-path throttling)
+#   3. SecurityHeadersMiddleware (CSP, X-Frame, X-API-Version)
 #   4. CORSMiddleware
-#   5. SecurityHeadersMiddleware (CSP, X-Frame, X-API-Version)
-#   6. RateLimitMiddleware (per-IP + per-auth-path throttling)
-#   7. CSRFMiddleware
-#   → routers
+#   5. TrustedHostMiddleware (production only)
+# Tenant MUST run before auth, because auth depends on tenant scope.
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitMiddleware, default_per_minute=settings.rate_limit_per_minute)
 app.add_middleware(SecurityHeadersMiddleware)

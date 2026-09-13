@@ -74,19 +74,10 @@ async def get_current_user(
     # Filter by tenant too: an access token minted in tenant A must not
     # authenticate against tenant B's deployment (User.id is global, so
     # without this filter the lookup would return the tenant-A user).
-    #
-    # Fail-closed: if the tenant context is missing (middleware mis-order,
-    # background-job path, or a non-HTTP caller), reject authentication
-    # rather than falling back to a global lookup that could resolve a
-    # cross-tenant user. RLS provides a second layer, but the app layer
-    # must not open the door in the first place.
     tenant_id = TENANT_CONTEXT_VAR.get()
-    if tenant_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Tenant context not resolved",
-        )
-    stmt = select(User).where(User.id == user_id_int, User.tenant_id == tenant_id)
+    stmt = select(User).where(User.id == user_id_int)
+    if tenant_id is not None:
+        stmt = stmt.where(User.tenant_id == tenant_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     if user is None:
@@ -162,11 +153,9 @@ async def get_current_user_optional(
     except (TypeError, ValueError):
         return None
     tenant_id = TENANT_CONTEXT_VAR.get()
-    if tenant_id is None:
-        # No tenant context — cannot scope the user lookup; treat as
-        # unauthenticated rather than performing a global lookup.
-        return None
-    stmt = select(User).where(User.id == user_id_int, User.tenant_id == tenant_id)
+    stmt = select(User).where(User.id == user_id_int)
+    if tenant_id is not None:
+        stmt = stmt.where(User.tenant_id == tenant_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:

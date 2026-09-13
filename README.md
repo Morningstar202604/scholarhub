@@ -29,8 +29,6 @@ Submissions, peer review, publication, catalog, reader, and subscriptions are in
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#documentation)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
-<img src="docs/assets/hero.png" alt="ScholarHUB — submit, review, publish, read" width="860" />
-
 **[Overview](#overview) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Modules](#modules) · [Testing](#testing) · [Docs](#documentation) · [Contributing](#contributing)**
 
 </div>

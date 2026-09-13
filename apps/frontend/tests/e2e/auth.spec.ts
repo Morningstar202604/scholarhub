@@ -50,7 +50,7 @@ test.describe('auth: register + verify + login + logout', () => {
     await expect(page).toHaveURL(/\/login$/)
     await page.getByLabel('用户名或邮箱').fill(user.username)
     await page.getByLabel('密码', { exact: true }).fill(user.password)
-    await page.getByRole('button', { name: '登录', exact: true }).click()
+    await page.getByRole('button', { name: '登录' }).click()
 
     // 登录成功跳 /dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 })
@@ -101,7 +101,7 @@ test.describe('auth: register + verify + login + logout', () => {
     await page.goto('/login')
     await page.getByLabel('用户名或邮箱').fill(user.username)
     await page.getByLabel('密码', { exact: true }).fill(user.password)
-    await page.getByRole('button', { name: '登录', exact: true }).click()
+    await page.getByRole('button', { name: '登录' }).click()
     // toast 错误出现（具体文案 backend 决定）
     await expect(page.locator('[data-sonner-toast]')).toBeVisible({ timeout: 5_000 })
   })

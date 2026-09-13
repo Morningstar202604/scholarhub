@@ -9,7 +9,10 @@ import type {
   ResetPasswordRequest,
   ResendVerificationRequest,
   TokenResponse,
+  TwoFactorEnableResponse,
   TwoFactorLoginRequest,
+  TwoFactorSetupResponse,
+  TwoFactorStatusResponse,
   UserCreate,
   UserLogin,
   UserResponse,
@@ -68,9 +71,45 @@ export function useTwoFactorLogin() {
   })
 }
 
-// --- 2FA 自管理已收敛到 M2 栈：hooks 见 hooks/api/use-two-factor.ts
-// （/api/auth/2fa/*，Fernet 加密密钥 + 备份码）。
-// 登录第二步 useTwoFactorLogin 仍在本文件（/auth/login/2fa 端点保留）。
+// --- 2FA 自管理（账号安全页） ---
+export function useTwoFactorStatus() {
+  return useQuery<TwoFactorStatusResponse>({
+    queryKey: [...TWO_FACTOR_KEY, 'status'],
+    queryFn: async () =>
+      (await api.get<TwoFactorStatusResponse>('/users/me/2fa')).data,
+    enabled: !!useAuthStore.getState().token,
+  })
+}
+
+export function useTwoFactorSetup() {
+  return useMutation<TwoFactorSetupResponse, Error, void>({
+    mutationFn: async () =>
+      (await api.post<TwoFactorSetupResponse>('/users/me/2fa/setup')).data,
+  })
+}
+
+export function useTwoFactorEnable() {
+  const qc = useQueryClient()
+  return useMutation<TwoFactorEnableResponse, Error, { code: string }>({
+    mutationFn: async (body) =>
+      (await api.post<TwoFactorEnableResponse>('/users/me/2fa/enable', body)).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...TWO_FACTOR_KEY] })
+    },
+  })
+}
+
+export function useTwoFactorDisable() {
+  const qc = useQueryClient()
+  return useMutation<void, Error, { password: string }>({
+    mutationFn: async (body) => {
+      await api.post('/users/me/2fa/disable', body)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...TWO_FACTOR_KEY] })
+    },
+  })
+}
 
 export function useRegister() {
   const setAuth = useAuthStore((s) => s.setAuth)

@@ -104,11 +104,6 @@ class ReadingHistoryEntryResponse(BaseModel):
     completed: bool
 
 
-class FileAssetListResponse(BaseModel):
-    items: list[FileAssetResponse]
-    meta: PaginationMeta
-
-
 class ReadingHistoryListResponse(BaseModel):
     data: list[ReadingHistoryEntryResponse]
     meta: PaginationMeta
@@ -116,7 +111,6 @@ class ReadingHistoryListResponse(BaseModel):
 
 __all__ = [
     "FileAssetCreate",
-    "FileAssetListResponse",
     "FileAssetResponse",
     "MessageResponse",
     "PaginationMeta",

@@ -29,8 +29,6 @@
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#文档)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
 
-<img src="docs/assets/hero.png" alt="ScholarHUB —— 投稿、审稿、发表、阅读" width="860" />
-
 **[一句话定位](#一句话定位) · [快速开始](#快速开始) · [系统架构](#系统架构) · [模块清单](#模块清单) · [测试](#测试) · [文档](#文档) · [参与贡献](#贡献)**
 
 </div>
@@ -271,7 +269,7 @@ scholarhub/
 | `SCHOLARHUB_PREVIOUS_SECRET_KEYS` | | 密钥轮换窗口内的旧 JWT 密钥,逗号分隔 |
 | `SCHOLARHUB_ADMIN_PASSWORD` | ✓ | 首次启动创建的 admin 账户密码,至少 12 字符 |
 | `SCHOLARHUB_DATABASE_URL` | | PostgreSQL 连接串,默认 `postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub` |
-| `SCHOLARHUB_TENANCY_MODE` | | `single`(默认,单租户)/ `multi`(host-header 解析,经 `tenant_hosts` 映射表) |
+| `SCHOLARHUB_TENANCY_MODE` | | `single`(默认,单租户)/ `multi`(host-header 解析,未实现) |
 | `SCHOLARHUB_ENVIRONMENT` | | `development`(默认)/ `staging` / `production` / `test` |
 | `SCHOLARHUB_FRONTEND_BASE_URL` | | 邮件深链的 SPA origin,如 `https://app.yourdomain.com` |
 | `SCHOLARHUB_OIDC_ENABLED` | | `true` 启用 OIDC SSO(配合下方 OIDC_* 变量);另见 `/api/auth/oidc/providers` |
@@ -369,14 +367,14 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 - [x] 学科/子学科 ontology 表 — shipped
 - [x] Crossref 富集 (出版者/期刊缩写/卷/期/页/ISSN) — shipped
 - [x] 隐私页 + cookie consent banner + 保留策略 — shipped
-- [x] 多租户模式落地(host-header → tenant 映射表 `tenant_hosts` + admin 维护) — shipped
-- [x] refresh token 显式 denylist(`core/token_denylist.py`,Redis + 内存双实现) — shipped
-- [ ] WebAuthn / passkeys 作为 TOTP 2FA 替代(后端已 shipped,前端 UI 在途)
-- [ ] 卷期(volume / issue)的高级管理界面(读层已 shipped,写管理在途)
-- [x] DOI 注册(DataCite MDS,未配凭据时端点诚实返回 501)与互链 — shipped
-- [x] 全文检索(Meilisearch opt-in;未配置时回退 DB ILIKE) — shipped
-- [x] 文件存储从本地切换到 S3(`SCHOLARHUB_STORAGE_BACKEND=s3`) — shipped
-- [x] 工作流可视化(投稿 → 审稿 → 录用,`WorkflowTimeline` 组件) — shipped
+- [ ] 多租户模式落地(host-header → tenant 映射表)
+- [ ] refresh token 显式 denylist
+- [ ] WebAuthn / passkeys 作为 TOTP 2FA 替代
+- [ ] 卷期(volume / issue)的高级管理界面
+- [ ] DOI 注册与互链
+- [ ] 全文检索(PostgreSQL FTS 或 Meilisearch)
+- [ ] 文件存储从本地切换到 S3
+- [ ] 工作流可视化(投稿 → 审稿 → 录用)
 
 ---
 

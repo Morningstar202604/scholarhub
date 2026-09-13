@@ -113,8 +113,18 @@ class TwoFactorRequiredResponse(BaseModel):
 
 class TwoFactorLoginRequest(BaseModel):
     pending_token: str = Field(min_length=1)
-    # 6-digit TOTP or a XXXXX-XXXXX backup code
+    # 6-digit TOTP or a xxxx-xxxx-xxxx recovery code
     code: str = Field(min_length=6, max_length=32)
+
+
+class TwoFactorEnableRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=32)
+
+
+class TwoFactorEnableResponse(BaseModel):
+    enabled: Literal[True] = True
+    # Shown exactly once at enable time; only hashes are stored.
+    recovery_codes: list[str]
 
 
 # --- Email verification + password reset ---
@@ -257,13 +267,6 @@ class ModuleInfo(BaseModel):
     name: str
     version: str
     description: str = ""
-    # Per-tenant enabled state (module_states table); the SPA uses this
-    # to hide route chunks / tabs for disabled modules.
-    enabled: bool = True
-
-
-class ModuleStateUpdate(BaseModel):
-    enabled: bool
 
 
 # --- Health ---

@@ -545,14 +545,7 @@ function SubmissionDetailDialog({
               {data.doi && (
                 <div>
                   <span className="text-muted-foreground">DOI：</span>
-                  <a
-                    href={`https://doi.org/${data.doi}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    {data.doi}
-                  </a>
+                  {data.doi}
                 </div>
               )}
               {data.corresponding_author_email && (

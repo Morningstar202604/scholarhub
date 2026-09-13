@@ -1,9 +1,9 @@
 import { createFileRoute, Link, redirect, useNavigate, useSearch } from '@tanstack/react-router'
 import { Bookmark } from 'lucide-react'
+import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
 import { useMyRecommendations } from '@/hooks/api/use-modules'
 import { PageHeader } from '@/components/common/page-header'
-import { AddToReadingList } from '@/components/common/add-to-reading-list'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -104,15 +104,14 @@ function RecommendationsPage() {
                         {r.year ? ` · ${r.year}` : ''}
                       </p>
                     </div>
-                    <AddToReadingList
-                      resourceId={r.id}
-                      trigger={
-                        <Button variant="outline" size="sm">
-                          <Bookmark className="h-4 w-4" />
-                          加入阅读列表
-                        </Button>
-                      }
-                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toast('加入阅读列表功能敬请期待')}
+                    >
+                      <Bookmark className="h-4 w-4" />
+                      加入阅读列表
+                    </Button>
                   </div>
 
                   {/* 推荐理由高亮 */}

@@ -33,8 +33,7 @@ test.describe('submissions + review flow', () => {
 
     // 新建提交
     await authorPage.getByRole('button', { name: /新建提交/ }).click()
-    // CookieBanner 也是 role=dialog，必须用 name 限定到「新建提交」对话框
-    await expect(authorPage.getByRole('dialog', { name: '新建提交' })).toBeVisible()
+    await expect(authorPage.getByRole('dialog')).toBeVisible()
     await authorPage.getByLabel('标题').fill(submittedTitle)
     await authorPage.getByLabel('作者（逗号分隔）').fill('Auth One, Auth Two')
     await authorPage.getByLabel('学科', { exact: true }).fill('computer science')
@@ -267,9 +266,7 @@ test.describe('submissions + review flow', () => {
       .click()
     // 断言限定在详情 dialog 内：改后的摘要同时出现在列表卡片摘要里，
     // 页面级 getByText 会 strict-mode 命中 2 个节点。
-    // 详情对话框是 Radix Dialog（role=dialog, data-slot=dialog-content），
-    // 按 data-slot 定位避免匹配到同样 role=dialog 的 CookieBanner。
-    const detailDialog = adminPage.locator('[data-slot="dialog-content"]')
+    const detailDialog = adminPage.getByRole('dialog')
     await expect(detailDialog.getByText('版本历史')).toBeVisible({ timeout: 5_000 })
     await expect(detailDialog.getByText('v2', { exact: true })).toBeVisible()
     await expect(detailDialog.getByText(/已按意见扩写方法论一节/)).toBeVisible()

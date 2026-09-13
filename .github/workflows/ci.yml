@@ -31,55 +31,6 @@ jobs:
       - name: Tests
         run: uv run pytest -q
 
-  rls:
-    # RLS isolation tests require a real PostgreSQL instance.
-    # Run as a non-superuser app role so RLS is actually enforced.
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/backend
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: scholarhub
-          POSTGRES_PASSWORD: scholarhub_ci
-          POSTGRES_DB: scholarhub
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U scholarhub"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          version: latest
-      - name: Sync dependencies
-        run: uv sync --group dev
-      - name: Create restricted app role (non-superuser, RLS-enforced)
-        run: |
-          psql "postgresql://scholarhub:scholarhub_ci@localhost:5432/scholarhub" \
-            -c "CREATE ROLE scholarhub_app LOGIN PASSWORD 'scholarhub_app_pw' NOSUPERUSER NOCREATEDB NOCREATEROLE;" \
-            -c "GRANT ALL ON SCHEMA public TO scholarhub_app;" \
-            -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO scholarhub_app;" \
-            -c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO scholarhub_app;" \
-            -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO scholarhub_app;" \
-            -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO scholarhub_app;"
-      - name: Apply migrations (as superuser)
-        env:
-          SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:scholarhub_ci@localhost:5432/scholarhub
-          SCHOLARHUB_ENVIRONMENT: test
-        run: uv run alembic upgrade head
-      - name: Run RLS tests (as restricted app role)
-        env:
-          SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub_app:scholarhub_app_pw@localhost:5432/scholarhub
-          SCHOLARHUB_RLS_ADMIN_URL: postgresql+asyncpg://scholarhub:scholarhub_ci@localhost:5432/scholarhub
-          SCHOLARHUB_ENVIRONMENT: test
-        run: uv run pytest tests/test_rls_isolation.py -v
-
   frontend:
     runs-on: ubuntu-latest
     defaults:

@@ -35,7 +35,6 @@ from app.modules.catalog.models import Resource
 from app.modules.reader.models import FileAsset, ReadingHistory
 from app.modules.reader.schemas import (
     FileAssetCreate,
-    FileAssetListResponse,
     FileAssetResponse,
     MessageResponse,
     ReadingHistoryEntryResponse,
@@ -337,27 +336,26 @@ async def update_progress(
 
 @router.get(
     "/file-assets",
-    response_model=FileAssetListResponse,
+    response_model=list[FileAssetResponse],
 )
 async def list_file_assets(
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=50, ge=1, le=200),
     _: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
-) -> FileAssetListResponse:
-    """List file assets in the current tenant (admin only), paginated."""
+) -> list[FileAssetResponse]:
+    """List all file assets in the current tenant (admin only)."""
     tenant_id = require_tenant_id()
-    rows, meta = await paginate(
-        db,
-        select(FileAsset).where(FileAsset.tenant_id == tenant_id),
-        page=page,
-        page_size=page_size,
-        order_by=[desc(FileAsset.created_at), FileAsset.id.asc()],
+    rows = (
+        (
+            await db.execute(
+                select(FileAsset)
+                .where(FileAsset.tenant_id == tenant_id)
+                .order_by(desc(FileAsset.created_at), FileAsset.id.asc())
+            )
+        )
+        .scalars()
+        .all()
     )
-    return FileAssetListResponse(
-        items=[FileAssetResponse.model_validate(r) for r in rows],
-        meta=meta,
-    )
+    return [FileAssetResponse.model_validate(r) for r in rows]
 
 
 @router.get(

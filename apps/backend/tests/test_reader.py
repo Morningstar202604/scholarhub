@@ -285,8 +285,7 @@ async def test_list_file_assets(client: AsyncClient, admin_user: dict) -> None:
     # Start empty.
     empty = await client.get("/api/reader/file-assets", headers=auth_headers(admin_user))
     assert empty.status_code == 200
-    assert empty.json()["items"] == []
-    assert empty.json()["meta"]["total"] == 0
+    assert empty.json() == []
 
     # Create one and list again.
     await client.post(
@@ -297,9 +296,8 @@ async def test_list_file_assets(client: AsyncClient, admin_user: dict) -> None:
     listed = await client.get("/api/reader/file-assets", headers=auth_headers(admin_user))
     assert listed.status_code == 200
     body = listed.json()
-    assert len(body["items"]) == 1
-    assert body["items"][0]["filename"] == "abc123.pdf"
-    assert body["meta"]["total"] == 1
+    assert len(body) == 1
+    assert body[0]["filename"] == "abc123.pdf"
 
 
 async def test_get_file_asset(client: AsyncClient, admin_user: dict) -> None:

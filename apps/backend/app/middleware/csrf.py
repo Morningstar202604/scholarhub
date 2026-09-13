@@ -83,9 +83,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if not settings.csrf_enabled:
             return await call_next(request)
         if request.method not in _UNSAFE_METHODS:
-            response = await call_next(request)
-            _ensure_csrf_cookie(response)
-            return response
+            return await call_next(request)
         if not any(request.url.path.startswith(p) for p in _PROTECTED_PREFIXES):
             return await call_next(request)
 
@@ -109,9 +107,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 media_type="application/json",
             )
 
-        response = await call_next(request)
-        _ensure_csrf_cookie(response)
-        return response
+        return await call_next(request)
 
 
 def _constant_time_eq(a: str, b: str) -> bool:

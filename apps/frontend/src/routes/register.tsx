@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TurnstileWidget } from '@/components/common/turnstile'
 
 export const Route = createFileRoute('/register')({
   component: RegisterPage,
@@ -20,8 +19,6 @@ function RegisterPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [captchaToken, setCaptchaToken] = useState('')
-  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,12 +31,7 @@ function RegisterPage() {
       return
     }
     try {
-      await registerMut.mutateAsync({
-        email,
-        username,
-        password,
-        ...(turnstileSiteKey ? { captcha_token: captchaToken } : {}),
-      })
+      await registerMut.mutateAsync({ email, username, password })
       toast.success('注册成功，请查收邮件完成验证')
       void navigate({ to: '/verify-email', search: { email } })
     } catch (err) {
@@ -106,11 +98,6 @@ function RegisterPage() {
                 required
               />
             </div>
-            {turnstileSiteKey && (
-              <div className="space-y-2">
-                <TurnstileWidget siteKey={turnstileSiteKey} onToken={setCaptchaToken} />
-              </div>
-            )}
             <Button type="submit" className="w-full" disabled={registerMut.isPending}>
               {registerMut.isPending ? '注册中…' : '注册'}
             </Button>

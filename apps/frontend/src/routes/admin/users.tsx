@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { AxiosError } from 'axios'
 import { MoreHorizontal, Search } from 'lucide-react'
@@ -60,31 +60,27 @@ export const Route = createFileRoute('/admin/users')({
 function AdminUsersPage() {
   const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
   const offset = (page - 1) * PAGE_SIZE
-  const { data, isLoading, isError, refetch } = useAdminUsers(
-    PAGE_SIZE,
-    offset,
-    debouncedQuery || undefined,
-  )
+  const { data, isLoading, isError, refetch } = useAdminUsers(PAGE_SIZE, offset)
   const setActiveMut = useSetUserActive()
   const assignRoleMut = useAssignRole()
   const revokeRoleMut = useRevokeRole()
   const { user } = useAuth()
 
-  // Debounce the search box so each keystroke does not fire a request;
-  // the server filters by username/email substring across the whole
-  // tenant (not just the current page), so the user can find anyone.
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      setDebouncedQuery(query.trim())
-      setPage(1)
-    }, 250)
-    return () => window.clearTimeout(t)
-  }, [query])
-
-  // 后端按 q 过滤并分页，totalPages 用"当前页是否满页"推断：满页则假定还有下一页
+  // 后端返回裸数组无 meta，totalPages 用"当前页是否满页"推断：满页则假定还有下一页
   const totalPages = data && data.length >= PAGE_SIZE ? page + 1 : page
+
+  // 仅本地过滤当前页，避免与服务端分页耦合
+  const filtered = useMemo(() => {
+    if (!data) return []
+    const q = query.trim().toLowerCase()
+    if (!q) return data
+    return data.filter(
+      (u) =>
+        u.username.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q),
+    )
+  }, [data, query])
 
   const onToggleActive = async (u: UserResponse) => {
     try {
@@ -145,7 +141,7 @@ function AdminUsersPage() {
         <Loading />
       ) : isError ? (
         <ErrorState message="加载用户失败" onRetry={() => refetch()} />
-      ) : !data || data.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState title="暂无用户" />
       ) : (
         <div className="rounded-md border">
@@ -163,7 +159,7 @@ function AdminUsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((u) => {
+              {filtered.map((u) => {
                 // 后端会拒绝自助改 active，前端直接禁用当前 admin 自己那行
                 const isSelf = user?.id === u.id
                 const roles = u.roles ?? []

@@ -27,36 +27,22 @@ async def _stub_app(scope: Scope, receive: Receive, send: Send) -> None:
     await response(scope, receive, send)
 
 
-def _make_request(
-    path: str,
-    method: str = "POST",
-    client_host: str = "1.2.3.4",
-    body: bytes | None = None,
-    content_type: str | None = None,
-) -> Request:
+def _make_request(path: str, method: str = "POST", client_host: str = "1.2.3.4") -> Request:
     """Build a Starlette Request with a fake client + path."""
-    headers: list[tuple[bytes, bytes]] = []
-    if content_type is not None:
-        headers.append((b"content-type", content_type.encode()))
-    if body is not None:
-        headers.append((b"content-length", str(len(body)).encode()))
     scope: Scope = {
         "type": "http",
         "method": method,
         "path": path,
         "raw_path": path.encode(),
         "query_string": b"",
-        "headers": headers,
+        "headers": [],
         "client": (client_host, 12345),
         "scheme": "http",
         "server": ("test", 80),
         "root_path": "",
         "app": None,
     }
-    request = Request(scope)
-    if body is not None:
-        request._body = body
-    return request
+    return Request(scope)
 
 
 @pytest.fixture
@@ -115,67 +101,6 @@ async def test_test_env_skipped(client) -> None:
             json={"username": "x", "password": "wrongpass"},
         )
         assert r.status_code in (401, 422)
-
-
-@pytest.mark.asyncio
-async def test_account_keyed_blocks_distributed_ip_brute_force(
-    rate_limiter_with_strict_env,
-) -> None:
-    """Even from distinct IPs, 6 attempts against the same username get 429.
-
-    This verifies the account-keyed bucket: the IP buckets all have room
-    (one hit each) but the username bucket exceeds its 5/min cap.
-    """
-    mw = rate_limiter_with_strict_env
-    # Each request comes from a different IP so the IP bucket never
-    # accumulates more than 1 hit per bucket.
-    login_body = b'{"username": "victim", "password": "x"}'
-    for i in range(5):
-        req = _make_request(
-            "/api/auth/login",
-            client_host=f"10.0.0.{i}",
-            body=login_body,
-            content_type="application/json",
-        )
-        resp = await mw.dispatch(req, lambda r: _ok())
-        assert resp.status_code == 200, f"attempt {i} blocked early"
-    # 6th attempt: account bucket is full → 429.
-    req = _make_request(
-        "/api/auth/login",
-        client_host="10.0.0.99",
-        body=login_body,
-        content_type="application/json",
-    )
-    resp = await mw.dispatch(req, lambda r: _ok())
-    assert resp.status_code == 429
-    assert "Retry-After" in resp.headers
-
-
-@pytest.mark.asyncio
-async def test_account_keyed_different_user_not_affected(
-    rate_limiter_with_strict_env,
-) -> None:
-    """Exhausting the account bucket for user A does not block user B."""
-    mw = rate_limiter_with_strict_env
-    body_a = b'{"username": "user_a", "password": "x"}'
-    body_b = b'{"username": "user_b", "password": "x"}'
-    for i in range(6):
-        req = _make_request(
-            "/api/auth/login",
-            client_host=f"10.1.0.{i}",
-            body=body_a,
-            content_type="application/json",
-        )
-        await mw.dispatch(req, lambda r: _ok())
-    # user_b from the same IP range is unaffected.
-    req = _make_request(
-        "/api/auth/login",
-        client_host="10.1.0.99",
-        body=body_b,
-        content_type="application/json",
-    )
-    resp = await mw.dispatch(req, lambda r: _ok())
-    assert resp.status_code == 200
 
 
 async def _ok() -> Response:

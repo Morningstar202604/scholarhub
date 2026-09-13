@@ -1,4 +1,4 @@
-"""Per-IP and per-identifier rate limiting middleware.
+"""Per-IP rate limiting middleware.
 
 Delegates bucket storage to ``app.core.rate_limit_store``. The
 middleware itself is responsible for:
@@ -13,9 +13,6 @@ This keeps the middleware unit-testable without a Redis dependency
 and means swapping the backend never touches the middleware code.
 
 Sensitive auth endpoints get a stricter limit than the global default.
-In addition, per-IP limits are complemented by per-identifier limits
-(the authenticated user id or the login username), so an attacker
-cannot distribute attempts across many IPs against one account.
 """
 
 from __future__ import annotations
@@ -46,20 +43,6 @@ STRICT_PATHS: dict[str, int] = {
 }
 
 _RATE_WINDOW_SECONDS = 60.0
-
-# Paths where we additionally throttle by account identifier (username
-# in the JSON body). This stops distributed-IP brute force against one
-# specific account: each distinct username is capped independently of
-# source IP.
-_ACCOUNT_KEYED_PATHS: frozenset[str] = frozenset(
-    {
-        "/api/auth/login",
-        "/api/auth/register",
-        "/api/auth/forgot-password",
-        "/api/auth/reset-password",
-    }
-)
-_ACCOUNT_LIMIT_PER_MINUTE = 5
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -107,30 +90,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": str(int(_RATE_WINDOW_SECONDS))},
             )
 
-        # Per-identifier limit: for login/register paths, also throttle
-        # by the username so distributed-IP brute force against one
-        # account is caught. This runs *after* the IP check so a
-        # legitimate user hitting the same IP bucket from one machine
-        # is not double-penalised when the IP bucket has room.
-        if path in _ACCOUNT_KEYED_PATHS:
-            identifier = await self._account_identifier(request, path)
-            if identifier is not None:
-                account_bucket = f"acct|{identifier}|{self._path_key(path)}"
-                allowed, _ = await store.hit_and_check(
-                    bucket_key=account_bucket,
-                    limit=_ACCOUNT_LIMIT_PER_MINUTE,
-                    window_seconds=_RATE_WINDOW_SECONDS,
-                )
-                if not allowed:
-                    return JSONResponse(
-                        status_code=429,
-                        content={
-                            "detail": "Too many authentication attempts. "
-                            "Please wait and try again."
-                        },
-                        headers={"Retry-After": str(int(_RATE_WINDOW_SECONDS))},
-                    )
-
         response = await call_next(request)
         return response
 
@@ -162,32 +121,3 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.client:
             return request.client.host
         return "unknown"
-
-    async def _account_identifier(self, request: Request, path: str) -> str | None:
-        """Extract the username from the request body for account-keyed limits.
-
-        Returns ``None`` when the body cannot be read or the field is
-        absent — in that case the IP-keyed check is the backstop.
-        Uses ``await request.body()`` which caches the bytes on
-        ``request._body`` so downstream handlers can re-read it.
-        """
-        import json
-
-        content_type = request.headers.get("content-type", "")
-        if "application/json" not in content_type:
-            return None
-        try:
-            body_bytes = await request.body()
-        except Exception:
-            return None
-        if not body_bytes:
-            return None
-        try:
-            parsed = json.loads(body_bytes)
-        except (json.JSONDecodeError, ValueError, TypeError):
-            return None
-        if isinstance(parsed, dict):
-            username = parsed.get("username") or parsed.get("email")
-            if isinstance(username, str) and username:
-                return username.lower()
-        return None

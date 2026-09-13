@@ -19,14 +19,8 @@ services:
     environment:
       POSTGRES_DB: scholarhub
       POSTGRES_USER: scholarhub
-      # Dev-only default; override via SCHOLARHUB_DB_PASSWORD in .env (compose reads it).
-      POSTGRES_PASSWORD: ${SCHOLARHUB_DB_PASSWORD:-scholarhub_dev}
-    # One-time init: create the restricted app role + grant it access.
-    # POSTGRES_USER (scholarhub) is a superuser used only for DDL/migrations;
-    # the backend connects as scholarhub_app so RLS is actually enforced
-    # (PostgreSQL bypasses RLS for superusers and table owners).
+      POSTGRES_PASSWORD: scholarhub_dev
     volumes:
-      - ./postgres-init.sql:/docker-entrypoint-initdb.d/01-create-app-role.sql:ro
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -59,9 +53,7 @@ services:
       - ../.env
     environment:
       # Override the .env's localhost URL to point at the compose service.
-      # The backend connects as the restricted app role so RLS is enforced;
-      # migrations run as the superuser (scholarhub) before app start.
-      SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub_app:scholarhub_app_pw@postgres:5432/scholarhub
+      SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:scholarhub_dev@postgres:5432/scholarhub
       SCHOLARHUB_MEILISEARCH_URL: http://meilisearch:7700
       SCHOLARHUB_MEILISEARCH_API_KEY: scholarhub_dev_meili_key
     ports:
@@ -71,16 +63,8 @@ services:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
-    # Migrations run as the superuser (scholarhub) so DDL succeeds;
-    # the app then starts as the restricted role (scholarhub_app) so
-    # RLS is actually enforced at runtime.
-    command: >
-      sh -c "
-        SCHOLARHUB_DATABASE_URL=postgresql+asyncpg://scholarhub:${SCHOLARHUB_DB_PASSWORD:-scholarhub_dev}@postgres:5432/scholarhub
-        alembic upgrade head &&
-        export SCHOLARHUB_DATABASE_URL=postgresql+asyncpg://scholarhub_app:${SCHOLARHUB_APP_DB_PASSWORD:-scholarhub_app_pw}@postgres:5432/scholarhub
-        uvicorn app.main:app --host 0.0.0.0 --port 8000
-      "
+    # If .env already runs migrations on boot (the image's default CMD),
+    # this override keeps the same behavior. Drop it to start uvicorn only.
     restart: unless-stopped
 
 volumes:

@@ -1,26 +1,34 @@
-"""Short-lived "2FA pending" session tokens for the two-step login.
+"""TOTP two-factor authentication helpers (RFC 6238 via pyotp).
 
-When a 2FA-enabled user passes the password check, the server does NOT
-issue access/refresh tokens. It returns a short-lived signed
-"2fa_pending" JWT; the client exchanges it plus a TOTP (or backup)
-code at ``/auth/login/2fa`` (which now verifies via the Fernet-
-encrypted M2 secret, see ``app.core.totp``).
+Design notes:
 
-The pending token carries ``token_version`` so a password change or
-logout-everywhere invalidates it like any other token.
+- The TOTP secret is stored in plaintext on the User row — this is
+  inherent to TOTP (the server must compute the same HMAC the phone
+  does), and standard practice (GitHub/GitLab do the same). Defense
+  is at the DB layer (RLS + access control), not encryption at rest
+  of this one column.
 
-TOTP setup/management lives in the M2 stack: ``/api/auth/2fa/*``
-(``app.api.two_factor``) with secrets encrypted at rest via
-``app.core.totp``. This file only owns the pending-token ceremony.
+- Recovery codes are high-entropy random strings, so a fast SHA-256
+  digest is sufficient (bcrypt is for low-entropy human passwords).
+  Codes are single-use: verifying one removes it from the stored list.
+
+- Two-step login: when a 2FA-enabled user passes the password check,
+  the server does NOT issue access/refresh tokens. It returns a
+  short-lived signed "2fa_pending" JWT instead; the client exchanges
+  it plus a TOTP (or recovery) code at ``/auth/login/2fa``. The
+  pending token carries ``token_version`` so a password change or
+  logout-everywhere invalidates it like any other token.
 """
 
 from __future__ import annotations
 
+import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 import jwt
+import pyotp
 from jwt import PyJWTError
 
 from app.core.config import settings
@@ -29,6 +37,52 @@ TWO_FACTOR_PENDING_TOKEN_TYPE: Literal["2fa_pending"] = "2fa_pending"
 # Exchange window: long enough to fish the phone out of a pocket,
 # short enough that an intercepted pending token is near-useless.
 PENDING_TOKEN_TTL_MINUTES = 5
+RECOVERY_CODE_COUNT = 8
+
+ISSUER = "ScholarHUB"
+
+
+def generate_totp_secret() -> str:
+    """Fresh base32 secret for the authenticator app."""
+    return pyotp.random_base32()
+
+
+def build_otpauth_uri(secret: str, account_name: str) -> str:
+    """otpauth:// URI the frontend renders as a QR code."""
+    return pyotp.totp.TOTP(secret).provisioning_uri(name=account_name, issuer_name=ISSUER)
+
+
+def verify_totp_code(secret: str, code: str) -> bool:
+    """Verify a 6-digit TOTP code.
+
+    ``valid_window=1`` accepts the previous/next 30s step to absorb
+    clock skew between server and phone.
+    """
+    if not code or not code.strip():
+        return False
+    return pyotp.TOTP(secret).verify(code.strip().replace(" ", ""), valid_window=1)
+
+
+def generate_recovery_codes() -> list[str]:
+    """Human-typable single-use recovery codes, e.g. ``a3f9-c27e-b810``."""
+    codes: list[str] = []
+    for _ in range(RECOVERY_CODE_COUNT):
+        raw = secrets.token_hex(6)  # 48 bits entropy
+        codes.append(f"{raw[0:4]}-{raw[4:8]}-{raw[8:12]}")
+    return codes
+
+
+def hash_recovery_code(code: str) -> str:
+    return hashlib.sha256(code.strip().lower().encode("utf-8")).hexdigest()
+
+
+def consume_recovery_code(stored_hashes: list[str], code: str) -> list[str] | None:
+    """If ``code`` matches a stored hash, return the list WITHOUT it
+    (single use). Return ``None`` when the code doesn't match."""
+    digest = hash_recovery_code(code)
+    if digest not in stored_hashes:
+        return None
+    return [h for h in stored_hashes if h != digest]
 
 
 def create_two_factor_pending_token(user_id: int, token_version: int) -> str:
@@ -53,11 +107,3 @@ def decode_two_factor_pending_token(token: str) -> dict[str, Any] | None:
     if payload.get("type") != TWO_FACTOR_PENDING_TOKEN_TYPE:
         return None
     return payload
-
-
-__all__ = [
-    "PENDING_TOKEN_TTL_MINUTES",
-    "TWO_FACTOR_PENDING_TOKEN_TYPE",
-    "create_two_factor_pending_token",
-    "decode_two_factor_pending_token",
-]

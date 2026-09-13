@@ -49,92 +49,34 @@ class _AlwaysPassVerifier:
         return True
 
 
-class TurnstileCaptchaVerifier:
-    """Built-in Cloudflare Turnstile verifier (https://developers.cloudflare.com/turnstile).
-
-    POSTs the token to ``/turnstile/v0/siteverify`` and requires
-    ``success: true``. A network failure fails CLOSED (returns False)
-    so a Turnstile outage cannot be used to bypass the check.
-    """
-
-    _ENDPOINT = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-    _TIMEOUT = 10.0
-
-    def __init__(self, secret_key: str) -> None:
-        if not secret_key:
-            raise ValueError("TurnstileCaptchaVerifier requires a secret key")
-        self._secret_key = secret_key
-
-    async def verify(self, token: str, *, remote_ip: str | None) -> bool:
-        import httpx
-
-        if not token:
-            return False
-        try:
-            async with httpx.AsyncClient(timeout=self._TIMEOUT) as client:
-                response = await client.post(
-                    self._ENDPOINT,
-                    data={
-                        "secret": self._secret_key,
-                        "response": token,
-                        **({"remoteip": remote_ip} if remote_ip else {}),
-                    },
-                )
-            response.raise_for_status()
-            payload = response.json()
-            return bool(payload.get("success"))
-        except Exception:
-            # Fail closed: an unreachable or broken verifier must not
-            # open a hole in the registration flow.
-            from app.core.logging import get_logger
-
-            get_logger("scholarhub.captcha").warning(
-                "turnstile_verification_unavailable_failing_closed"
-            )
-            return False
-
-
 def _load_verifier() -> CaptchaVerifier:
-    """Resolve the configured verifier or fall back to a safe default.
-
-    Precedence:
-    1. Explicit ``captcha_verifier`` dotted path (operator-wired).
-    2. Built-in Turnstile when ``turnstile_secret_key`` is set — so a
-       deployment that turned registration-captcha ON is not silently
-       running a no-op verifier.
-    3. Dev/CI passthrough (logged once at first call).
-    """
+    """Resolve the configured verifier or return the passthrough default."""
     dotted = settings.captcha_verifier
-    if dotted:
-        module_name, _, attr = dotted.rpartition(".")
-        if not module_name:
-            raise RuntimeError(f"Invalid captcha_verifier path: {dotted!r}")
-        try:
-            module = importlib.import_module(module_name)
-        except ImportError as exc:
-            raise RuntimeError(
-                f"captcha_verifier {dotted!r} could not be imported: {exc}"
-            ) from exc
-        obj = getattr(module, attr, None)
-        if obj is None:
-            raise RuntimeError(f"captcha_verifier {dotted!r} does not resolve to an attribute")
-        if not callable(obj):
-            raise RuntimeError(
-                f"captcha_verifier {dotted!r} is not callable; expected a "
-                "verifier instance or factory returning one"
-            )
-        # Allow either an instance (callable with __call__) or a factory.
-        if isinstance(obj, type):
-            return obj()  # type: ignore[no-any-return]
-        if callable(obj):
-            result = obj()
-            if isinstance(result, CaptchaVerifier):
-                return result
-        raise RuntimeError(f"captcha_verifier {dotted!r} must return a CaptchaVerifier")
-
-    if settings.turnstile_secret_key:
-        return TurnstileCaptchaVerifier(settings.turnstile_secret_key)
-    return _AlwaysPassVerifier()
+    if not dotted:
+        return _AlwaysPassVerifier()
+    module_name, _, attr = dotted.rpartition(".")
+    if not module_name:
+        raise RuntimeError(f"Invalid captcha_verifier path: {dotted!r}")
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as exc:
+        raise RuntimeError(f"captcha_verifier {dotted!r} could not be imported: {exc}") from exc
+    obj = getattr(module, attr, None)
+    if obj is None:
+        raise RuntimeError(f"captcha_verifier {dotted!r} does not resolve to an attribute")
+    if not callable(obj):
+        raise RuntimeError(
+            f"captcha_verifier {dotted!r} is not callable; expected a "
+            "verifier instance or factory returning one"
+        )
+    # Allow either an instance (callable with __call__) or a factory.
+    if isinstance(obj, type):
+        return obj()  # type: ignore[no-any-return]
+    if callable(obj):
+        result = obj()
+        if isinstance(result, CaptchaVerifier):
+            return result
+    raise RuntimeError(f"captcha_verifier {dotted!r} must return a CaptchaVerifier")
 
 
 async def verify_captcha_token(request: Request, token: str | None) -> None:

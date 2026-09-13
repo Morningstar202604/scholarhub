@@ -13,20 +13,16 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import String, cast, desc, select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_admin, require_tenant_id
 from app.core.db import get_db
 from app.core.key_rotation import _active_secret_keys, _signing_key, reload_settings
 from app.core.logging import get_logger
-from app.core.modules import registry
-from app.core.retention import run_retention_cleanup
-from app.models import AuditLog, ModuleState, Role, User, UserRole
+from app.models import AuditLog, Role, User, UserRole
 from app.modules.review.blinding import get_review_mode, set_review_mode
 from app.schemas import (
-    ModuleInfo,
-    ModuleStateUpdate,
     ReviewModeResponse,
     ReviewModeUpdate,
     RoleAssign,
@@ -124,53 +120,20 @@ async def _user_with_roles(db: AsyncSession, user: User) -> UserResponse:
 async def list_users(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    q: str | None = Query(default=None, max_length=200),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> list[UserResponse]:
-    """List users in the current tenant, including their role names.
-
-    ``q`` (optional) filters by username/email substring (case-insensitive)
-    so admins can find specific users without paging through the whole
-    tenant. The frontend user-management page relies on this for its
-    search box — without it, the search only filtered the current page
-    and users outside that page were unreachable.
-    """
+    """List all users in the current tenant, including their role names."""
     tenant_id = require_tenant_id()
-    stmt = select(User).where(User.tenant_id == tenant_id)
-    if q:
-        pattern = f"%{q}%"
-        stmt = stmt.where(
-            cast(User.username, String).ilike(pattern) | cast(User.email, String).ilike(pattern)
-        )
-    result = await db.execute(stmt.order_by(User.id.desc()).limit(limit).offset(offset))
-    users = list(result.scalars().all())
-    if not users:
-        return []
-
-    # Single batch query: fetch all role names for the page in one round-trip.
-    user_ids = [u.id for u in users]
-    role_rows = (
-        await db.execute(
-            select(UserRole.user_id, Role.name)
-            .join(Role, Role.id == UserRole.role_id)
-            .where(
-                UserRole.user_id.in_(user_ids),
-                UserRole.tenant_id == tenant_id,
-                Role.tenant_id == tenant_id,
-            )
-        )
-    ).all()
-    roles_by_user: dict[int, list[str]] = {}
-    for uid, rname in role_rows:
-        roles_by_user.setdefault(uid, []).append(rname)
-
-    resp: list[UserResponse] = []
-    for u in users:
-        r = UserResponse.model_validate(u)
-        r.roles = sorted(roles_by_user.get(u.id, []))
-        resp.append(r)
-    return resp
+    result = await db.execute(
+        select(User)
+        .where(User.tenant_id == tenant_id)
+        .order_by(User.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    users = result.scalars().all()
+    return [await _user_with_roles(db, u) for u in users]
 
 
 @router.patch("/users/{user_id}/active", response_model=UserResponse)
@@ -450,117 +413,4 @@ async def update_review_mode_setting(
         )
     )
     await db.commit()
-    return ReviewModeResponse(review_mode=await get_review_mode(db, tenant_id))
-
-
-# ---------------------------------------------------------------------------
-# Retention（数据留存清理：审计日志 365 天 / 用户软删 30 天宽限后硬删）
-# ---------------------------------------------------------------------------
-@router.post("/retention/cleanup")
-async def run_retention_cleanup_endpoint(
-    db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(require_admin),
-) -> dict[str, object]:
-    """Execute the retention policy for this tenant now.
-
-    Deletes audit logs older than the 365-day window and hard-deletes
-    users whose 30-day soft-delete grace period has lapsed. The same
-    job runs automatically when ``SCHOLARHUB_RETENTION_CLEANUP_ENABLED``
-    is set; this endpoint is the manual trigger + observability point.
-    """
-    report = await run_retention_cleanup(db)
-    db.add(
-        AuditLog(
-            tenant_id=current_admin.tenant_id,
-            actor_user_id=current_admin.id,
-            action="admin.retention.cleanup",
-            target_type="tenant",
-            target_id=str(current_admin.tenant_id),
-            payload=report,
-        )
-    )
-    await db.commit()
-    logger.info("retention_cleanup_ran", actor=current_admin.id, **report)
-    return report
-
-
-# ---------------------------------------------------------------------------
-# Module enable/disable (per-tenant, via module_states)
-# ---------------------------------------------------------------------------
-
-
-@router.get("/modules", response_model=list[ModuleInfo])
-async def list_module_states(
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_admin),
-) -> list[ModuleInfo]:
-    """List all loaded modules with this tenant's enabled state."""
-    tenant_id = require_tenant_id()
-    result = await db.execute(
-        select(ModuleState.module_name, ModuleState.is_enabled).where(
-            ModuleState.tenant_id == tenant_id
-        )
-    )
-    state_by_module: dict[str, bool] = {row[0]: row[1] for row in result.all()}
-    return [
-        ModuleInfo(
-            name=meta["name"],
-            version=meta["version"],
-            description=meta.get("description", ""),
-            enabled=state_by_module.get(meta["name"], True),
-        )
-        for meta in registry.all_metadata()
-    ]
-
-
-@router.post("/modules/{module_name}", response_model=ModuleInfo)
-async def set_module_state(
-    module_name: str,
-    payload: ModuleStateUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_admin: User = Depends(require_admin),
-) -> ModuleInfo:
-    """Enable or disable a module for this tenant.
-
-    Only modules present in the process-level registry can be toggled;
-    unknown names 404 so a typo cannot create a dangling state row.
-    """
-    if module_name not in registry:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Module {module_name!r} is not loaded in this deployment",
-        )
-    tenant_id = current_admin.tenant_id
-    row = (
-        await db.execute(
-            select(ModuleState).where(
-                ModuleState.tenant_id == tenant_id,
-                ModuleState.module_name == module_name,
-            )
-        )
-    ).scalar_one_or_none()
-    if row is None:
-        row = ModuleState(tenant_id=tenant_id, module_name=module_name)
-        db.add(row)
-    row.is_enabled = payload.enabled
-    db.add(
-        AuditLog(
-            tenant_id=tenant_id,
-            actor_user_id=current_admin.id,
-            action="admin.module.toggle",
-            target_type="module",
-            target_id=module_name,
-            payload={"enabled": payload.enabled},
-        )
-    )
-    await db.commit()
-    logger.info(
-        "module_toggled", module=module_name, enabled=payload.enabled, actor=current_admin.id
-    )
-    manifest = registry.get(module_name)
-    return ModuleInfo(
-        name=module_name,
-        version=manifest.version if manifest else "",
-        description=manifest.description if manifest else "",
-        enabled=payload.enabled,
-    )
+    return ReviewModeResponse(review_mode=payload.review_mode)

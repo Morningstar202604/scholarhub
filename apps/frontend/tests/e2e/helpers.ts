@@ -38,19 +38,10 @@ export async function loginViaUi(
   creds: { username: string; password: string },
 ): Promise<void> {
   await page.goto('/login')
-  // Cookie 同意弹窗（role=dialog, data-testid=cookie-banner）在每次新浏览器
-  // 上下文打开时出现，会遮挡登录表单导致 click 落空。若可见先点"接受全部"
-  // 关掉它；已决定过（localStorage 持久）则不会渲染，此步自动跳过。
-  const cookieBanner = page.getByTestId('cookie-banner')
-  if (await cookieBanner.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await page.getByTestId('cookie-banner-accept').click()
-  }
   await page.getByLabel('用户名或邮箱').fill(creds.username)
   // exact:true 避免"确认密码"等带子串的 label 干扰（注册页就有两个密码框）
   await page.getByLabel('密码', { exact: true }).fill(creds.password)
-  // 登录页有两个含"登录"字样的按钮：主表单 submit + "使用 Passkey 登录"。
-  // 用 type=submit 限定到主按钮（Passkey 是 type=button），避免 strict mode violation。
-  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await page.getByRole('button', { name: '登录' }).click()
   // 等 dashboard 出现（admin 普通用户都会跳过去）
   await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
 }

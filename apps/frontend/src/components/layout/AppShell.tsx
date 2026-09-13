@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import {
   Bell,
@@ -7,7 +7,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ClipboardCheck,
-  Fingerprint,
   Heart,
   Home,
   Layers,
@@ -25,7 +24,7 @@ import {
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { useLogout } from '@/hooks/api/use-auth'
-import { useModules, useUnreadCount } from '@/hooks/api/use-modules'
+import { useUnreadCount } from '@/hooks/api/use-modules'
 import { cn } from '@/lib/utils'
 import { ModuleErrorBoundary } from '@/components/common/error-boundary'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -47,26 +46,23 @@ interface NavItem {
   icon: LucideIcon
   auth?: boolean
   adminOnly?: boolean
-  /** Gated by this backend module's per-tenant enabled state. */
-  module?: string
 }
 
 const NAV: NavItem[] = [
   { to: '/dashboard', label: '概览', icon: Home, auth: true },
-  { to: '/catalog', label: '资源目录', icon: BookOpen, module: 'catalog' },
-  { to: '/library', label: '阅读列表', icon: Library, auth: true, module: 'library' },
-  { to: '/follows', label: '关注与订阅', icon: Heart, auth: true, module: 'follows' },
-  { to: '/submissions', label: '我的提交', icon: ScrollText, auth: true, module: 'submission' },
-  { to: '/review/assignments', label: '审稿工作台', icon: ClipboardCheck, auth: true, module: 'review' },
-  { to: '/ingest', label: '导入', icon: Upload, auth: true, module: 'ingest' },
-  { to: '/recommendations', label: '推荐', icon: Lightbulb, auth: true, module: 'recommendations' },
-  { to: '/notifications', label: '通知', icon: Bell, auth: true, module: 'notifications' },
+  { to: '/catalog', label: '资源目录', icon: BookOpen },
+  { to: '/library', label: '阅读列表', icon: Library, auth: true },
+  { to: '/follows', label: '关注与订阅', icon: Heart, auth: true },
+  { to: '/submissions', label: '我的提交', icon: ScrollText, auth: true },
+  { to: '/review/assignments', label: '审稿工作台', icon: ClipboardCheck, auth: true },
+  { to: '/ingest', label: '导入', icon: Upload, auth: true },
+  { to: '/recommendations', label: '推荐', icon: Lightbulb, auth: true },
+  { to: '/notifications', label: '通知', icon: Bell, auth: true },
   { to: '/admin/users', label: '用户管理', icon: Users, auth: true, adminOnly: true },
   { to: '/admin/volumes', label: '卷管理', icon: Layers, auth: true, adminOnly: true },
   { to: '/admin/issues', label: '期管理', icon: CalendarDays, auth: true, adminOnly: true },
   { to: '/admin/journal', label: '期刊信息', icon: Building2, auth: true, adminOnly: true },
   { to: '/admin/audit-logs', label: '审计日志', icon: ShieldCheck, auth: true, adminOnly: true },
-  { to: '/admin/doi', label: 'DOI 管理', icon: Fingerprint, auth: true, adminOnly: true },
   { to: '/admin/settings', label: '期刊设置', icon: Settings, auth: true, adminOnly: true },
 ]
 
@@ -80,16 +76,10 @@ export function AppShell() {
   const location = useLocation()
   const logoutMut = useLogout()
   const { data: unread } = useUnreadCount({ enabled: isAuthenticated })
-  const { data: modules } = useModules()
-  const disabledModules = useMemo(
-    () => new Set((modules ?? []).filter((m) => m.enabled === false).map((m) => m.name)),
-    [modules],
-  )
 
   const visibleNav = NAV.filter((n) => {
     if (n.adminOnly && !isAdmin) return false
     if (n.auth && !isAuthenticated) return false
-    if (n.module && disabledModules.has(n.module)) return false
     return true
   })
 

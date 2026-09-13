@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     # first startup. Leave as default unless you want a custom slug.
     bootstrap_tenant_slug: str = "default"
 
-    # --- Database (PostgreSQL only -?RLS requires PG) ---
+    # --- Database (PostgreSQL only �?RLS requires PG) ---
     database_url: str = "postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub"
     db_pool_size: int = Field(default=10, ge=1)
     db_max_overflow: int = Field(default=20, ge=0)
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     db_startup_retries: int = Field(default=5, ge=0)
     db_startup_retry_delay: float = Field(default=2.0, ge=0.1)
 
-    # --- Redis (rate-limit store; empty = in-memory per-replica fallback) ---
+    # --- Redis (cache + rate limit, planned �?currently unused) ---
     redis_url: str = ""
 
     # --- JWT / Auth ---
@@ -109,20 +109,9 @@ class Settings(BaseSettings):
 
     # --- CSRF ---
     # Double-submit-cookie protection for state-changing requests on
-    # cookie-authenticated endpoints (/api/auth/refresh, /logout,
-    # /revoke-all). The SPA echoes the ``csrf`` cookie as
-    # ``X-CSRF-Token`` (see lib/api.ts), so enforcement is on by
-    # default; flip off only for API-only integrations that cannot
-    # carry the header.
-    csrf_enabled: bool = True
-
-    # --- Retention cleanup (periodic background job) ---
-    # When enabled, a background task runs run_retention_cleanup() every
-    # ``retention_cleanup_interval_hours`` hours (audit log purge + user
-    # hard-delete after the 30-day grace window). The manual admin
-    # endpoint POST /api/admin/retention/cleanup works regardless.
-    retention_cleanup_enabled: bool = False
-    retention_cleanup_interval_hours: int = 24
+    # cookie-authenticated endpoints. Off by default for backward
+    # compatibility; flip on once the SPA echoes ``X-CSRF-Token``.
+    csrf_enabled: bool = False
 
     # --- WebAuthn / Passkeys ---
     # Relying Party identifier — typically the domain serving the app
@@ -147,16 +136,8 @@ class Settings(BaseSettings):
     # off so dev / CI / unit tests do not need an external provider.
     captcha_required_for_registration: bool = False
     # Dotted path to a verifier. Empty -> a dev passthrough that
-    # accepts everything (with a single warning log). Setting
-    # ``turnstile_secret_key`` (below) upgrades the empty case to the
-    # built-in Cloudflare Turnstile verifier, so "captcha on" is no
-    # longer a silent no-op.
+    # accepts everything (with a single warning log).
     captcha_verifier: str = ""
-    # Cloudflare Turnstile secret key. When set and ``captcha_verifier``
-    # is empty, the built-in Turnstile verifier is used for the
-    # registration token. The matching site key is exposed to the SPA
-    # via ``VITE_TURNSTILE_SITE_KEY``.
-    turnstile_secret_key: str = ""
 
     # --- Email ---
     # ``console`` logs to stdout (dev/test). ``smtp`` uses the relay below.
@@ -177,7 +158,7 @@ class Settings(BaseSettings):
     # --- Frontend base URL ---
     # Used to build deep-link URLs in transactional emails (verify-email,
     # password-reset). If unset, links use a relative path so the SPA can
-    # route them client-side -?but most deployments should set this so
+    # route them client-side �?but most deployments should set this so
     # links work in any email client.
     frontend_base_url: str = ""
 
@@ -213,7 +194,7 @@ class Settings(BaseSettings):
     # --- Bibliographic metadata ---
     # Used by the ingest module to identify itself to Crossref (their API
     # policy asks callers to include a mailto in the User-Agent header).
-    # Optional -?falls back to a placeholder if not set.
+    # Optional �?falls back to a placeholder if not set.
     crossref_mailto: str = ""
 
     # --- DataCite DOI registration ---
@@ -296,19 +277,6 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return ",".join(str(item) for item in value)
         return str(value)
-
-    @model_validator(mode="after")
-    def _neutralize_csrf_in_tests(self) -> "Settings":
-        """Test clients have no browser cookie jar, so CSRF enforcement
-        would 403 the whole suite. In the test environment the flag is
-        forced off unless the operator set ``SCHOLARHUB_CSRF_ENABLED``
-        explicitly (dedicated CSRF tests monkeypatch the instance
-        instead, which still works)."""
-        import os
-
-        if self.environment == "test" and "SCHOLARHUB_CSRF_ENABLED" not in os.environ:
-            self.csrf_enabled = False
-        return self
 
     @model_validator(mode="after")
     def validate_secrets(self) -> "Settings":
@@ -398,35 +366,8 @@ class Settings(BaseSettings):
                 raise ValueError("CORS wildcard '*' is not allowed in production")
             if self.tenancy_mode == "single" and self.bootstrap_tenant_slug == "default":
                 # Allow default slug in single mode for self-hosted convenience;
-                # warn but don't fail -?single mode has exactly one tenant.
+                # warn but don't fail �?single mode has exactly one tenant.
                 pass
-
-            # OIDC SSRF guard: in production the configured IdP URLs are
-            # fetched server-side. A misconfigured deployment could point
-            # them at internal services or cloud metadata endpoints.
-            # Require HTTPS so tokens/PII are not sent in cleartext.
-            if self.oidc_enabled:
-                for label, url in (
-                    ("oidc_authorize_url", self.oidc_authorize_url),
-                    ("oidc_token_url", self.oidc_token_url),
-                    ("oidc_userinfo_url", self.oidc_userinfo_url),
-                ):
-                    if url and not url.startswith("https://"):
-                        raise ValueError(
-                            f"SCHOLARHUB_{label.upper()} must use HTTPS in production"
-                        )
-
-            # CSRF guard: cookie-authenticated state changes (refresh,
-            # logout, revoke-all) are only safe when CSRF protection is
-            # on. Refuse a production configuration that disables CSRF
-            # while the refresh token is carried in a cookie.
-            if not self.csrf_enabled and self.refresh_token_cookie_samesite != "none":
-                raise ValueError(
-                    "SCHOLARHUB_CSRF_ENABLED must be true in production when the "
-                    "refresh token is carried in a cookie; cross-site request "
-                    "forgery would otherwise allow session revocation by any "
-                    "visited site."
-                )
 
         return self
 
@@ -455,7 +396,7 @@ class Settings(BaseSettings):
     @property
     def cors_headers(self) -> list[str]:
         if self.is_production:
-            return ["Authorization", "Content-Type", "X-Tenant-ID", "X-CSRF-Token"]
+            return ["Authorization", "Content-Type", "X-Tenant-ID"]
         return ["*"]
 
     @property

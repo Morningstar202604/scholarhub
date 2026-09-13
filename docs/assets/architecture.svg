@@ -132,8 +132,7 @@
     <text x="46" y="452" class="small">SET LOCAL app.current_tenant_id → 即便应用层漏写过滤，DB 也会拒掉跨租户行</text>
 
     <rect x="640" y="412" width="230" height="56" rx="12" fill="#FEF3C7" stroke="#FDE68A" stroke-dasharray="4 3"/>
-    <text x="656" y="434" class="h2">Redis（可选：限流/令牌黑名单）</text>
+    <text x="656" y="434" class="h2">Redis（规划中）</text>
     <text x="656" y="452" class="small">缓存 + 分布式限流</text>
   </g>
 </svg>
-

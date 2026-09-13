@@ -171,21 +171,14 @@ async def get_facets(
     )
     years = [FacetBucket(value=str(y), count=c) for y, c in year_rows.all() if y is not None]
 
-    # Tags are JSON; aggregate in Python. The subquery reuses the
-    # same filter conditions (type + discipline) as the year facet so
-    # tag buckets match the current filter scope, and limits the rows
-    # loaded to the filtered result set instead of the whole tenant.
-    tag_rows = (
-        (
-            await db.execute(
-                select(Resource.tags).where(Resource.id.in_(select(stmt.subquery().c.id)))
-            )
-        )
+    # Tags are JSON; aggregate in Python (small N).
+    rows = (
+        (await db.execute(select(Resource.tags).where(Resource.tenant_id == tenant_id)))
         .scalars()
         .all()
     )
     tag_counts: dict[str, int] = {}
-    for tags in tag_rows:
+    for tags in rows:
         for tag in tags or []:
             tag_counts[tag] = tag_counts.get(tag, 0) + 1
     tags_sorted = sorted(tag_counts.items(), key=lambda kv: kv[1], reverse=True)[:50]

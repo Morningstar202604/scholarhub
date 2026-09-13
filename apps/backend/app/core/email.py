@@ -18,7 +18,6 @@ tests substitute a fake without inheriting. The runtime lookup in
 
 from __future__ import annotations
 
-import asyncio
 import smtplib
 from email.message import EmailMessage
 from typing import Protocol, runtime_checkable
@@ -59,15 +58,11 @@ class ConsoleEmailSender:
         body: str,
         html: str | None = None,
     ) -> None:
-        # Never log email body or subject in plain text: verification and
-        # password-reset links carry tokens that would become account-takeover
-        # vectors if leaked through log aggregation. Log only the recipient
-        # and a redacted body length.
         logger.info(
             "email_sent_console",
             to=to,
             subject=subject,
-            body_length=len(body),
+            body_preview=body[:200],
         )
 
 
@@ -114,18 +109,18 @@ class SMTPEmailSender:
         if html is not None:
             msg.add_alternative(html, subtype="html")
 
-        # smtplib is sync: offload the whole round-trip to a worker thread
-        # so a slow/blocked SMTP relay can never stall the event loop.
-        await asyncio.to_thread(self._send_sync, msg)
-        logger.info("email_sent_smtp", to=to, subject=subject)
-
-    def _send_sync(self, msg: EmailMessage) -> None:
+        # smtplib is sync; offload to a thread via asyncio.to_thread in
+        # the caller would be cleaner, but volume is tiny so blocking
+        # the event loop for one SMTP round-trip is acceptable. If a
+        # caller needs strict non-blocking, await asyncio.to_thread(...)
+        # around send_message.
         with smtplib.SMTP(self._host, self._port) as client:
             if self._starttls:
                 client.starttls()
             if self._username and self._password:
                 client.login(self._username, self._password)
             client.send_message(msg)
+        logger.info("email_sent_smtp", to=to, subject=subject)
 
 
 _sender: EmailSender | None = None

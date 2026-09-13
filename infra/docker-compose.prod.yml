@@ -6,7 +6,7 @@
 #   3. A proper .env file with real secrets (see apps/backend/.env.example).
 #
 # Usage:
-#   cp apps/backend/.env.example .env   # fill in real secrets
+#   cp .env.example .env        # fill in real secrets
 #   docker compose -f infra/docker-compose.prod.yml up -d
 #   # Caddy auto-provisions Let's Encrypt certs for your domain.
 #

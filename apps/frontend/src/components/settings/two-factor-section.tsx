@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import { AxiosError } from 'axios'
 import { toast } from 'sonner'
-import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -14,14 +14,20 @@ import {
   useVerifyTwoFactorSetup,
 } from '@/hooks/api/use-two-factor'
 import type { TwoFactorSetupResponse } from '@/lib/types'
-import { extractError } from '@/lib/utils'
 
 type Phase =
   | { kind: 'off' }
   | { kind: 'setup-pending'; data: TwoFactorSetupResponse }
-  | { kind: 'backup-shown'; codes: string[] }
   | { kind: 'enabled' }
   | { kind: 'disable-pending' }
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof AxiosError) {
+    const detail = (err.response?.data as { detail?: string })?.detail
+    return detail ?? fallback
+  }
+  return fallback
+}
 
 export function TwoFactorSection() {
   const status = useTwoFactorStatus()
@@ -48,7 +54,7 @@ export function TwoFactorSection() {
       setPhase({ kind: 'setup-pending', data })
       setConfirmCode('')
     } catch (err) {
-      toast.error(extractError(err, '无法生成 2FA 密钥'))
+      toast.error(errorMessage(err, '无法生成 2FA 密钥'))
     }
   }
 
@@ -57,13 +63,10 @@ export function TwoFactorSection() {
     try {
       await verifySetup.mutateAsync({ code: confirmCode })
       toast.success('两步验证已启用')
-      // 启用成功后先展示一次性恢复码，用户确认保存后再进 enabled 状态。
-      // 恢复码只在 setup-pending 阶段的 data 里（服务端启用瞬间返回一次）。
-      setPhase({ kind: 'backup-shown', codes: effectivePhase.data.backup_codes })
-      setConfirmCode('')
+      setPhase({ kind: 'enabled' })
       void status.refetch()
     } catch (err) {
-      toast.error(extractError(err, '验证码无效'))
+      toast.error(errorMessage(err, '验证码无效'))
     }
   }
 
@@ -86,7 +89,7 @@ export function TwoFactorSection() {
       setDisablePassword('')
       void status.refetch()
     } catch (err) {
-      toast.error(extractError(err, '关闭失败'))
+      toast.error(errorMessage(err, '关闭失败'))
     }
   }
 
@@ -95,7 +98,7 @@ export function TwoFactorSection() {
       await regenerate.mutateAsync()
       toast.success('备用码已刷新')
     } catch (err) {
-      toast.error(extractError(err, '刷新失败'))
+      toast.error(errorMessage(err, '刷新失败'))
     }
   }
 
@@ -116,7 +119,7 @@ export function TwoFactorSection() {
         {effectivePhase.kind === 'off' && !status.isLoading && (
           <div className="space-y-2">
             <p className="text-sm">两步验证当前未启用。</p>
-            <Button onClick={beginSetup} disabled={setup.isPending} data-testid="start-2fa-setup">
+            <Button onClick={beginSetup} disabled={setup.isPending}>
               {setup.isPending ? '生成中…' : '启用两步验证'}
             </Button>
           </div>
@@ -131,28 +134,6 @@ export function TwoFactorSection() {
             onCancel={cancelSetup}
             pending={verifySetup.isPending}
           />
-        )}
-
-        {effectivePhase.kind === 'backup-shown' && (
-          <div className="space-y-3">
-            <p className="text-sm font-medium">请妥善保存以下备用恢复码（每个一次性使用）：</p>
-            <ul
-              data-testid="recovery-codes"
-              className="grid grid-cols-2 gap-1 rounded-md border bg-muted/30 p-3 font-mono text-xs"
-            >
-              {effectivePhase.codes.map((code, i) => (
-                <li key={i} className="select-all">
-                  <span>{code}</span>
-                </li>
-              ))}
-            </ul>
-            <Button
-              data-testid="acknowledge-backup-codes"
-              onClick={() => setPhase({ kind: 'enabled' })}
-            >
-              我已保存
-            </Button>
-          </div>
         )}
 
         {effectivePhase.kind === 'enabled' && (
@@ -215,15 +196,13 @@ function SetupForm({
       </div>
       <p className="text-sm text-muted-foreground">
         或手动输入密钥：
-        <code data-testid="2fa-secret" className="ml-2 rounded bg-muted px-2 py-1 font-mono text-xs">
-          {data.secret}
-        </code>
+        <code className="ml-2 rounded bg-muted px-2 py-1 text-xs">{data.secret}</code>
       </p>
 
       <Separator />
 
       <p className="text-sm font-medium">备用恢复码（每个一次性使用，请妥善保存）：</p>
-      <ul data-testid="recovery-codes" className="grid grid-cols-2 gap-1 rounded-md border bg-muted/30 p-3 font-mono text-xs">
+      <ul className="grid grid-cols-2 gap-1 rounded-md border bg-muted/30 p-3 font-mono text-xs">
         {data.backup_codes.map((code) => (
           <li key={code} className="select-all">
             {code}
@@ -245,11 +224,7 @@ function SetupForm({
         />
       </div>
       <div className="flex gap-2">
-        <Button
-          data-testid="confirm-enable-2fa"
-          onClick={onConfirm}
-          disabled={pending || confirmCode.length !== 6}
-        >
+        <Button onClick={onConfirm} disabled={pending || confirmCode.length !== 6}>
           {pending ? '验证中…' : '确认并启用'}
         </Button>
         <Button variant="outline" onClick={onCancel} disabled={pending}>
@@ -277,7 +252,7 @@ function EnabledPanel({ remaining, onDisable, onRegenerate, regenerating }: Enab
         <Button variant="outline" onClick={onRegenerate} disabled={regenerating}>
           {regenerating ? '刷新中…' : '刷新备用码'}
         </Button>
-        <Button variant="destructive" data-testid="open-disable-2fa" onClick={onDisable}>
+        <Button variant="destructive" onClick={onDisable}>
           关闭两步验证
         </Button>
       </div>
@@ -341,12 +316,7 @@ function DisableForm(props: DisableFormProps) {
         </div>
       </div>
       <div className="flex gap-2">
-        <Button
-          variant="destructive"
-          data-testid="confirm-disable-2fa"
-          onClick={props.onSubmit}
-          disabled={submitDisabled}
-        >
+        <Button variant="destructive" onClick={props.onSubmit} disabled={submitDisabled}>
           {props.pending ? '关闭中…' : '确认关闭'}
         </Button>
         <Button variant="outline" onClick={props.onCancel} disabled={props.pending}>
@@ -358,19 +328,25 @@ function DisableForm(props: DisableFormProps) {
 }
 
 /**
- * Render an otpauth:// URI as a QR code via `qrcode.react` (local SVG).
+ * Render an otpauth:// URI as a QR code using a tiny inline SVG approach.
  *
- * The otpauth URI embeds the TOTP secret, so it must stay in the browser.
- * We deliberately do not send it to any third-party QR service.
+ * We deliberately don't pull in a QR library to keep the bundle slim.
+ * Instead we deep-link to an online QR service that supports
+ * otpauth:// URLs (Google Charts is deprecated; we use api.qrserver.com
+ * which still does the job for setup. For an offline-capable build,
+ * swap this component for `qrcode.react` - the prop shape stays
+ * identical).
  */
 function OtpauthQR({ dataUri }: { dataUri: string }) {
-  // Rendered locally via qrcode.react: the otpauth URI embeds the TOTP
-  // secret, so it must never leave the browser (the previous
-  // implementation sent it to a third-party QR API).
+  const encoded = encodeURIComponent(dataUri)
   return (
-    <div className="mx-auto h-[200px] w-[200px] rounded bg-white p-2">
-      <QRCodeSVG value={dataUri} size={176} marginSize={1} />
-    </div>
+    <img
+      src={`https://api.qrserver.com/v1/create-qr-code/?data=${encoded}&size=200x200`}
+      alt="TOTP 二维码"
+      width={200}
+      height={200}
+      className="mx-auto h-[200px] w-[200px] rounded bg-white p-2"
+      loading="lazy"
+    />
   )
 }
-

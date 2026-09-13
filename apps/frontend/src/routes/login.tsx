@@ -1,16 +1,10 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { AxiosError } from 'axios'
-import { Fingerprint } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { isTwoFactorRequired } from '@/lib/types'
-import { useAuthStore } from '@/lib/auth'
 import { useLogin, useTwoFactorLogin } from '@/hooks/api/use-auth'
-import {
-  webAuthnAuthenticateBegin,
-  webAuthnAuthenticateComplete,
-} from '@/lib/webauthn'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -99,47 +93,6 @@ function LoginPage() {
 
   const oidcEnabled = import.meta.env.VITE_OIDC_ENABLED === 'true'
 
-  // --- Passkey（WebAuthn）快捷登录：用户名 + 设备指纹一步完成 ---
-  const [passkeyBusy, setPasskeyBusy] = useState(false)
-  const onPasskeyLogin = async () => {
-    const name = username.trim()
-    if (!name) {
-      toast.error('请先填写用户名，再用 Passkey 登录')
-      return
-    }
-    if (!('credentials' in navigator)) {
-      toast.error('当前浏览器不支持 Passkey')
-      return
-    }
-    setPasskeyBusy(true)
-    try {
-      const options = await webAuthnAuthenticateBegin(name)
-      const credential = (await navigator.credentials.get({
-        publicKey: options as unknown as PublicKeyCredentialRequestOptions,
-      })) as PublicKeyCredential | null
-      if (!credential) {
-        toast.error('Passkey 验证被取消')
-        return
-      }
-      const result = await webAuthnAuthenticateComplete(name, credential)
-      useAuthStore.getState().setAuth(result.access_token, {
-        id: result.user_id,
-        username: result.username,
-        is_admin: result.is_admin,
-      })
-      toast.success('登录成功')
-      void navigate({ to: search.redirect ?? '/dashboard' })
-    } catch (err) {
-      const msg =
-        err instanceof AxiosError
-          ? (err.response?.data as { detail?: string })?.detail ?? 'Passkey 登录失败'
-          : 'Passkey 登录失败'
-      toast.error(msg)
-    } finally {
-      setPasskeyBusy(false)
-    }
-  }
-
   // --- 第二步：两步验证 ---
   if (pendingToken) {
     return (
@@ -161,7 +114,7 @@ function LoginPage() {
                   onChange={(e) => setTotpCode(e.target.value)}
                   autoComplete="one-time-code"
                   inputMode="numeric"
-                  placeholder="123456 或 XXXXX-XXXXX"
+                  placeholder="123456 或 xxxx-xxxx-xxxx"
                   autoFocus
                   required
                   minLength={6}
@@ -230,17 +183,6 @@ function LoginPage() {
             </div>
             <Button type="submit" className="w-full" disabled={loginMut.isPending}>
               {loginMut.isPending ? '登录中…' : '登录'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => void onPasskeyLogin()}
-              disabled={passkeyBusy}
-              data-testid="passkey-login"
-            >
-              <Fingerprint className="h-4 w-4" />
-              {passkeyBusy ? '验证中…' : '使用 Passkey 登录'}
             </Button>
           </form>
 

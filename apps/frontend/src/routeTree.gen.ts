@@ -21,7 +21,6 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin/audit-logs'
-import { Route as AdminDoiRouteImport } from './routes/admin/doi'
 import { Route as AdminIssuesRouteImport } from './routes/admin/issues'
 import { Route as AdminJournalRouteImport } from './routes/admin/journal'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -98,11 +97,6 @@ const AccountSecurityRoute = AccountSecurityRouteImport.update({
 const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
   id: '/admin/audit-logs',
   path: '/admin/audit-logs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminDoiRoute = AdminDoiRouteImport.update({
-  id: '/admin/doi',
-  path: '/admin/doi',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIssuesRoute = AdminIssuesRouteImport.update({
@@ -204,7 +198,6 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
-  '/admin/doi': typeof AdminDoiRoute
   '/admin/issues': typeof AdminIssuesRoute
   '/admin/journal': typeof AdminJournalRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -236,7 +229,6 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
-  '/admin/doi': typeof AdminDoiRoute
   '/admin/issues': typeof AdminIssuesRoute
   '/admin/journal': typeof AdminJournalRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -269,7 +261,6 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/account/security': typeof AccountSecurityRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
-  '/admin/doi': typeof AdminDoiRoute
   '/admin/issues': typeof AdminIssuesRoute
   '/admin/journal': typeof AdminJournalRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -303,7 +294,6 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/account/security'
     | '/admin/audit-logs'
-    | '/admin/doi'
     | '/admin/issues'
     | '/admin/journal'
     | '/admin/settings'
@@ -335,7 +325,6 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/account/security'
     | '/admin/audit-logs'
-    | '/admin/doi'
     | '/admin/issues'
     | '/admin/journal'
     | '/admin/settings'
@@ -367,7 +356,6 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/account/security'
     | '/admin/audit-logs'
-    | '/admin/doi'
     | '/admin/issues'
     | '/admin/journal'
     | '/admin/settings'
@@ -400,7 +388,6 @@ export interface RootRouteChildren {
   VerifyEmailRoute: typeof VerifyEmailRoute
   AccountSecurityRoute: typeof AccountSecurityRoute
   AdminAuditLogsRoute: typeof AdminAuditLogsRoute
-  AdminDoiRoute: typeof AdminDoiRoute
   AdminIssuesRoute: typeof AdminIssuesRoute
   AdminJournalRoute: typeof AdminJournalRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
@@ -504,13 +491,6 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit-logs'
       fullPath: '/admin/audit-logs'
       preLoaderRoute: typeof AdminAuditLogsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/doi': {
-      id: '/admin/doi'
-      path: '/admin/doi'
-      fullPath: '/admin/doi'
-      preLoaderRoute: typeof AdminDoiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/issues': {
@@ -648,7 +628,6 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyEmailRoute: VerifyEmailRoute,
   AccountSecurityRoute: AccountSecurityRoute,
   AdminAuditLogsRoute: AdminAuditLogsRoute,
-  AdminDoiRoute: AdminDoiRoute,
   AdminIssuesRoute: AdminIssuesRoute,
   AdminJournalRoute: AdminJournalRoute,
   AdminSettingsRoute: AdminSettingsRoute,

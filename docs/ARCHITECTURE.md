@@ -1,9 +1,5 @@
 # Architecture
 
-<p align="center">
-  <img src="assets/background.png" alt="ScholarHUB decorative background" width="720" />
-</p>
-
 ScholarHUB 的架构契约文档。每个模块都要遵守,偏离即 bug。
 
 ## 一句话概括
@@ -33,8 +29,7 @@ ScholarHUB 是一个**模块化、多租户的学术期刊发表平台**:核心�
                            │
         ┌──────────────────┼──────────────────┐
         │                  │                  │
-    PostgreSQL 17      Redis (可选,限流桶)  object storage (S3 可选,
-    (主库 + RLS)       缺省=进程内存      缺省=本地文件系统)
+   PostgreSQL 17      Redis (规划中)     object storage (规划中)
    (主库 + RLS)       (缓存 + 限流)       (PDF、上传文件)
 ```
 
@@ -42,13 +37,13 @@ ScholarHUB 是一个**模块化、多租户的学术期刊发表平台**:核心�
 
 核心层刻意保持最小,只承担每个学术期刊站点都需要的"地基":
 
-1. **租户** — 每个领域表都带 `tenant_id`。单租户部署只有一行 + `SCHOLARHUB_TENANCY_MODE=single`;多租户部署通过 host-header 解析租户并按 `tenant_id` 隔离数据。**单租户与多租户模式均已实现**:multi 模式下 `TenantContextMiddleware._resolve_tenant_by_host` 查 `tenant_hosts` 表(5 分钟内存缓存,负缓存防穿透;admin 端点 `api/tenant_hosts.py` 维护映射并失效缓存),解析不到即返回 `None` 走 RLS default-deny。
+1. **租户** — 每个领域表都带 `tenant_id`。单租户部署只有一行 + `SCHOLARHUB_TENANCY_MODE=single`;多租户部署通过 host-header 解析租户并按 `tenant_id` 隔离数据。**单租户模式已实现**,多租户模式(host-header → tenant 查找表)尚未实现(`TenantContextMiddleware._resolve_tenant` 默认返回 `None` 即 default-deny)。
 
 2. **身份与访问** — 本地用户账号(已实现)、按租户隔离的角色 + 权限模型(已实现)、短时 access token + httpOnly cookie refresh(已实现)。邮件验证 + 密码重置(无状态签名 token 绑定 `token_version`,已实现)。OIDC SSO via authlib(Google / GitHub / Generic / Keycloak,已实现,通过环境变量配置)。邮件发送走可插拔 sender(console dev / SMTP relay for Mailgun / SendGrid / SES / Postmark,已实现)。
 
 3. **模块注册表** — 后端启动时按依赖顺序加载 `app/modules/<name>/` 下的每个模块,每个模块声明自己的名字、依赖、模型、路由、admin hooks。核心按拓扑序挂载并运行各自的迁移,前端通过 `/api/modules` 端点知道渲染哪些 UI。
 
-4. **admin shell** — `app.api.admin` 提供按租户隔离的 admin REST API:用户列表 + 启用/停用、审计日志、角色分配/撤销、评审模式切换、密钥轮换 status/reload。React SPA 在 `/admin` 下展示。每个角色可编辑的细粒度权限清单尚未实现(角色本身是预定义的)。
+4. **admin shell** — `app.api.admin` 提供按租户隔离的 admin REST API:用户列表 + 启用/停用、审计日志。React SPA 在 `/admin` 下展示。角色/权限编辑、模块启停尚未实现。
 
 5. **部署** — Docker Compose(dev + prod)、Caddy TLS、Alembic 迁移在容器启动时执行、structlog JSON 日志、health 端点上报模块加载状态。详见 [docs/integrations.md](integrations.md) 的 SMTP + OIDC + Crossref/arXiv 接入。
 

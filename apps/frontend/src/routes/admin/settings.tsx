@@ -4,9 +4,8 @@ import { AxiosError } from 'axios'
 import { Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
-import { useModules, useReviewMode, useSetModuleState, useSetReviewMode } from '@/hooks/api/use-modules'
+import { useReviewMode, useSetReviewMode } from '@/hooks/api/use-modules'
 import type { ReviewMode } from '@/lib/types'
-import { extractError } from '@/lib/utils'
 import { PageHeader } from '@/components/common/page-header'
 import { ErrorState, Loading } from '@/components/common/state'
 import { Button } from '@/components/ui/button'
@@ -170,64 +169,6 @@ function AdminSettingsPage() {
           </CardFooter>
         </Card>
       )}
-
-      <div className="mt-6">
-        <ModuleToggleCard />
-      </div>
     </div>
-  )
-}
-
-function ModuleToggleCard() {
-  const { data, isLoading, isError, refetch } = useModules()
-  const setModule = useSetModuleState()
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">模块启停</CardTitle>
-        <CardDescription>
-          按租户启用 / 停用功能模块。停用后前端对应入口（目录、投稿、审稿等）
-          会自动隐藏；已加载的后端代码仍保留，重新启用立即恢复。
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Loading />
-        ) : isError ? (
-          <ErrorState message="加载模块列表失败" onRetry={() => refetch()} />
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(data ?? []).map((m) => (
-              <label
-                key={m.name}
-                className="flex cursor-pointer items-center justify-between gap-3 rounded-md border p-3 text-sm hover:bg-muted/50"
-                title={m.description || undefined}
-              >
-                <span className="min-w-0 truncate">
-                  <span className="font-medium">{m.name}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">v{m.version}</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={m.enabled !== false}
-                  onChange={(e) => {
-                    setModule.mutate(
-                      { name: m.name, enabled: e.target.checked },
-                      {
-                        onError: (err) =>
-                          toast.error(extractError(err, '模块切换失败')),
-                      },
-                    )
-                  }}
-                  disabled={setModule.isPending}
-                  className="size-4 accent-primary"
-                />
-              </label>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   )
 }
