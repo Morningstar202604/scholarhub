@@ -27,6 +27,9 @@ dist/
 .env.local
 .env.*.local
 
+# Runtime uploads (user content — never commit)
+data/
+
 # Editor
 .vscode/*
 !.vscode/extensions.json

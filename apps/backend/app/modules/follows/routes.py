@@ -309,7 +309,13 @@ async def list_my_subscribed_disciplines(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DisciplineSubscriptionListResponse:
-    """List the discipline slugs the current user is subscribed to, newest first."""
+    """List the discipline slugs the current user is subscribed to, newest first.
+
+    Capped at 500 subscriptions per user; a normal user subscribes to a
+    handful, so a much larger number indicates data anomaly and should
+    not produce an unbounded response.
+    """
+    _MAX_SUBSCRIPTIONS = 500
     result = await db.execute(
         select(DisciplineSubscription.discipline)
         .where(
@@ -320,6 +326,7 @@ async def list_my_subscribed_disciplines(
             desc(DisciplineSubscription.created_at),
             DisciplineSubscription.id.asc(),
         )
+        .limit(_MAX_SUBSCRIPTIONS)
     )
     slugs = [row[0] for row in result.all()]
     return DisciplineSubscriptionListResponse(data=slugs)

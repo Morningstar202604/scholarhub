@@ -8,6 +8,10 @@ import type {
   AuditLogEntry,
   AuthorFollowListResponse,
   DisciplineSubscriptionListResponse,
+  DoiConfigResponse,
+  DoiRegisterRequest,
+  DoiRegistrationResponse,
+  DoiStatusResponse,
   FacetBucket,
   FetchRequest,
   FileAssetCreate,
@@ -100,7 +104,8 @@ export const keys = {
     me: (limit = 10) => ['recommendations', 'me', limit] as const,
   },
   admin: {
-    users: (limit = 50, offset = 0) => ['admin', 'users', limit, offset] as const,
+    users: (limit = 50, offset = 0, q?: string) =>
+      ['admin', 'users', limit, offset, q ?? ''] as const,
     audit: (limit = 50, offset = 0) => ['admin', 'audit', limit, offset] as const,
     reviewMode: () => ['admin', 'review-mode'] as const,
     volumes: () => ['admin', 'volumes'] as const,
@@ -115,6 +120,10 @@ export const keys = {
   },
   modules: () => ['modules'] as const,
   health: () => ['health'] as const,
+  doi: {
+    config: () => ['doi', 'config'] as const,
+    status: (resourceId: number) => ['doi', 'status', resourceId] as const,
+  },
 } as const
 
 // --- Modules + Health ---
@@ -123,6 +132,18 @@ export function useModules() {
     queryKey: keys.modules(),
     queryFn: async () => (await api.get<ModuleInfo[]>('/modules')).data,
     staleTime: 5 * 60_000,
+  })
+}
+
+export function useSetModuleState() {
+  const qc = useQueryClient()
+  return useMutation<ModuleInfo, Error, { name: string; enabled: boolean }>({
+    mutationFn: async ({ name, enabled }) =>
+      (await api.post<ModuleInfo>(`/admin/modules/${encodeURIComponent(name)}`, { enabled }))
+        .data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.modules() })
+    },
   })
 }
 
@@ -858,11 +879,16 @@ export function useFetchIngest() {
 }
 
 // --- Admin ---
-export function useAdminUsers(limit = 50, offset = 0) {
+export function useAdminUsers(limit = 50, offset = 0, q?: string) {
   return useQuery<UserResponse[]>({
-    queryKey: keys.admin.users(limit, offset),
+    queryKey: keys.admin.users(limit, offset, q),
     queryFn: async () =>
-      (await api.get<UserResponse[]>('/admin/users', { params: { limit, offset } })).data,
+      (
+        await api.get<UserResponse[]>(
+          '/admin/users',
+          { params: { limit, offset, ...(q ? { q } : {}) } },
+        )
+      ).data,
   })
 }
 
@@ -1024,3 +1050,34 @@ export function useJournalSettings() {
 
 // 把 FacetBucket 类型重导出供消费方使用
 export type { FacetBucket }
+
+// --- DOI ---
+export function useDoiConfig() {
+  return useQuery<DoiConfigResponse>({
+    queryKey: keys.doi.config(),
+    queryFn: async () => (await api.get<DoiConfigResponse>('/doi/config')).data,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useDoiStatus(resourceId: number, enabled = true) {
+  return useQuery<DoiStatusResponse>({
+    queryKey: keys.doi.status(resourceId),
+    queryFn: async () =>
+      (await api.get<DoiStatusResponse>(`/doi/${resourceId}/status`)).data,
+    enabled: enabled && resourceId > 0,
+    staleTime: 60_000,
+  })
+}
+
+export function useRegisterDoi() {
+  const qc = useQueryClient()
+  return useMutation<DoiRegistrationResponse, Error, DoiRegisterRequest>({
+    mutationFn: async (body) =>
+      (await api.post<DoiRegistrationResponse>('/doi/register', body)).data,
+    onSuccess: (_data, { resource_id }) => {
+      void qc.invalidateQueries({ queryKey: keys.doi.status(resource_id) })
+      void qc.invalidateQueries({ queryKey: ['catalog'] })
+    },
+  })
+}

@@ -29,11 +29,14 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    // Dev ergonomics: both are overridable so a busy dev box (other projects
+    // squatting on 5173/8000) doesn't force a config edit.
+    //   VITE_DEV_PORT=5178 VITE_BACKEND_URL=http://localhost:8010 npm run dev
+    port: Number(process.env.VITE_DEV_PORT) || 5177,
     proxy: {
       // 开发期把 /api 转发到 backend，避免 CORS 与 cookie 域问题（refresh token cookie path=/api/auth）
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:8000',
         changeOrigin: true,
       },
     },

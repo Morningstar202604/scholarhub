@@ -17,7 +17,7 @@ describe('CookieBanner', () => {
   it('shows the banner when no decision is stored', () => {
     render(<CookieBanner />)
     expect(screen.getByTestId('cookie-banner')).toBeInTheDocument()
-    expect(screen.getByText(/we use cookies/i)).toBeInTheDocument()
+    expect(screen.getByText(/我们使用 cookie/i)).toBeInTheDocument()
   })
 
   it('hides the banner when a prior decision exists', () => {

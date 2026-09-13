@@ -71,23 +71,23 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-live="polite"
-      aria-label="Cookie consent"
+      aria-label="Cookie 同意"
       data-testid="cookie-banner"
       className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-3xl rounded-lg border bg-background/95 p-4 shadow-lg backdrop-blur sm:bottom-6 sm:left-auto sm:right-6 sm:p-5"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex-1 text-sm text-foreground/90">
-          <p className="font-medium">We use cookies</p>
+          <p className="font-medium">我们使用 Cookie</p>
           <p className="mt-1 text-foreground/70">
-            Essential cookies keep you signed in. Optional cookies help with
-            CSRF protection. You can change your choice anytime in settings.{' '}
+            必要的 Cookie 用于保持登录状态。可选 Cookie 用于防 CSRF 等增强安全。
+            您可以在设置中随时更改选择。{' '}
             <a
               href="/privacy"
               className="underline hover:text-foreground"
             >
-              Privacy policy
+              隐私政策
             </a>
-            .
+            。
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
@@ -98,7 +98,7 @@ export function CookieBanner() {
             onClick={essentialOnly}
             data-testid="cookie-banner-essential"
           >
-            Essential only
+            仅必要
           </Button>
           <Button
             type="button"
@@ -106,7 +106,7 @@ export function CookieBanner() {
             onClick={accept}
             data-testid="cookie-banner-accept"
           >
-            Accept all
+            接受全部
           </Button>
         </div>
       </div>

@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
+import { AddToReadingList } from '@/components/common/add-to-reading-list'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 
 // 详情页向访客开放（后端 GET /catalog/{id} 本就是公开接口）。
@@ -56,12 +57,31 @@ export const Route = createFileRoute('/catalog/$resourceId')({
   component: CatalogDetailPage,
 })
 
-function MetaItem({ label, value }: { label: string; value?: string | null }) {
+function MetaItem({
+  label,
+  value,
+  href,
+}: {
+  label: string
+  value?: string | null
+  href?: string
+}) {
   if (!value) return null
   return (
     <div className="flex justify-between gap-4 py-1.5 text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="break-all text-right font-medium text-primary hover:underline"
+        >
+          {value}
+        </a>
+      ) : (
+        <span className="text-right font-medium">{value}</span>
+      )}
     </div>
   )
 }
@@ -155,7 +175,7 @@ function CatalogDetailPage() {
               <MetaItem label="出版物" value={data.venue} />
               <MetaItem label="学科" value={data.discipline} />
               <MetaItem label="子学科" value={data.subdiscipline} />
-              <MetaItem label="DOI" value={data.doi} />
+                <MetaItem label="DOI" value={data.doi} href={data.doi ? `https://doi.org/${data.doi}` : undefined} />
               <MetaItem
                 label="卷/期/页"
                 value={
@@ -229,16 +249,14 @@ function CatalogDetailPage() {
                         在线阅读
                       </Link>
                     </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full">
-                          加入阅读列表
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem disabled>敬请期待</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      <AddToReadingList
+                        resourceId={id}
+                        trigger={
+                          <Button variant="outline" className="w-full">
+                            加入阅读列表
+                          </Button>
+                        }
+                      />
                   </>
                 ) : (
                   <>

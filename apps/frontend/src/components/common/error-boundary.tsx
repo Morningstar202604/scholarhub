@@ -3,8 +3,9 @@
  *
  * 基于 `react-error-boundary`（不自己造轮子），在其上补三件项目自身需要的事：
  * 1. 统一的中文降级 UI（复用设计系统的 Card/Button，与 ErrorState 风格一致）
- * 2. 错误上报钩子 —— 目前落到 console + 预留 window.__scholarhubOnError，
- *    Sentry 接入后由 `lib/monitoring.ts` 覆写该钩子，组件本身无需改动
+ * 2. 错误上报钩子 —— `lib/monitoring.ts` 的 `reportError` 统一处理：
+ *    配置了 `VITE_SENTRY_DSN` 时转发 Sentry，否则落 console；
+ *    组件本身无需感知后端
  * 3. 与 TanStack Query 打通：重置边界时同时重置 query 错误状态，
  *    否则"重试"点了也只会立刻再抛同一个错误
  *

@@ -11,6 +11,8 @@ storage to a ``RateLimiterStore``. Two implementations are shipped:
   Redis is unreachable so a Redis outage never denies legitimate
   traffic (fail-open for the limiter, fail-closed for the bucket —
   i.e. if Redis is down the limiter behaves as it did before M4).
+  The circuit breaker re-opens after ``_CIRCUIT_REOPEN_AFTER_SECONDS``
+  so a recovered Redis is picked up without a process restart.
 
 The store protocol is intentionally tiny — just ``hit_and_check``
 returning whether the request is allowed and the current bucket
@@ -36,6 +38,11 @@ if TYPE_CHECKING:
     pass
 
 logger = get_logger("scholarhub.rate_limit_store")
+
+# How long the circuit breaker stays closed after a Redis failure before
+# re-trying Redis (half-open). Without this, a single transient outage
+# would pin the store to the memory fallback for the process lifetime.
+_CIRCUIT_REOPEN_AFTER_SECONDS = 30.0
 
 
 class RateLimiterStore:
@@ -148,6 +155,7 @@ class RedisRateLimiterStore(RateLimiterStore):
         self._script_sha: str | None = None
         self._memory_fallback = MemoryRateLimiterStore()
         self._redis_failed = False  # circuit-breaker hint
+        self._redis_failed_at: float | None = None
 
     async def _get_client(self) -> Any:
         if self._client is not None:
@@ -177,10 +185,9 @@ class RedisRateLimiterStore(RateLimiterStore):
         limit: int,
         window_seconds: float,
     ) -> tuple[bool, int]:
-        if self._redis_failed:
-            # Circuit-breaker: stop hammering a dead Redis. Auto-recover
-            # by re-attempting on the next request outside this guard
-            # (we re-enable on the first successful call below).
+        if self._redis_failed and not self._circuit_open_expired():
+            # Circuit-breaker: stop hammering a dead Redis for
+            # _CIRCUIT_REOPEN_AFTER_SECONDS after the last failure.
             return await self._memory_fallback.hit_and_check(
                 bucket_key=bucket_key,
                 limit=limit,
@@ -211,19 +218,28 @@ class RedisRateLimiterStore(RateLimiterStore):
                 self._redis_failed = False
             return (bool(int(allowed_flag)), int(depth))
         except Exception as exc:
-            # Fail-open: log + fall back to memory. If Redis comes back
-            # the next request will succeed and the breaker resets.
+            # Fail-open: log + fall back to memory. The breaker re-opens
+            # (half-open) after _CIRCUIT_REOPEN_AFTER_SECONDS so a
+            # recovered Redis is picked up without a process restart.
             if not self._redis_failed:
                 logger.warning(
                     "rate_limit_redis_unavailable_falling_back_to_memory",
                     error=str(exc),
                 )
             self._redis_failed = True
+            self._redis_failed_at = time.monotonic()
             return await self._memory_fallback.hit_and_check(
                 bucket_key=bucket_key,
                 limit=limit,
                 window_seconds=window_seconds,
             )
+
+    def _circuit_open_expired(self) -> bool:
+        """True when enough time has passed to retry Redis (half-open)."""
+        failed_at = self._redis_failed_at
+        if failed_at is None:
+            return False
+        return (time.monotonic() - failed_at) >= _CIRCUIT_REOPEN_AFTER_SECONDS
 
     async def _ensure_script_loaded(self, client: Any) -> str:
         if self._script_sha is not None:

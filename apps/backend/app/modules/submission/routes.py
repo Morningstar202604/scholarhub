@@ -446,12 +446,18 @@ async def list_submission_versions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
+    # A manuscript realistically has at most a handful of resubmission
+    # versions. Cap the query so an abnormal state (a bug loop creating
+    # versions, or a deliberately manipulated row count) cannot produce
+    # an unbounded response.
+    _MAX_VERSIONS = 100
     rows = (
         (
             await db.execute(
                 select(SubmissionVersion)
                 .where(SubmissionVersion.submission_id == entry.id)
                 .order_by(SubmissionVersion.version.desc())
+                .limit(_MAX_VERSIONS)
             )
         )
         .scalars()
@@ -709,6 +715,8 @@ async def list_assignments(
 ) -> AssignmentListResponse:
     """列出 submission 的所有审稿分配（编辑视角，含审稿人身份）。"""
     entry = await _get_or_404(db, submission_id)
+    # Cap so an abnormal state cannot produce an unbounded response.
+    _MAX_ASSIGNMENTS = 100
     rows = (
         (
             await db.execute(
@@ -722,6 +730,7 @@ async def list_assignments(
                     selectinload(ReviewAssignment.submission),
                 )
                 .order_by(ReviewAssignment.invited_at.desc())
+                .limit(_MAX_ASSIGNMENTS)
             )
         )
         .scalars()
@@ -827,6 +836,9 @@ async def list_review_reports(
             detail="Access denied",
         )
 
+    # Cap the number of reports returned so an abnormal state (e.g. many
+    # reviewers or a bug loop) cannot produce an unbounded response.
+    _MAX_REPORTS = 100
     rows = (
         (
             await db.execute(
@@ -837,6 +849,7 @@ async def list_review_reports(
                     ReviewReport.tenant_id == entry.tenant_id,
                     ReviewAssignment.status == "completed",
                 )
+                .limit(_MAX_REPORTS)
             )
         )
         .scalars()
@@ -1167,12 +1180,13 @@ async def upload_submission_file(
         )
 
     # 流式读 + 大小校验，避免一次性 OOM
-    contents = b""
+    # 用 bytearray 代替 bytes 拼接（contents += chunk 每次 O(n) 复制）
+    contents = bytearray()
     while True:
         chunk = await file.read(64 * 1024)
         if not chunk:
             break
-        contents += chunk
+        contents.extend(chunk)
         if len(contents) > _MAX_UPLOAD_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -1188,7 +1202,7 @@ async def upload_submission_file(
         ext = ext[:20]
     safe_name = f"{uuid4().hex}{ext}"
     rel_path = f"{entry.tenant_id}/{entry.id}/{safe_name}"
-    await get_storage().save(rel_path, contents, content_type=file.content_type)
+    await get_storage().save(rel_path, bytes(contents), content_type=file.content_type)
     entry.file_path = rel_path
     await db.commit()
     await db.refresh(entry)

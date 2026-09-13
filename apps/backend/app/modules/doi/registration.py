@@ -16,8 +16,6 @@ from __future__ import annotations
 import logging
 from typing import Any, cast
 
-import httpx
-
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -110,6 +108,8 @@ async def mint_doi(
     if not datacite_enabled():
         return "", "failed"
 
+    import httpx
+
     doi_suffix = suffix or str(resource.id)
     doi = _build_doi(doi_suffix)
 
@@ -171,6 +171,8 @@ async def get_doi_metadata(doi: str) -> dict[str, Any] | None:
     """
     if not datacite_enabled():
         return None
+
+    import httpx
 
     try:
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:

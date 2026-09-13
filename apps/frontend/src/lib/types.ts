@@ -68,6 +68,9 @@ export interface UserCreate {
   email: string
   username: string
   password: string
+  /** Cloudflare Turnstile token, required when the backend enforces
+   * registration CAPTCHA (`SCHOLARHUB_TURNSTILE_SECRET_KEY` set). */
+  captcha_token?: string
 }
 
 export interface UserLogin {
@@ -138,7 +141,9 @@ export interface ResetPasswordRequest {
 export interface ModuleInfo {
   name: string
   version: string
-  description: string
+  description?: string
+  /** Per-tenant enabled state (admin module 启停);缺省视为启用。 */
+  enabled?: boolean
 }
 
 export interface HealthResponse {
@@ -438,6 +443,33 @@ export interface ReadingListDetailResponse {
 export interface ReadingListListResponse {
   data: ReadingListResponse[]
   meta: PaginationMeta
+}
+
+// --- DOI ---
+export interface DoiConfigResponse {
+  enabled: boolean
+  prefix: string
+}
+
+export interface DoiRegisterRequest {
+  resource_id: number
+  doi_suffix?: string
+}
+
+export interface DoiRegistrationResponse {
+  id: number
+  resource_id: number
+  doi: string
+  state: string
+  message: string | null
+  created_at: string
+}
+
+export interface DoiStatusResponse {
+  doi: string | null
+  state: 'none' | 'pending' | 'completed' | 'failed'
+  registered_at: string | null
+  message: string | null
 }
 
 // --- Reader ---
