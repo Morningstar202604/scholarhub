@@ -306,3 +306,46 @@ async def test_redis_store_fails_open_when_unreachable(monkeypatch):
         window_seconds=60.0,
     )
     assert allowed is True
+
+
+async def test_redis_store_circuit_breaker_recovers_after_cooldown(monkeypatch):
+    """A tripped breaker must re-open (half-open) after the cooldown.
+
+    Regression test: the old implementation set ``_redis_failed = True``
+    and then guarded every call on that flag, so the "reset on first
+    successful call" path was unreachable and one transient Redis outage
+    pinned the store to the memory fallback for the process lifetime.
+    """
+    import time
+
+    import fakeredis.aioredis as faio
+
+    from app.core import rate_limit_store as mod
+    from app.core.rate_limit_store import RedisRateLimiterStore
+
+    fake_client = faio.FakeRedis(decode_responses=True)
+    store = RedisRateLimiterStore(redis_url="redis://test:6379/0")
+
+    async def _ok_client():
+        return fake_client
+
+    monkeypatch.setattr(store, "_get_client", _ok_client)
+
+    # Trip the breaker as if a request had just hit a dead Redis.
+    store._redis_failed = True
+    store._redis_failed_at = time.monotonic()
+
+    # Within the cooldown window: fall back to memory, Redis untouched.
+    allowed, depth = await store.hit_and_check(bucket_key="ip6|x", limit=10, window_seconds=60.0)
+    assert allowed is True
+    assert depth == 1
+    assert await fake_client.zcard("ip6|x") == 0
+
+    # Fast-forward past the cooldown: half-open, the next hit must reach
+    # Redis and clear the tripped state.
+    store._redis_failed_at = time.monotonic() - mod._CIRCUIT_REOPEN_AFTER_SECONDS - 1
+    allowed, depth = await store.hit_and_check(bucket_key="ip6|x", limit=10, window_seconds=60.0)
+    assert allowed is True
+    assert depth == 1
+    assert await fake_client.zcard("ip6|x") == 1
+    assert store._redis_failed is False

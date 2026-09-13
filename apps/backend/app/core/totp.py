@@ -1,27 +1,24 @@
 """TOTP (RFC 6238) helpers for the M2 hardening milestone.
 
-Why hand-roll: the well-known ``pyotp`` library is on the deny list
-because it transitively pulls in ``cryptography`` already required by
-our ``Fernet`` usage, and ``pyotp`` adds no security value we cannot
-provide in ~80 lines. The RFC is small and the failure modes are
-predictable when we own the code.
+The HOTP core comes from ``pyotp`` (already a dependency — the old
+"deny list" rationale was wrong: pyotp has no transitive deps). The
+project-specific parts are kept: 160-bit secrets, replay protection
+via the last-used counter, T-1 clock-skew tolerance, Fernet at-rest
+encryption of the secret, and single-use hashed backup codes.
 
 Design choices:
 
-- Secrets are 20 bytes (160 bits) of CSPRNG output, encoded as
-  base32 with no padding. RFC 4226 recommends 160 bits (section 4
-  "Recommended parameters") and we follow that exactly.
-- The HOTP counter is the number of 30-second windows since the
-  Unix epoch (``time.time() // 30``). Replay protection comes from
-  tracking the last successfully-verified counter in the user
-  record (so a code within the current or previous window is
-  accepted at most once).
-- Constant-time comparison via ``hmac.compare_digest`` so timing
-  side channels cannot leak which digit was wrong.
-- Drift tolerance: we accept the previous window (T-1) when the
-  current window fails, which covers clock skew up to 30s. We do
-  NOT accept T+1 because a stolen code from a slightly-future
-  client clock should not be usable.
+- Secrets are 160 bits of CSPRNG output, base32-encoded without
+  padding (RFC 4226 section 4 recommended parameters).
+- The HOTP counter is the number of 30-second windows since the Unix
+  epoch. Replay protection comes from tracking the last successfully
+  verified counter in the user record (a code within the current or
+  previous window is accepted at most once).
+- Constant-time comparison via ``hmac.compare_digest`` so timing side
+  channels cannot leak which digit was wrong.
+- Drift tolerance: the previous window (T-1) is accepted when the
+  current window fails. T+1 is NOT accepted — a code from a
+  slightly-future client clock must not be usable.
 
 Encryption-at-rest: the cleartext secret is encrypted with Fernet
 before being persisted to ``User.totp_secret_encrypted``. The
@@ -32,53 +29,31 @@ place.
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import secrets
-import struct
 import time
 from typing import Final
 
+import pyotp
 from cryptography.fernet import Fernet, InvalidToken
 
 # RFC 4226 section 4: 160-bit secret, 6-digit code, SHA-1 HMAC.
 _TOTP_DIGITS: Final = 6
 _TOTP_PERIOD: Final = 30
 _TOTP_WINDOW: Final = 1  # accept T-1 in addition to T for clock skew
-_TOTP_SECRET_BYTES: Final = 20
 _BACKUP_CODE_COUNT: Final = 10
 _BACKUP_CODE_LENGTH: Final = 10  # 10 chars, base32 alphabet
 
 
 def generate_secret() -> str:
     """Return a 20-byte base32 secret (no padding) for a new user."""
-    raw = secrets.token_bytes(_TOTP_SECRET_BYTES)
-    return base64.b32encode(raw).decode("ascii").rstrip("=")
+    return pyotp.random_base32()
 
 
 def _hotp(secret_b32: str, counter: int) -> str:
-    """Compute HOTP per RFC 4226 section 5.3.
-
-    Returns a zero-padded 6-digit string. ``secret_b32`` is the
-    raw base32 (no padding) we stored on the user.
-    """
-    # Re-pad to a multiple of 8 chars because base64/32 decoders
-    # require it. HOTP itself does not care about padding.
-    pad = "=" * ((8 - len(secret_b32) % 8) % 8)
-    key = base64.b32decode(secret_b32 + pad)
-    counter_bytes = struct.pack(">Q", counter)
-    digest = hmac.new(key, counter_bytes, hashlib.sha1).digest()
-    # Dynamic truncation per RFC 4226 section 5.3.
-    offset = digest[-1] & 0x0F
-    code_int = (
-        ((digest[offset] & 0x7F) << 24)
-        | ((digest[offset + 1] & 0xFF) << 16)
-        | ((digest[offset + 2] & 0xFF) << 8)
-        | (digest[offset + 3] & 0xFF)
-    )
-    code_int %= 10**6
-    return str(code_int).zfill(_TOTP_DIGITS)
+    """HOTP per RFC 4226 (implemented by pyotp), zero-padded 6 digits."""
+    return pyotp.HOTP(secret_b32).at(counter).zfill(_TOTP_DIGITS)
 
 
 def verify_totp(secret_b32: str, code: str, last_counter: int = -1) -> int | None:

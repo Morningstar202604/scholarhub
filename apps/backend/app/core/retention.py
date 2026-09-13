@@ -18,6 +18,7 @@ Retention policy (mirrors ``/api/privacy``):
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 # 30-day window between soft delete and hard delete of the user row.
 # Match the value advertised in /api/privacy.
@@ -42,9 +43,56 @@ def user_hard_delete_cutoff(deleted_at: datetime, now: datetime | None = None) -
     return deleted_at + timedelta(days=USER_DELETION_GRACE_DAYS)
 
 
+async def run_retention_cleanup(db: Any) -> dict[str, object]:
+    """Execute the retention policy: purge expired audit logs and
+    hard-delete users whose soft-delete grace window has lapsed.
+
+    Caller must own the session lifecycle (commit/rollback). All deletes
+    run inside the caller's transaction with the tenant GUC armed, so
+    RLS restricts the blast radius to the current tenant. FK cascades
+    (``ondelete``) handle the module-side rows at the database layer.
+    """
+    from sqlalchemy import delete, func, select
+
+    from app.models import AuditLog, User
+
+    now = datetime.now(UTC)
+
+    audit_result = await db.execute(
+        delete(AuditLog).where(AuditLog.created_at <= audit_log_cutoff(now))
+    )
+
+    # Expired soft-deleted users: deleted_at + grace <= now.
+    expiring = (
+        select(User.id)
+        .where(User.deleted_at.is_not(None))
+        .where(User.deleted_at <= now - timedelta(days=USER_DELETION_GRACE_DAYS))
+        .scalar_subquery()
+    )
+    user_result = await db.execute(delete(User).where(User.id.in_(expiring)))
+
+    # Integrity guard: count the users that SHOULD have expired but did
+    # not (e.g. FKs that were not cascading). Surface it instead of
+    # silently claiming the policy ran.
+    leftover: int = await db.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(User.deleted_at.is_not(None))
+        .where(User.deleted_at <= now - timedelta(days=USER_DELETION_GRACE_DAYS))
+    )
+
+    return {
+        "audit_logs_deleted": int(audit_result.rowcount or 0),
+        "users_hard_deleted": int(user_result.rowcount or 0),
+        "users_leftover_blocked": int(leftover or 0),
+        "run_at": now.isoformat(),
+    }
+
+
 __all__ = [
     "AUDIT_LOG_RETENTION_DAYS",
     "USER_DELETION_GRACE_DAYS",
     "audit_log_cutoff",
+    "run_retention_cleanup",
     "user_hard_delete_cutoff",
 ]

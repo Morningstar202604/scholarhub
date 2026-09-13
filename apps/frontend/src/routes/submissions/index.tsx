@@ -544,7 +544,14 @@ function SubmissionsPage() {
               {detail.doi && (
                 <div>
                   <span className="text-muted-foreground">DOI：</span>
-                  {detail.doi}
+                  <a
+                    href={`https://doi.org/${detail.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {detail.doi}
+                  </a>
                 </div>
               )}
               {detail.download_url && (

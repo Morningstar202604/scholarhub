@@ -5,6 +5,7 @@ import { getAuthState } from '@/lib/auth'
 import { useVolumeList } from '@/hooks/api/use-modules'
 import { PageHeader } from '@/components/common/page-header'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
+import { VolumeIssueEditor } from '@/components/admin/volume-issue-editor'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -103,6 +104,10 @@ function AdminVolumesPage() {
           </Table>
         </div>
       )}
+
+      <div className="mt-6">
+        <VolumeIssueEditor />
+      </div>
     </div>
   )
 }

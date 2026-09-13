@@ -61,7 +61,16 @@ function ResourceCard({
           <Badge variant="outline">{resource.type}</Badge>
           {resource.year && <span>{resource.year}</span>}
           <span>{resource.discipline}</span>
-          {resource.doi && <span>{resource.doi}</span>}
+          {resource.doi && (
+            <a
+              href={`https://doi.org/${resource.doi}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              {resource.doi}
+            </a>
+          )}
         </div>
         {resource.authors.length > 0 && (
           <p className="text-sm text-muted-foreground">

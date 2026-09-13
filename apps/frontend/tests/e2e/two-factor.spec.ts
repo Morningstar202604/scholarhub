@@ -55,20 +55,20 @@ test.describe('two-factor authentication', () => {
     // --- 1) 账号安全页开启 2FA ---
     await page.goto('/account/security')
     await page.getByTestId('start-2fa-setup').click()
-    // secret 以等宽文本展示在 QR 下方
-    const secretEl = page.locator('p.font-mono')
+    // secret 以等宽文本展示在 QR 下方（code[data-testid=2fa-secret]）
+    const secretEl = page.getByTestId('2fa-secret')
     await expect(secretEl).toBeVisible({ timeout: 5_000 })
     const secret = (await secretEl.textContent())!.trim()
     expect(secret.length).toBeGreaterThanOrEqual(16)
 
-    await page.getByLabel('验证码').fill(totp(secret))
+    await page.getByLabel('输入身份验证器中的 6 位代码').fill(totp(secret))
     await page.getByTestId('confirm-enable-2fa').click()
     // 不断言 toast 文本：「两步验证已开启」与卡片标题+徽章的拼接文本
     // （"两步验证" + "已开启"）在 strict mode 下撞车。恢复码出现 = 启用成功。
     const codes = page.getByTestId('recovery-codes')
     await expect(codes).toBeVisible({ timeout: 5_000 })
-    await expect(codes.locator('span')).toHaveCount(8)
-    await page.getByRole('button', { name: '我已保存' }).click()
+    await expect(codes.locator('span')).toHaveCount(10)
+    await page.getByTestId('acknowledge-backup-codes').click()
 
     // --- 2) 登出 → 重新登录进入两步验证 ---
     await page.goto('/login')
@@ -98,10 +98,14 @@ test.describe('two-factor authentication', () => {
     await expect(page.getByText('登录成功')).toBeVisible({ timeout: 5_000 })
     await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 })
 
-    // --- 3) 关闭 2FA（需密码）→ 登录恢复一步式 ---
+    // --- 3) 关闭 2FA（需密码 + 一次性验证码）→ 登录恢复一步式 ---
     await page.goto('/account/security')
     await page.getByTestId('open-disable-2fa').click()
-    await page.getByLabel('账号密码').fill(user.password)
+    // 关闭需同时提供密码 + （TOTP 码或备用码），否则确认按钮保持 disabled。
+    // 安全页同时有"修改密码"(#old-password) 与"关闭 2FA"(#disable-password)
+    // 两个密码输入框，均标记 autocomplete=current-password → 用 #id 精确定位。
+    await page.locator('#disable-password').fill(user.password)
+    await page.locator('#disable-code').fill(totp(secret))
     await page.getByTestId('confirm-disable-2fa').click()
     await expect(page.getByText('两步验证已关闭')).toBeVisible({ timeout: 5_000 })
 

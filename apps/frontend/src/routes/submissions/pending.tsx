@@ -438,7 +438,14 @@ function SubmissionDetailBody({ sub }: { sub: SubmissionResponse }) {
       {sub.doi && (
         <div>
           <span className="text-muted-foreground">DOI：</span>
-          {sub.doi}
+          <a
+            href={`https://doi.org/${sub.doi}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            {sub.doi}
+          </a>
         </div>
       )}
       {sub.download_url && (

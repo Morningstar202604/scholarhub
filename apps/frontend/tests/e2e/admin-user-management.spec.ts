@@ -20,11 +20,13 @@ test.describe('admin: user management', () => {
     await loginViaUi(page, ADMIN)
     await page.goto('/admin/users')
     await expect(page.getByRole('heading', { name: '用户管理' })).toBeVisible()
-    // admin 自己应该在列表里
-    await expect(page.getByText('admin@e2e.test')).toBeVisible()
-    // 搜索 admin
+    // 不预设 admin 一定在前 50 行（共享 E2E 库被其他 spec 注册了 40+ 用户，
+    // 按 created_at DESC 排序 admin 排在后面）。改为搜索 username 'admin'
+    // 定位该用户（ADMIN.username 由 e2e_run_server.py 配置，邮箱可能变）。
     await page.getByPlaceholder('搜索用户名或邮箱').fill('admin')
-    await expect(page.getByText('admin@e2e.test')).toBeVisible()
+    await expect(page.locator('tr', { hasText: 'admin' }).first()).toBeVisible({
+      timeout: 10_000,
+    })
     // 搜索不存在的用户
     await page.getByPlaceholder('搜索用户名或邮箱').fill('zzz-not-exist-zzz')
     await expect(page.getByText('暂无用户')).toBeVisible()
@@ -44,17 +46,29 @@ test.describe('admin: user management', () => {
     await loginViaUi(adminPage, ADMIN)
     await adminPage.goto('/admin/users')
 
-    // 搜索目标用户
+    // 搜索目标用户（搜索触发后端 refetch，表格会重渲染）
     await adminPage.getByPlaceholder('搜索用户名或邮箱').fill(target.username)
     await expect(adminPage.getByText(target.email)).toBeVisible({ timeout: 5_000 })
 
     // 打开角色分配 dropdown：用 data-slot 精确定位 trigger，避免 getByRole('')
-    // 误匹配其它无 accessible-name 的按钮
+    // 误匹配其它无 accessible-name 的按钮。
+    // Radix DropdownMenuTrigger 依赖 pointerdown 事件展开；搜索触发 refetch
+    // 后表格重渲染，普通 click() 可能落在 stale 节点上导致菜单不展开。
+    // 通过 page.evaluate 派发原生 pointerdown+mousedown+click 三连，绕过
+    // actionability 等待 + 强制 Radix 接收事件，对齐 Radix 文档推荐姿势。
     const trigger = adminPage
       .locator('tr', { hasText: target.username })
       .first()
       .locator('button[data-slot="dropdown-menu-trigger"]')
-    await trigger.click()
+    await trigger.waitFor({ state: 'visible', timeout: 5_000 })
+    await adminPage.evaluate((sel) => {
+      const el = document.querySelector(sel) as HTMLElement
+      if (!el) return
+      const opts = { bubbles: true, cancelable: true, view: window }
+      el.dispatchEvent(new PointerEvent('pointerdown', opts))
+      el.dispatchEvent(new MouseEvent('mousedown', opts))
+      el.dispatchEvent(new MouseEvent('click', opts))
+    }, `tr:has-text("${target.username}") button[data-slot="dropdown-menu-trigger"]`)
     // 点 "审稿人" checkbox item(未选中 → 选中)
     const reviewerItem = adminPage.getByRole('menuitemcheckbox', { name: '审稿人' })
     await reviewerItem.waitFor({ state: 'visible', timeout: 5_000 })
@@ -142,9 +156,12 @@ test.describe('admin: user management', () => {
   test('admin cannot disable own account (button disabled for self)', async ({ page }) => {
     await loginViaUi(page, ADMIN)
     await page.goto('/admin/users')
-    // admin 自己那行的操作按钮 disabled
-    const row = page.locator('tr', { hasText: 'admin@e2e.test' }).first()
-    await expect(row.locator('button[data-slot="dropdown-menu-trigger"]')).toBeDisabled()
+    // admin 自己的行：搜索 username 'admin' 定位（共享库用户多，不能假设在前 50）
+    await page.getByPlaceholder('搜索用户名或邮箱').fill('admin')
+    const row = page.locator('tr', { hasText: 'admin' }).first()
+    await expect(row.locator('button[data-slot="dropdown-menu-trigger"]')).toBeDisabled({
+      timeout: 10_000,
+    })
   })
 
   test('audit logs page lists recent admin actions', async ({ browser }) => {
