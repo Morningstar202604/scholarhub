@@ -117,3 +117,10 @@ jobs:
         # historical LOW findings were removed), so any new finding fails
         # the build instead of silently accumulating.
         run: uv run bandit -r app -c pyproject.toml --severity-level low
+      - name: Dependency vulnerability audit (pip-audit)
+        # Audit the locked dependency set from uv.lock. --disable-pip reads
+        # the fully pinned, hashed export directly, which also sidesteps the
+        # editable-install/hash conflict pip-audit otherwise hits on -r files.
+        run: |
+          uv export --format requirements-txt --no-dev --no-emit-project -o /tmp/req-audit.txt
+          uv run --no-project --with pip-audit pip-audit --disable-pip -r /tmp/req-audit.txt

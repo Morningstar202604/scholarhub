@@ -32,3 +32,6 @@ dist/
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# Uploaded files (user content — runtime state, never commit)
+storage/

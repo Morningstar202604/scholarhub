@@ -31,9 +31,10 @@ test.describe('submissions + review flow', () => {
     await authorPage.goto('/submissions')
     await expect(authorPage.getByRole('heading', { name: '我的提交' })).toBeVisible()
 
-    // 新建提交
+    // 新建提交。用 name 精确匹配:页面上 CookieConsent 横幅同为 role="dialog",
+    // 裸 getByRole('dialog') 在 strict mode 下会命中两个元素直接失败。
     await authorPage.getByRole('button', { name: /新建提交/ }).click()
-    await expect(authorPage.getByRole('dialog')).toBeVisible()
+    await expect(authorPage.getByRole('dialog', { name: '新建提交' })).toBeVisible()
     await authorPage.getByLabel('标题').fill(submittedTitle)
     await authorPage.getByLabel('作者（逗号分隔）').fill('Auth One, Auth Two')
     await authorPage.getByLabel('学科', { exact: true }).fill('computer science')
@@ -265,8 +266,10 @@ test.describe('submissions + review flow', () => {
       .getByRole('button', { name: '详情' })
       .click()
     // 断言限定在详情 dialog 内：改后的摘要同时出现在列表卡片摘要里，
-    // 页面级 getByText 会 strict-mode 命中 2 个节点。
-    const detailDialog = adminPage.getByRole('dialog')
+    // 页面级 getByText 会 strict-mode 命中 2 个节点。详情 dialog 的
+    // accessible name 是提交标题（DialogTitle={detail?.title}），
+    // 用 name 精确匹配避开同页 CookieConsent 横幅（role 同为 dialog）。
+    const detailDialog = adminPage.getByRole('dialog', { name: title })
     await expect(detailDialog.getByText('版本历史')).toBeVisible({ timeout: 5_000 })
     await expect(detailDialog.getByText('v2', { exact: true })).toBeVisible()
     await expect(detailDialog.getByText(/已按意见扩写方法论一节/)).toBeVisible()

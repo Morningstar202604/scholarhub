@@ -37,6 +37,7 @@ export async function loginViaUi(
   page: Page,
   creds: { username: string; password: string },
 ): Promise<void> {
+  await primeCookieConsent(page)
   await page.goto('/login')
   await page.getByLabel('用户名或邮箱').fill(creds.username)
   // exact:true 避免"确认密码"等带子串的 label 干扰（注册页就有两个密码框）
@@ -103,11 +104,23 @@ export async function forceVerifyEmail(email: string): Promise<void> {
   })
 }
 
+// 预置 cookie 同意，让 CookieConsent 横幅在后续所有导航中都不再渲染。
+// 横幅本身是 role="dialog"（aria-label="Cookie consent"），若留在页面上，
+// 任何 `getByRole('dialog')` 断言都会因 strict mode 命中两个元素而误报。
+// E2E 关心的是业务功能，不是 Cookie 同意交互；想测横幅自身时用
+// data-testid="cookie-banner" 精确选择器。
+export async function primeCookieConsent(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('scholarhub_cookie_consent', 'accepted')
+  })
+}
+
 // 通过 UI 走完整的注册→邮件→验证流程，返回已验证的用户凭据。
 export async function registerAndVerifyViaUi(
   page: Page,
   user: TestUser,
 ): Promise<void> {
+  await primeCookieConsent(page)
   await resetEmailOutbox()
   await page.goto('/register')
   await page.getByLabel('邮箱').fill(user.email)
