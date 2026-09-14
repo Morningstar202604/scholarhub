@@ -14,6 +14,19 @@
 - 新增 `scripts/check-version.sh` 版本一致性校验(VERSION / pyproject / package.json /
   `app.__version__` 四处必须同步),已纳入 CI `backend` job 首步。
 
+### Fixed
+
+- 修复 `/catalog` 与 `/submissions` 表格无列宽约束导致的横向溢出(1280px 视口下
+  catalog 表实际宽 2025px):长文本列(标题/作者/学科)按 shadcn DataTable 惯例加
+  `max-w + truncate`,状态/时间/操作列在桌面视口完整可见。
+- 修复详情页阅读进度卡渲染原始 ISO 时间戳(`2026-09-14T14:21:51…Z` 撑破卡片):
+  统一走 `toLocaleString()` 格式化,`MetaItem` 值加 `min-w-0 truncate` 防御超长。
+- 修复"编辑工作台"(`/submissions/pending`)侧边栏误高亮"我的提交":新增独立导航项
+  (admin-only,挂审稿工作台旁),高亮算法改为最长前缀胜出;移动端"更多"抽屉同步补入口。
+- 侧边栏 admin 组菜单归组:期刊四件套(卷/期/信息/设置)连续排列,审计日志垫底。
+- Cookie 同意横幅层级从 z-50 降至 z-40:模态弹窗(Radix Dialog overlay z-50)压住
+  横幅由层级保证,不再依赖 DOM 顺序。
+
 ## [0.2.0] - 2026-09-14
 
 > 主题：移动端体验 + 发布链路加固。新增移动端专用外壳与四区域适配；修复模型/迁移

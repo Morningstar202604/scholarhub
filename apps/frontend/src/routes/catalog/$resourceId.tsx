@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import {
   Bookmark,
@@ -56,12 +56,14 @@ export const Route = createFileRoute('/catalog/$resourceId')({
   component: CatalogDetailPage,
 })
 
-function MetaItem({ label, value }: { label: string; value?: string | null }) {
+// value 支持 ReactNode（如格式化时间 + 截断包装）；min-w-0 让 flex 子项可收缩，
+// truncate 确保超长值（DOI、时间戳）截断而非撑破卡片右缘
+function MetaItem({ label, value }: { label: string; value?: ReactNode }) {
   if (!value) return null
   return (
     <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-right font-medium">{value}</span>
     </div>
   )
 }
@@ -321,7 +323,13 @@ function CatalogDetailPage() {
                   />
                   <MetaItem
                     label="最近阅读"
-                    value={progress.data.last_read_at ?? '—'}
+                    value={
+                      progress.data.last_read_at
+                        ? // 后端返回原始 ISO 字符串（2026-09-14T14:21:51…Z），
+                          // 与全站其他日期展示一致走格式化，避免裸时间戳撑破卡片
+                          new Date(progress.data.last_read_at).toLocaleString()
+                        : '—'
+                    }
                   />
                   {progress.data.completed && (
                     <Badge variant="secondary">已完成</Badge>

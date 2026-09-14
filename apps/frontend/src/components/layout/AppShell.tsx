@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ClipboardCheck,
+  Gavel,
   Heart,
   Home,
   Layers,
@@ -55,15 +56,19 @@ const NAV: NavItem[] = [
   { to: '/follows', label: '关注与订阅', icon: Heart, auth: true },
   { to: '/submissions', label: '我的提交', icon: ScrollText, auth: true },
   { to: '/review/assignments', label: '审稿工作台', icon: ClipboardCheck, auth: true },
+  // 编辑工作台（admin 审核队列）：挂在审稿工作台旁，语义上属于编辑部工作流，
+  // 而非"我的提交"的子页面
+  { to: '/submissions/pending', label: '编辑工作台', icon: Gavel, auth: true, adminOnly: true },
   { to: '/ingest', label: '导入', icon: Upload, auth: true },
   { to: '/recommendations', label: '推荐', icon: Lightbulb, auth: true },
   { to: '/notifications', label: '通知', icon: Bell, auth: true },
+  // admin 组：用户 → 期刊四件套（卷/期/信息/设置）归组连续排列，审计日志垫底
   { to: '/admin/users', label: '用户管理', icon: Users, auth: true, adminOnly: true },
   { to: '/admin/volumes', label: '卷管理', icon: Layers, auth: true, adminOnly: true },
   { to: '/admin/issues', label: '期管理', icon: CalendarDays, auth: true, adminOnly: true },
   { to: '/admin/journal', label: '期刊信息', icon: Building2, auth: true, adminOnly: true },
-  { to: '/admin/audit-logs', label: '审计日志', icon: ShieldCheck, auth: true, adminOnly: true },
   { to: '/admin/settings', label: '期刊设置', icon: Settings, auth: true, adminOnly: true },
+  { to: '/admin/audit-logs', label: '审计日志', icon: ShieldCheck, auth: true, adminOnly: true },
 ]
 
 export function AppShell() {
@@ -82,6 +87,16 @@ export function AppShell() {
     if (n.auth && !isAuthenticated) return false
     return true
   })
+
+  // 高亮采用"最长前缀胜出"：/submissions/pending 应高亮「编辑工作台」而非「我的提交」。
+  // 段级匹配（=== 或 `${to}/` 前缀）避免 /submissionsfoo 之类的假阳性。
+  const activePath = visibleNav
+    .filter(
+      (n) =>
+        location.pathname === n.to ||
+        location.pathname.startsWith(`${n.to}/`),
+    )
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to
 
   // 路由变化时关闭移动端抽屉，避免点击导航后抽屉仍挡住内容
   useEffect(() => {
@@ -160,7 +175,7 @@ export function AppShell() {
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           {visibleNav.map((item) => {
             const Icon = item.icon
-            const active = location.pathname.startsWith(item.to)
+            const active = item.to === activePath
             const showBadge = item.to === '/notifications' && (unread?.unread ?? 0) > 0
             return (
               <Link

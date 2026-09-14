@@ -68,12 +68,14 @@ export function CookieBanner() {
   }
 
   return (
+    // z-40：低于 Radix Dialog overlay 的 z-50——模态层压住横幅由层级保证，
+    // 不再依赖 DOM 顺序（历史上 E2E 的 strict-mode 冲突也源于两者同层）
     <div
       role="dialog"
       aria-live="polite"
       aria-label="Cookie consent"
       data-testid="cookie-banner"
-      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-3xl rounded-lg border bg-background/95 p-4 shadow-lg backdrop-blur sm:bottom-6 sm:left-auto sm:right-6 sm:p-5"
+      className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-3xl rounded-lg border bg-background/95 p-4 shadow-lg backdrop-blur sm:bottom-6 sm:left-auto sm:right-6 sm:p-5"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex-1 text-sm text-foreground/90">

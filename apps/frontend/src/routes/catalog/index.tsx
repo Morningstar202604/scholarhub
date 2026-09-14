@@ -287,7 +287,9 @@ function CatalogListPage() {
                           aria-label={`选择 ${r.title}`}
                         />
                       </TableCell>
-                      <TableCell>
+                      {/* 长文本列约束列宽 + 截断，防止 160 字符标题把整表撑出视口
+                          （对齐 shadcn DataTable 长文本列 max-w+truncate 惯例） */}
+                      <TableCell className="max-w-[320px] truncate">
                         <Link
                           to="/catalog/$resourceId"
                           params={{ resourceId: String(r.id) }}
@@ -296,11 +298,13 @@ function CatalogListPage() {
                           {r.title}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="max-w-[180px] truncate text-muted-foreground">
                         {authors}
                       </TableCell>
                       <TableCell>{r.year}</TableCell>
-                      <TableCell>{r.discipline}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {r.discipline}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{r.type}</Badge>
                       </TableCell>

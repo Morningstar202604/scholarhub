@@ -426,9 +426,12 @@ function SubmissionsPage() {
                     className="cursor-pointer"
                     onClick={() => setDetail(s)}
                   >
-                    <TableCell className="font-medium">{s.title}</TableCell>
+                    {/* 同 catalog 表格：长文本列 max-w+truncate，保证状态/时间/操作列在 1280px 内可见 */}
+                    <TableCell className="max-w-[320px] truncate font-medium">
+                      {s.title}
+                    </TableCell>
                     <TableCell>{s.type}</TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="max-w-[200px] truncate text-muted-foreground">
                       {s.discipline}
                     </TableCell>
                     <TableCell>{statusBadge(s.status)}</TableCell>
