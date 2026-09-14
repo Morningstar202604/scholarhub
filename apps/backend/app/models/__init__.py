@@ -20,6 +20,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -53,9 +54,12 @@ class Tenant(Base):
     """
 
     __tablename__ = "tenants"
+    # Named constraint (not `unique=True` on the column) so the metadata
+    # matches what the migration created and `alembic check` stays clean.
+    __table_args__ = (UniqueConstraint("slug", name="uq_tenants_slug"),)
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    slug: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    slug: Mapped[str] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(255))
     # Type enables future expansion: 'journal' | 'press' | 'server' | 'institution'.
     tenant_type: Mapped[str] = mapped_column(String(32), default="journal")
@@ -122,6 +126,10 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "email", name="uq_users_tenant_email"),
         UniqueConstraint("tenant_id", "username", name="uq_users_tenant_username"),
+        # Composite lookup used by ORCID attribution search; created by
+        # migration 014 but previously missing here, which made
+        # `alembic check` report a spurious drift.
+        Index("ix_users_tenant_orcid", "tenant_id", "orcid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -170,7 +178,9 @@ class User(Base):
     # Soft-delete timestamp. Set when the user requests account deletion
     # (GDPR right-to-erasure). The row is anonymised in place, and a
     # background job hard-deletes it after the grace window.
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )

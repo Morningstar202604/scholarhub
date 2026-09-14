@@ -266,7 +266,13 @@ async def authenticate_2fa(
         counter = verify_totp(secret, payload.code)
         ok = counter is not None
     else:
-        assert payload.backup_code is not None
+        # Explicit check (not `assert`): assertions are stripped under
+        # `python -O`, and this is an authentication path.
+        if payload.backup_code is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="backup_code is required when a TOTP code is not provided",
+            )
         normalized = normalize_backup_code(payload.backup_code)
         hashes = _hashes_to_set(user.totp_backup_codes_hashed)
         candidate_hash = hash_backup_code(normalized)
@@ -331,7 +337,13 @@ async def disable_2fa(
             ) from exc
         ok = verify_totp(secret, payload.code) is not None
     else:
-        assert payload.backup_code is not None
+        # Explicit check (not `assert`): assertions are stripped under
+        # `python -O`, and this is an authentication path.
+        if payload.backup_code is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="backup_code is required when a TOTP code is not provided",
+            )
         normalized = normalize_backup_code(payload.backup_code)
         hashes = _hashes_to_set(current_user.totp_backup_codes_hashed)
         ok = hash_backup_code(normalized) in hashes

@@ -27,11 +27,14 @@ from starlette.routing import Match
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.db import engine as _engine
+from app.core.logging import get_logger
 from app.core.metrics import (
     HTTP_REQUESTS_IN_PROGRESS,
     observe_request,
     update_db_pool_metrics,
 )
+
+logger = get_logger("scholarhub.metrics")
 
 
 def _resolve_template_path(scope: Scope) -> str:
@@ -98,7 +101,9 @@ class HTTPMetricsMiddleware:
             try:
                 update_db_pool_metrics(_engine)
             except Exception:
-                pass
+                # Metrics are best-effort: never let a stale pool reading fail
+                # the request, but keep a trace for debugging.
+                logger.debug("db_pool_metrics_update_failed", exc_info=True)
 
 
 __all__ = ["HTTPMetricsMiddleware", "_resolve_template_path"]

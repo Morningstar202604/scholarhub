@@ -217,12 +217,17 @@ async def test_callback_without_pkce_cookie_400(
         algorithm=settings.algorithm,
     )
     # Note: no cookie jar carries oidc_pkce.
-    response = await oidc_enabled_client.get(
-        "/api/auth/oidc/google/callback",
-        params={"code": "fake-code", "state": state},
-        cookies={"oidc_state": nonce},  # state cookie present, PKCE absent
-        follow_redirects=False,
-    )
+    # State cookie set on the client (httpx deprecated per-request cookies) and
+    # removed afterwards so the shared fixture stays clean.
+    oidc_enabled_client.cookies.set("oidc_state", nonce)
+    try:
+        response = await oidc_enabled_client.get(
+            "/api/auth/oidc/google/callback",
+            params={"code": "fake-code", "state": state},
+            follow_redirects=False,
+        )
+    finally:
+        oidc_enabled_client.cookies.delete("oidc_state")
     assert response.status_code == 400
     assert "PKCE" in response.json()["detail"]
 

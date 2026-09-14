@@ -27,6 +27,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -152,6 +153,12 @@ class SubmissionVersion(Base):
     """
 
     __tablename__ = "submission_versions"
+    # 版本号从 1 开始、按 submission 单调递增；唯一约束防并发重投产生
+    # 重号。此前只由迁移创建、metadata 未声明，导致 `alembic check`
+    # 误报漂移 — 现补齐命名声明与迁移一致。
+    __table_args__ = (
+        UniqueConstraint("submission_id", "version", name="uq_submission_version_number"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[UUID] = mapped_column(

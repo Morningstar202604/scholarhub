@@ -47,11 +47,13 @@ class DOIRegistration(Base):
     state: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     # DataCite API response / error message.
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Who triggered this registration.
-    registered_by: Mapped[int] = mapped_column(
+    # Who triggered this registration. Nullable because the FK is ON DELETE
+    # SET NULL: the audit trail is append-only, so removing a user must not
+    # erase the registration events they triggered.
+    registered_by: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(

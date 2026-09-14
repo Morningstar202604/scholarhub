@@ -65,12 +65,12 @@ class Resource(Base):
     type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     # Primary author storage. JSON list[str], e.g. ["Alice Author", "Bob"].
-    authors: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    authors: Mapped[list[str]] = mapped_column(JSONBVariant, nullable=False)
     year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     venue: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     discipline: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     subdiscipline: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
-    tags: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    tags: Mapped[list[str]] = mapped_column(JSONBVariant, nullable=False)
     abstract: Mapped[str] = mapped_column(Text, nullable=False)
     preview: Mapped[str] = mapped_column(Text, nullable=False)
     download_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -93,7 +93,7 @@ class Resource(Base):
     isbn: Mapped[str | None] = mapped_column(String(20), nullable=True)
     publisher: Mapped[str | None] = mapped_column(String(500), nullable=True)
     short_container_title: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    keywords: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    keywords: Mapped[list[str] | None] = mapped_column(JSONBVariant, nullable=True)
     language: Mapped[str] = mapped_column(String(10), nullable=False, default="en")
     publication_status: Mapped[str] = mapped_column(String(20), nullable=False, default="published")
 

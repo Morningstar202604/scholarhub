@@ -88,12 +88,17 @@ async def test_csrf_allows_post_with_matching_header_and_cookie(
     refresh = test_user["refresh_token"]
 
     csrf_value = "test-csrf-token-stable-12345"
-    r = await client.post(
-        "/api/auth/refresh",
-        json={"refresh_token": refresh},
-        headers={"X-CSRF-Token": csrf_value},
-        cookies={"csrf": csrf_value},
-    )
+    # httpx deprecated per-request cookies; set them on the client instead and
+    # clean up so the shared fixture isn't polluted for later tests.
+    client.cookies.set("csrf", csrf_value)
+    try:
+        r = await client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": refresh},
+            headers={"X-CSRF-Token": csrf_value},
+        )
+    finally:
+        client.cookies.delete("csrf")
     assert r.status_code == 200, r.text
 
 
@@ -106,12 +111,15 @@ async def test_csrf_blocks_mismatched_header(
     _enable_csrf(monkeypatch)
     refresh = test_user["refresh_token"]
 
-    r = await client.post(
-        "/api/auth/refresh",
-        json={"refresh_token": refresh},
-        headers={"X-CSRF-Token": "value-B"},
-        cookies={"csrf": "value-A"},
-    )
+    client.cookies.set("csrf", "value-A")
+    try:
+        r = await client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": refresh},
+            headers={"X-CSRF-Token": "value-B"},
+        )
+    finally:
+        client.cookies.delete("csrf")
     assert r.status_code == 403
 
 

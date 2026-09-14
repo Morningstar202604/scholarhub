@@ -13,9 +13,11 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Test-only secrets. Never used outside the test environment; exist solely so
-# the test suite can run without manual .env configuration.
-_TEST_SECRET_KEY = "TEST_ONLY_DO_NOT_USE_IN_PRODUCTION_0123456789abcdef"
-_TEST_ADMIN_PASSWORD = "test_admin_password_12345"
+# the test suite can run without manual .env configuration. Both values are
+# also members of the weak-secret blocklists below, so any non-test config
+# that inherits them is rejected at startup.
+_TEST_SECRET_KEY = "TEST_ONLY_DO_NOT_USE_IN_PRODUCTION_0123456789abcdef"  # nosec B105
+_TEST_ADMIN_PASSWORD = "test_admin_password_12345"  # nosec B105
 
 # Placeholder values that must never appear in a real environment.
 _WEAK_SECRET_KEYS = frozenset(

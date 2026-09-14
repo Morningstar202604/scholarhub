@@ -236,7 +236,9 @@ class RedisRateLimiterStore(RateLimiterStore):
             try:
                 await self._client.aclose()
             except Exception:  # pragma: no cover
-                pass
+                # Best-effort shutdown: a failed disconnect must not mask the
+                # original error, but we still want a trace in debug logs.
+                logger.debug("rate_limit_store_close_failed", exc_info=True)
             self._client = None
 
 

@@ -24,6 +24,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -50,6 +51,10 @@ class Notification(Base):
     """
 
     __tablename__ = "notifications"
+    # Composite index for the per-user inbox listing (newest first);
+    # created by the notifications migration but previously missing
+    # here, which made `alembic check` report a spurious drift.
+    __table_args__ = (Index("ix_notifications_user_id_created_at", "user_id", "created_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[UUID] = mapped_column(

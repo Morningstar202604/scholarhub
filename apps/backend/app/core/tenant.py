@@ -115,7 +115,8 @@ class TenantContextMiddleware:
 
             structlog_token = bind_contextvars(request_id=request_id)
         except Exception:
-            pass
+            # Diagnostics only — request-id binding must never break a request.
+            logger.debug("request_id_bind_failed", exc_info=True)
 
         # Resolve tenant.
         tenant_id = await self._resolve_tenant(scope)
@@ -127,7 +128,8 @@ class TenantContextMiddleware:
 
                 bind_contextvars(tenant_id=str(tenant_id) if tenant_id else "-")
             except Exception:
-                pass
+                # Diagnostics only.
+                logger.debug("tenant_id_bind_failed", exc_info=True)
 
         try:
             await self.app(scope, receive, send)
@@ -141,7 +143,8 @@ class TenantContextMiddleware:
 
                     clear_contextvars()
                 except Exception:
-                    pass
+                    # Context teardown is best-effort.
+                    logger.debug("contextvars_clear_failed", exc_info=True)
 
     async def _resolve_tenant(self, scope: Scope) -> uuid.UUID | None:
         """Resolve the tenant id for this request.
