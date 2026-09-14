@@ -397,6 +397,7 @@ CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 ## Documentation
 
 - [Architecture contract](docs/ARCHITECTURE.md) — module dependencies, tenant isolation, module registry, migration strategy
+- [Deployment guide](docs/DEPLOYMENT.md) — server sizing, step-by-step first deploy, backup/upgrade, "do I need Cloudflare?"
 - [Mail / OIDC integration](docs/integrations.md) — Mailgun / SendGrid / SES / Postmark + Google / GitHub / Keycloak
 - [Contributing](CONTRIBUTING.md) — branch naming, commit conventions, PR checklist
 - [Security policy](SECURITY.md) — vulnerability reporting, built-in security layers, local tooling

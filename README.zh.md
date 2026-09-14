@@ -407,6 +407,7 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 ## 文档
 
 - [架构契约](docs/ARCHITECTURE.md) — 模块依赖、租户隔离、模块注册表、迁移策略
+- [部署指南](docs/DEPLOYMENT.md) — 服务器规格、首次部署逐步操作、备份/升级、"是否需要 Cloudflare"
 - [邮件 / OIDC 集成](docs/integrations.md) — Mailgun / SendGrid / SES / Postmark + Google / GitHub / Keycloak
 - [贡献流程](CONTRIBUTING.md) — 分支命名、提交规范、PR 检查表
 - [安全策略](SECURITY.md) — 漏洞上报、内置安全层、本地工具

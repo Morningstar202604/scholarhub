@@ -407,6 +407,7 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 ## ドキュメント
 
 - [アーキテクチャ契約](docs/ARCHITECTURE.md) — モジュール依存、テナント分離、モジュールレジストリ、マイグレーション戦略
+- [デプロイガイド](docs/DEPLOYMENT.md) — サーバーサイズ、初回デプロイの手順、バックアップ/アップグレード、「Cloudflare は必要か？」
 - [メール / OIDC 統合](docs/integrations.md) — Mailgun / SendGrid / SES / Postmark + Google / GitHub / Keycloak
 - [コントリビュート](CONTRIBUTING.md) — ブランチ命名、コミット規約、PR チェックリスト
 - [セキュリティポリシー](SECURITY.md) — 脆弱性報告、組み込みのセキュリティ層、ローカルツール

@@ -7,6 +7,21 @@
 
 ### Added
 
+- 新增部署指南 `docs/DEPLOYMENT.md`:服务器规格建议、首次部署逐步操作、邮件/密钥轮换/
+  对象存储等生产配置、备份与升级流程、故障排查表,并明确回答"是否需要 Cloudflare 等
+  云服务"(不需要,单机 Docker Compose + Caddy 自动 HTTPS 即可)。
+- 新增 GitHub 治理模板:bug/feature 的 ISSUE_TEMPLATE 与 PR 模板(含 CI 门禁速查)。
+- 新增 `scripts/check-version.sh` 版本一致性校验(VERSION / pyproject / package.json /
+  `app.__version__` 四处必须同步),已纳入 CI `backend` job 首步。
+
+## [0.2.0] - 2026-09-14
+
+> 主题：移动端体验 + 发布链路加固。新增移动端专用外壳与四区域适配；修复模型/迁移
+> 结构性漂移（生产库缺失的 `doi_registrations` 表）等 20+ 项缺陷；CI 新增迁移门禁、
+> 依赖漏洞审计与版本一致性校验，前端 70 单测、E2E 66 用例全量入网。
+
+### Added
+
 - 新增移动端独立专用外壳(`MobileAppShell`):底部 4 Tab + 中心 FAB + "我的"底部抽屉,
   运行时按视口宽度切换,与桌面侧边栏完全独立,非响应式裁剪。
 - 目录浏览、仪表盘、详情页、阅读页四个区域做了移动专属设计与适配:
@@ -123,5 +138,6 @@
 - 防御性 secret 校验:非 test 环境强制拒绝弱密钥/弱密码。
 - 审计日志:每个 admin 操作按租户记录。
 
-[Unreleased]: https://gitcode.com/badhope/scholarhub/compare/v0.1.0...HEAD
+[Unreleased]: https://gitcode.com/badhope/scholarhub/compare/v0.2.0...HEAD
+[0.2.0]: https://gitcode.com/badhope/scholarhub/compare/v0.1.0...v0.2.0
 [0.1.0]: https://gitcode.com/badhope/scholarhub/releases/tag/v0.1.0

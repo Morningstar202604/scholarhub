@@ -20,6 +20,8 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           version: latest
+      - name: Version consistency
+        run: bash scripts/check-version.sh
       - name: Sync dependencies
         run: uv sync --group dev
       - name: Lint (ruff)
