@@ -21,7 +21,7 @@
 
 [![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square&logo=modin&logoColor=white)](#モジュール一覧)
 [![E2E Specs](https://img.shields.io/badge/E2E_specs-12-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
+[![Unit Tests](https://img.shields.io/badge/unit_tests-479-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#テスト)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#プロジェクトステータス)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
@@ -252,6 +252,10 @@ scholarhub/
 │   ├── docker-compose.yml         # dev スタック
 │   ├── docker-compose.prod.yml    # 本番スタック(Caddy 付き)
 │   └── Caddyfile                  # TLS テンプレート
+├── scripts/
+│   ├── dev.sh                     # dev スタックを一括起動 (PostgreSQL + API + SPA)
+│   ├── doctor.sh                  # 開発環境セルフチェック
+│   └── ci_local.sh                # CI ワークフローのローカル版
 └── .github/
     └── workflows/
         └── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
@@ -282,6 +286,26 @@ scholarhub/
 
 ---
 
+## セキュリティ
+
+多層防御は既定で有効です。バックエンド起動時に以下の各層が有効化されます：
+
+- **認証。** bcrypt によるパスワードハッシュ；JWT アクセストークン（HS256、短寿命）+ httpOnly リフレッシュ Cookie + ユーザーごとの `token_version`。
+- **二要素認証（TOTP）。** RFC 6238 準拠、ユーザーごとのシークレットは Fernet で暗号化して保存；10 個の使い捨てバックアップコードは SHA-256 でハッシュ化。エンドポイントは `/api/auth/2fa/` 配下（`setup`、`verify-setup`、`status`、`authenticate`、`disable`、`backup-codes`）。
+- **OIDC SSO。** authlib ベース；PKCE 必須；`state` パラメータは短寿命 JWT で CSRF を防御。フロントエンドは起動時に `GET /api/auth/oidc/providers` から許可プロバイダを取得（ハードコード不要）。
+- **JWT キーローテーション。** `app/core/key_rotation.py` が順序付きキーチェーンを保持；新トークンは最新キーで署名し、復号はチェーン全体を走査。`POST /api/admin/reload-secret-keys` でプロセス内にチェーンを再構築——無停止・再起動不要。
+- **レート制限。** IP + ルート単位のスライディングウィンドウ、ストアは差し替え可能（既定 `MemoryRateLimiterStore`、`SCHOLARHUB_REDIS_URL` 設定時は `RedisRateLimiterStore`）。Redis 到達不能時は自動フェイルオープン。
+- **GDPR エンドポイント。** `GET /api/users/me/export`、`DELETE /api/users/me`（論理削除、30 日猶予、PII 匿名化、`token_version` 加算、全セッション無効化）、`POST /api/users/me/restore`（猶予期間内）。
+- **二層テナント分離。** アプリ層のクエリフィルタ + PostgreSQL RLS（`SET LOCAL app.current_tenant_id`）。
+- **セキュリティヘッダー。** CSP、HSTS、X-Frame-Options、X-Content-Type、Referrer-Policy、Permissions-Policy。
+- **CSRF。** ダブルサブミット Cookie 方式（設定可能、API ファースト構成では既定無効）。有効時、状態変更リクエストは一致する `X-CSRF-Token` ヘッダー + Cookie を必要とします。
+- **RFC 7807。** すべてのエラーレスポンスは RFC 7807 `application/problem+json`（`type` / `title` / `status` / `detail` / `instance`）に準拠。
+- **監査ログ。** 特権管理操作はすべてテナントごとに記録されます。
+
+完全なポリシー、脅威モデル、インシデント対応チェックリストは [SECURITY.md](SECURITY.md) を参照してください。
+
+---
+
 ## デフォルトのロールと権限
 
 `core` は起動時に以下のロールを自動作成します(管理シェルから割当可能):
@@ -297,6 +321,8 @@ scholarhub/
 ---
 
 ## テスト
+
+現在のテスト規模：バックエンド単体/統合 **479** 件（1 skipped）、フロントエンド単体 **70** 件、E2E **64** 件（12 spec ファイル）。
 
 ### ユニット + 統合
 
@@ -401,6 +427,13 @@ issue と PR を歓迎します:
 ## リポジトリ
 
 本リポジトリは以下でホストされています:
+
+| プラットフォーム | URL | 役割 |
+|---|---|---|
+| GitCode | <https://gitcode.com/badhope/scholarhub> | プライマリ |
+| Gitee | <https://gitee.com/badhope/scholarhub> | ミラー |
+
+両リモートは完全に同期されています（ブランチ・タグ・HEAD が同一）。
 
 ---
 

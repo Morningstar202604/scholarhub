@@ -132,3 +132,6 @@ id_dsa.pub
 .pypirc
 .docker/config.json
 .config/gcloud/credentials.db
+
+# Local dev runtime written by scripts/dev.sh (logs + pid files)
+.run/

@@ -30,10 +30,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // 容器内运行时 localhost 指向容器自身，需用 compose 服务名；本地默认保持 localhost
+    host: true,
     proxy: {
       // 开发期把 /api 转发到 backend，避免 CORS 与 cookie 域问题（refresh token cookie path=/api/auth）
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
     },

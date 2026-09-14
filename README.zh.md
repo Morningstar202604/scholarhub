@@ -21,7 +21,7 @@
 
 [![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square&logo=modin&logoColor=white)](#模块清单)
 [![E2E Specs](https://img.shields.io/badge/E2E_specs-12-22C55E?style=flat-square&logo=playwright&logoColor=white)](#测试)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
+[![Unit Tests](https://img.shields.io/badge/unit_tests-479-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#测试)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#项目状态)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
@@ -252,6 +252,10 @@ scholarhub/
 │   ├── docker-compose.yml         # dev stack
 │   ├── docker-compose.prod.yml    # prod stack(带 Caddy)
 │   └── Caddyfile                  # TLS 模板
+├── scripts/
+│   ├── dev.sh                     # 一键启动 dev 栈(PostgreSQL + 后端 + 前端)
+│   ├── doctor.sh                  # 开发环境自检
+│   └── ci_local.sh                # CI 流程的本地镜像
 └── .github/
     └── workflows/
         └── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
@@ -282,6 +286,26 @@ scholarhub/
 
 ---
 
+## 安全
+
+纵深防御默认开启——后端启动即启用以下每一层：
+
+- **认证。** bcrypt 密码哈希；JWT 访问令牌（HS256，短有效期）+ httpOnly 刷新 Cookie + 每用户 `token_version`。
+- **双因素认证（TOTP）。** RFC 6238，每用户密钥以 Fernet 加密存储；10 个一次性备份码以 SHA-256 哈希保存。端点位于 `/api/auth/2fa/`（`setup`、`verify-setup`、`status`、`authenticate`、`disable`、`backup-codes`）。
+- **OIDC SSO。** 基于 authlib；强制 PKCE；`state` 参数为短有效期 JWT，用于防御 CSRF。前端启动时从 `GET /api/auth/oidc/providers` 读取可用提供方（无需硬编码）。
+- **JWT 密钥轮换。** `app/core/key_rotation.py` 维护有序密钥链；新令牌用最新密钥签名，解码时遍历整条链。`POST /api/admin/reload-secret-keys` 可在进程内重建密钥链——零停机、无需重启。
+- **限流。** 按 IP + 路由的滑动窗口，存储可插拔（默认 `MemoryRateLimiterStore`，设置 `SCHOLARHUB_REDIS_URL` 后为 `RedisRateLimiterStore`）。Redis 不可达时自动 fail-open。
+- **GDPR 端点。** `GET /api/users/me/export`、`DELETE /api/users/me`（软删除，30 天宽限期，PII 匿名化，`token_version` 递增，所有会话失效）、`POST /api/users/me/restore`（宽限期内）。
+- **双层租户隔离。** 应用层查询过滤 + PostgreSQL RLS（`SET LOCAL app.current_tenant_id`）。
+- **安全响应头。** CSP、HSTS、X-Frame-Options、X-Content-Type、Referrer-Policy、Permissions-Policy。
+- **CSRF。** 双提交 Cookie 模式（可配置，API 优先部署默认关闭）。启用后，状态变更请求须携带匹配的 `X-CSRF-Token` 头 + Cookie。
+- **RFC 7807。** 所有错误响应遵循 RFC 7807 `application/problem+json`，含 `type` / `title` / `status` / `detail` / `instance`。
+- **审计日志。** 每个租户内的所有特权管理操作均被记录。
+
+完整策略、威胁模型与事件响应清单见 [SECURITY.md](SECURITY.md)。
+
+---
+
 ## 默认角色与权限
 
 启动时 core 会自动创建以下角色(可在 admin 后台再分配):
@@ -297,6 +321,8 @@ scholarhub/
 ---
 
 ## 测试
+
+当前测试规模：后端单元/集成 **479** 个（1 skipped）、前端单元 **70** 个、E2E **64** 个（12 个 spec 文件）。
 
 ### 单元 + 集成
 
@@ -401,6 +427,13 @@ GitHub Actions workflow 见 [`.github/workflows/ci.yml`](.github/workflows/ci.ym
 ## 仓库地址
 
 本仓库托管在:
+
+| 平台 | 地址 | 角色 |
+|---|---|---|
+| GitCode | <https://gitcode.com/badhope/scholarhub> | 主仓库 |
+| Gitee | <https://gitee.com/badhope/scholarhub> | 镜像 |
+
+两个远端保持完全同步（分支、标签、HEAD 均一致）。
 
 ---
 

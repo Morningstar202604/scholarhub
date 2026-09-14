@@ -31,6 +31,46 @@ jobs:
       - name: Tests
         run: uv run pytest -q
 
+  # The unit-test suite builds its schema with Base.metadata.create_all()
+  # on in-memory SQLite, so it can never catch a model/migration drift
+  # (a table or column missing from the migration history). This job runs
+  # the real migration path against PostgreSQL 17 and verifies the result
+  # matches the SQLAlchemy metadata.
+  migrations:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: scholarhub
+          POSTGRES_PASSWORD: scholarhub
+          POSTGRES_DB: scholarhub_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scholarhub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub_ci
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+      - name: Sync dependencies
+        run: uv sync --group dev
+      # `upgrade head` (singular) fails on multiple head revisions, so this
+      # step doubles as the single-head guard.
+      - name: Apply all migrations
+        run: uv run alembic upgrade head
+      - name: Verify metadata matches migrated schema
+        run: uv run alembic check
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -49,6 +89,8 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
+      - name: Unit tests
+        run: npm run test
       - name: Build
         run: npm run build
 
@@ -60,14 +102,18 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           version: latest
+      - name: Sync dependencies
+        run: uv sync --group dev
       - name: Bandit static scan
-        working-directory: apps/backend
-        # Gate on MEDIUM+ findings; the 9 current findings are all LOW-severity
-        # intentional patterns (asserts, test-only defaults, tolerant
-        # except-pass). They still print in the report so they stay reviewable.
-        run: uv run bandit -r app -c pyproject.toml --severity-level medium
+        # Gate on LOW+ findings: the codebase currently scans clean (all 9
+        # historical LOW findings were removed), so any new finding fails
+        # the build instead of silently accumulating.
+        run: uv run bandit -r app -c pyproject.toml --severity-level low

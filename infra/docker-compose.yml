@@ -67,6 +67,30 @@ services:
     # this override keeps the same behavior. Drop it to start uvicorn only.
     restart: unless-stopped
 
+  # Vite dev server with hot reload — matches the "Postgres + backend +
+  # frontend" dev stack promised in the README. Source is bind-mounted so
+  # edits on the host land instantly; node_modules stays in an anonymous
+  # volume so the Linux container doesn't clobber a host install.
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --port 5173"
+    environment:
+      # Reach the backend by compose service name, not localhost.
+      VITE_PROXY_TARGET: http://backend:8000
+      # Reliable change detection for bind mounts across platforms.
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ../apps/frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   pgdata:
   meilisearch_data:

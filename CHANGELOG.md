@@ -17,12 +17,38 @@
 - 新增 `VERSION` 文件,声明项目版本 0.1.0。
 - 新增 `.github/workflows/ci.yml`:PR/push 自动跑 lint、typecheck、单元测试、后端 pytest。
 - 新增 `.vscode/extensions.json`:推荐项目开发所需 VS Code 扩展。
-- 以 GitHub 仓库 `Morningstar202604/scholarhub` 为唯一托管与发布渠道,移除第三方镜像发布流程。
+- 以 GitCode 仓库 `badhope/scholarhub` 为主托管渠道,Gitee `badhope/scholarhub` 为同步镜像
+  (历史说明:项目早期曾以 GitHub `Morningstar202604/scholarhub` 为唯一渠道,现已迁移)。
 - 新增项目 LOGO、投稿-审稿-发表流程图、系统架构图(均位于 `docs/assets/`)。
 - 新增 `CHANGELOG.md`、`CODE_OF_CONDUCT.md`、`SUPPORT.md`,补齐开源治理配套。
+- 新增 `scripts/dev.sh`:一键冷启动 dev 栈(PostgreSQL + 后端 + 前端),自动执行
+  Alembic 迁移、按需生成带随机密钥的 `apps/backend/.env`、统一托管日志与 pid 文件。
+- 新增 `scripts/doctor.sh`:开发环境自检(工具链版本、PostgreSQL 连通性、`.env`
+  是否仍为占位符、端口占用、Alembic head 数量),以退出码表达是否存在阻断项。
+- 新增 Alembic 合并 revision `20d879058fa2`,将长期并存的两个迁移分支收敛为单个 head。
+- 新增迁移 revision `019_doi_schema_drift`,补建生产库缺失的 `doi_registrations` 表
+  (含 RLS 与 4 个索引),并修复 `users.orcid` 列宽、`reading_list_items.tenant_id` 外键两处漂移。
+- 新增 CI `migrations` job:在 PostgreSQL 17 service 上执行 `alembic upgrade head` +
+  `alembic check`,模型与迁移一旦漂移即红——修复单测用 `create_all` 建表、永远测不到
+  迁移路径的结构性盲区。
+- CI `security` job 的 Bandit 门槛从 `--severity-level medium` 收紧至 `low`(代码已零告警,
+  任何新增发现直接失败,防止静默回潮);`frontend` job 补跑此前从未执行的 70 个 vitest 单测。
+- 仓库同时托管于 GitCode(主)与 Gitee(镜像),两远端保持分支/标签/HEAD 同步。
 
 ### Fixed
 
+- 修复模型/迁移结构性漂移(P0):`doi_registrations` 表在模型中声明但从未被任何迁移创建,
+  生产库 `alembic upgrade head` 后无此表,DOI 全部接口必然 500;单测因走 `create_all`
+  建表路径而全部绿灯,完全掩盖该缺陷。已由迁移 `019_doi_schema_drift` 补建(含 RLS)。
+- 修复 `users.orcid` 数据库列宽 `VARCHAR(20)` 与模型 `String(200)` 不一致;修复
+  `reading_list_items.tenant_id` 缺失外键(租户删除会遗留孤儿行)。
+- 修复 `doi` 模型 `registered_by` 声明矛盾:`ondelete="SET NULL"` 与 `nullable=False`
+  并存,删除用户时必然违反非空约束;按 append-only 审计语义改为可空。
+- 修复 5 处模型 metadata 与真实 schema 不一致导致的 `alembic check` 误报:`users` 复合
+  索引 `ix_users_tenant_orcid`、`users.deleted_at` 单列索引、`notifications` 复合索引
+  `ix_notifications_user_id_created_at`、`reading_history.viewed_at` 索引此前均只由迁移
+  创建而模型未声明;`tenants.slug` 与 `submission_versions` 的唯一约束改用命名
+  `UniqueConstraint` 声明,与迁移产物对齐。
 - 修复 `vite.config.ts` vitest 配置未排除 `tests/e2e/` 目录,导致 `vitest run`
   误将 Playwright spec 当作 vitest 用例执行(10 条虚假失败)。
 - 修复 `admin-user-management.spec.ts` 禁用账号后重新打开下拉菜单时的 Radix
@@ -47,6 +73,28 @@
   `aria-label` 等精确选择器替代 `getByText`)。
 - 修复 Blob URL `<a download>.click()` 在 Playwright 中 `waitForEvent('download')` 不可靠
   的问题(改用 `waitForResponse` 监听 backend 响应)。
+- 修复 `alembic upgrade head` 因多 head 而失败:11 个模块各自维护迁移分支,形成
+  `018_user_webauthn` 与 `51688fb04bf7` 两个 head。README 快速开始与
+  `Dockerfile.backend` 的 CMD 都使用该命令,导致官方 Docker 部署在建库阶段即中断。
+- 修复 `app/api/two_factor.py` 用 `assert` 校验 `backup_code`:`python -O` 会移除断言,
+  2FA 认证路径改为显式判空并返回 422。
+- 修复 4 处 Starlette 过时常量 `HTTP_422_UNPROCESSABLE_ENTITY`
+  (改用 `HTTP_422_UNPROCESSABLE_CONTENT`),消除弃用警告。
+- 修复 3 处 httpx per-request cookies 弃用写法:改为在 client 实例上设置 cookie,
+  并在 `finally` 中清理,避免污染共享 fixture。
+- 补齐 `infra/docker-compose.yml` 缺失的 frontend 服务(Vite dev, 5173),并让
+  `vite.config.ts` 的 `/api` 代理目标支持 `VITE_PROXY_TARGET` 环境变量,
+  使容器内可指向 `backend` 服务名而非 `localhost`。
+- 补齐 zh / ja README 缺失的 Security 章节,与英文版结构对齐。
+- 填写三语 README 空白的 Repository / 仓库地址 / リポジトリ 章节。
+- 修正三语 README 单元测试数量徽章(410 → 479),并补充前端 70 / E2E 64 的实际规模。
+
+### Security
+
+- 消除 bandit 全部 9 个 Low 告警:5 处 `except Exception: pass` 改为
+  `logger.debug(..., exc_info=True)`,在不影响请求的前提下保留排障线索;
+  2 处测试专用密钥加 `# nosec B105` 标注,并说明其受「仅 test 环境生效」与
+  「弱密钥黑名单」双重保护。
 
 ## [0.1.0] - 2026-07
 
@@ -75,5 +123,5 @@
 - 防御性 secret 校验:非 test 环境强制拒绝弱密钥/弱密码。
 - 审计日志:每个 admin 操作按租户记录。
 
-[Unreleased]: https://github.com/Morningstar202604/scholarhub/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Morningstar202604/scholarhub/releases/tag/v0.1.0
+[Unreleased]: https://gitcode.com/badhope/scholarhub/compare/v0.1.0...HEAD
+[0.1.0]: https://gitcode.com/badhope/scholarhub/releases/tag/v0.1.0

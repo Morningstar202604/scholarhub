@@ -21,7 +21,7 @@ Submissions, peer review, publication, catalog, reader, and subscriptions are in
 
 [![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square&logo=modin&logoColor=white)](#modules)
 [![E2E Specs](https://img.shields.io/badge/E2E_specs-12-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-410-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
+[![Unit Tests](https://img.shields.io/badge/unit_tests-479-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
 [![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#testing)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#project-status)
 [![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
@@ -250,6 +250,10 @@ scholarhub/
 │   ├── docker-compose.yml         # Dev stack
 │   ├── docker-compose.prod.yml    # Prod stack (with Caddy)
 │   └── Caddyfile                  # TLS template
+├── scripts/
+│   ├── dev.sh                     # One-command dev stack (Postgres + API + SPA)
+│   ├── doctor.sh                  # Environment self-check
+│   └── ci_local.sh                # Local mirror of the CI workflow
 └── .github/
     └── workflows/
         └── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
@@ -337,6 +341,8 @@ incident-response checklist.
 
 ## Testing
 
+Current coverage: **479** backend unit/integration tests (1 skipped), **70** frontend unit tests, and **64** E2E specs across 12 files.
+
 ### Unit + integration
 
 ```bash
@@ -411,6 +417,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and conventions.
 ## Repository
 
 This repository is hosted at:
+
+| Platform | URL | Role |
+|---|---|---|
+| GitCode | <https://gitcode.com/badhope/scholarhub> | Primary |
+| Gitee | <https://gitee.com/badhope/scholarhub> | Mirror |
+
+Both remotes are kept byte-for-byte in sync (same branches, tags, and HEAD).
 
 ---
 
