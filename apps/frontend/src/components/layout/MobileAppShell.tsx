@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
-import { BookOpen, LogOut, Plus, X } from 'lucide-react'
+import { LogOut, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { useLogout } from '@/hooks/api/use-auth'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { BrandMark } from '@/components/common/brand-mark'
 import { ModuleErrorBoundary } from '@/components/common/error-boundary'
 import { MOBILE_TABS, MOBILE_MORE, MOBILE_FAB_TO, type MobileTab } from './mobile-nav'
 
@@ -130,7 +131,7 @@ export function MobileAppShell() {
       {/* 紧凑头部：仅 logo + 主题切换（移动端不堆功能） */}
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <BookOpen className="h-5 w-5 shrink-0" />
+          <BrandMark className="h-5 w-5 shrink-0" />
           <span>ScholarHUB</span>
         </Link>
         <ThemeToggle />

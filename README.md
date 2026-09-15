@@ -1,14 +1,16 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="ScholarHUB logo" width="140" height="140" />
+<img src="docs/assets/logo.svg" alt="ScholarHUB logo" width="120" height="120" />
 
 # ScholarHUB
 
 [English](README.md) · [中文](README.zh.md) · [日本語](README.ja.md)
 
-**The open-source backbone for academic journals, preprint servers, and peer review — submit → review → publish → read, in one codebase.**
+### Stop rebuilding the journal from scratch.
 
-> 11 backend modules · 643 tests at 84% coverage · 66 end-to-end specs · strict typing, front to back
+**An open-source backbone that ships the entire academic publishing loop — submit, review, publish, read — in one codebase.**
+
+> 11 backend modules · 643 tests at 84% coverage · 66 end-to-end specs · strict typing end to end
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
@@ -41,6 +43,12 @@ Most teams rebuild the same journal scaffold from scratch — submission forms, 
 - **The full loop, not a demo.** Manuscript metadata, single/double-blind review, versioned revisions, DOI registration, catalog, in-browser reading with cross-device progress, subscriptions, and recommendations — all wired together.
 - **Secure by default.** Passkeys (WebAuthn) and TOTP two-factor, JWT with a server-side denylist and key rotation, captcha on signup, and a per-action audit log.
 - **Self-hostable in minutes.** `docker compose up` on a single node; PostgreSQL for production, SQLite for dev and CI.
+
+### The whole loop in one picture
+
+<div align="center">
+<img src="docs/assets/workflow.svg" alt="Submit → review → publish → read workflow" width="900" />
+</div>
 
 ## What's inside
 

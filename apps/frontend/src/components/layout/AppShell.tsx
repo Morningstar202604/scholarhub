@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useLogout } from '@/hooks/api/use-auth'
 import { useUnreadCount } from '@/hooks/api/use-modules'
 import { cn } from '@/lib/utils'
+import { BrandMark } from '@/components/common/brand-mark'
 import { resolveActiveNavPath, type NavItem } from '@/lib/nav'
 import { ModuleErrorBoundary } from '@/components/common/error-boundary'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -143,7 +144,7 @@ export function AppShell() {
       >
         <div className="flex h-14 items-center justify-between border-b px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <BookOpen className="h-5 w-5 shrink-0" />
+            <BrandMark className="h-5 w-5 shrink-0" />
             {!collapsed && <span>ScholarHUB</span>}
           </Link>
           {/* 移动端关闭按钮（仅 <md 显示） */}

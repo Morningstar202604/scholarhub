@@ -23,7 +23,7 @@
 
 ## How was it tested?
 
-<!-- e.g. "pytest -q (479 passed)", "npx playwright test (66 passed)", manual steps -->
+<!-- e.g. "pytest -q (643 passed)", "npx playwright test (66 passed)", manual steps -->
 
 ## Checklist
 

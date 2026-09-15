@@ -1,14 +1,16 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="ScholarHUB logo" width="140" height="140" />
+<img src="docs/assets/logo.svg" alt="ScholarHUB logo" width="120" height="120" />
 
 # ScholarHUB
 
 [English](README.md) · [中文](README.zh.md) · [日本語](README.ja.md)
 
-**一套面向学术期刊、预印本平台与同行评审的开源基座——投稿 → 审稿 → 发表 → 阅读,一个代码库全打通。**
+### 学术出版,不必从零再来一遍。
 
-> 11 个后端模块 · 643 个测试、覆盖率 84% · 66 个端到端用例 · 前后端全程严格类型
+**一套开箱即用的开源基座——投稿、审稿、发表、阅读,一个代码库跑通全流程。**
+
+> 11 个后端模块 · 643 个测试 / 覆盖率 84% · 66 个端到端用例 · 前后端全程严格类型
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
@@ -45,6 +47,12 @@ ScholarHUB 是一套**开箱即用、自带电池**的学术出版基座——�
 - **完整闭环,不是 demo。** 稿件元数据、单盲/双盲审稿、带版本的修改稿、DOI 注册、目录、浏览器内阅读且跨设备同步进度、订阅、推荐——全部打通。
 - **默认安全。** Passkey(WebAuthn)与 TOTP 双因素、带服务端 denylist 且可在线轮换的 JWT、注册验证码、逐操作的审计日志。
 - **几分钟自托管。** 一条 `docker compose up` 起在单节点上;生产用 PostgreSQL,开发/CI 用 SQLite。
+
+### 一张图看懂全流程
+
+<div align="center">
+<img src="docs/assets/workflow.svg" alt="投稿 → 审稿 → 发表 → 阅读 主流程" width="900" />
+</div>
 
 ## 核心能力
 
