@@ -46,7 +46,10 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'cd ../backend && uv run python e2e_run_server.py',
+      // --no-sync：webServer 只负责启动，不同步依赖。CI 的 e2e job 已提前
+      // `uv sync --group dev`；若在这里让 uv run 自行同步，会触发一次联网
+      // （离线/受限环境下直接启动失败），且拖慢 webServer 的 60s 启动窗口。
+      command: 'cd ../backend && uv run --no-sync python e2e_run_server.py',
       url: `${BACKEND_URL}/api/health`,
       // 默认复用外部已起的服务（沙箱已起 backend+vite），仅当 E2E_SPAWN_SERVER=1 时才自启。
       reuseExistingServer: process.env.E2E_SPAWN_SERVER !== '1',

@@ -71,6 +71,9 @@ infra/caddy_config/
 
 # Coverage
 coverage/
+# coverage.py 数据库文件（pytest-cov 运行时产物）
+.coverage
+.coverage.*
 .nyc_output/
 
 # Cache

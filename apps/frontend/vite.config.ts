@@ -49,6 +49,22 @@ export default defineConfig({
     // （node_modules / dist / cypress 为 vitest 默认排除，此处显式声明以避免
     // 数组覆盖行为导致默认值丢失）
     exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/cypress/**'],
+    coverage: {
+      provider: 'v8',
+      // include 会枚举命中 glob 的**全部**文件（含从未被任何测试导入的），未测文件以 0% 计入。
+      // 这样才能暴露 src/routes/**（页面组件，当前 0 测试）这类整片盲区——
+      // 只报"被触及文件"时是 69%，真实值只有 ~9%。
+      // 注意：vitest 4 已移除 coverage.all，不要再写回该选项（tsc 会报 TS2769）。
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/routeTree.gen.ts', // 自动生成
+        'src/vite-env.d.ts',
+        'src/**/__tests__/**',
+        // shadcn/ui 组件是第三方生成代码，覆盖它没有意义
+        'src/components/ui/**',
+      ],
+      reporter: ['text', 'json-summary'],
+    },
   },
   build: {
     rollupOptions: {

@@ -13,7 +13,6 @@ import {
   Layers,
   Library,
   Lightbulb,
-  type LucideIcon,
   Menu,
   Upload,
   ScrollText,
@@ -27,6 +26,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useLogout } from '@/hooks/api/use-auth'
 import { useUnreadCount } from '@/hooks/api/use-modules'
 import { cn } from '@/lib/utils'
+import { resolveActiveNavPath, type NavItem } from '@/lib/nav'
 import { ModuleErrorBoundary } from '@/components/common/error-boundary'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -40,14 +40,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { CookieBanner } from '@/components/common/cookie-banner'
-
-interface NavItem {
-  to: string
-  label: string
-  icon: LucideIcon
-  auth?: boolean
-  adminOnly?: boolean
-}
 
 const NAV: NavItem[] = [
   { to: '/dashboard', label: '概览', icon: Home, auth: true },
@@ -88,15 +80,7 @@ export function AppShell() {
     return true
   })
 
-  // 高亮采用"最长前缀胜出"：/submissions/pending 应高亮「编辑工作台」而非「我的提交」。
-  // 段级匹配（=== 或 `${to}/` 前缀）避免 /submissionsfoo 之类的假阳性。
-  const activePath = visibleNav
-    .filter(
-      (n) =>
-        location.pathname === n.to ||
-        location.pathname.startsWith(`${n.to}/`),
-    )
-    .sort((a, b) => b.to.length - a.to.length)[0]?.to
+  const activePath = resolveActiveNavPath(location.pathname, visibleNav)
 
   // 路由变化时关闭移动端抽屉，避免点击导航后抽屉仍挡住内容
   useEffect(() => {

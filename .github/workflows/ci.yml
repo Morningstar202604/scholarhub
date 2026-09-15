@@ -30,8 +30,16 @@ jobs:
         run: uv run ruff format --check .
       - name: Type check (mypy)
         run: uv run mypy app
-      - name: Tests
-        run: uv run pytest -q
+      - name: Tests + coverage
+        # -n auto：xdist 并行（串行约 160s）。
+        # --cov-fail-under=80 是防回退门槛，当前实测基线 82%（omit 掉 models.py
+        # 与 alembic 后），留 2 点余量避免边界抖动误杀。
+        #
+        # ⚠️ pyproject.toml 里的 coverage concurrency=["greenlet","thread"] 不能删：
+        # SQLAlchemy async 通过 greenlet 调同步 DBAPI，不声明的话 tracer 会在
+        # greenlet 切回后丢帧，async 处理函数第一个 await 之后的整段代码被误判为
+        # "未覆盖"——实测会把 TOTAL 从 82% 压到 64%（虚低 18 个点）。
+        run: uv run pytest -q -n auto --cov=app --cov-report=term-missing --cov-fail-under=80
 
   # The unit-test suite builds its schema with Base.metadata.create_all()
   # on in-memory SQLite, so it can never catch a model/migration drift
@@ -91,10 +99,57 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
-      - name: Unit tests
-        run: npm run test
+      - name: Unit tests + coverage
+        # 前端覆盖率目前只报告不门禁：真实基线 13%（src/routes/** 仍是 0 测试），
+        # 页面层用 E2E 兜底。补完页面/hook 测试后再上 coverage.thresholds。
+        run: npm run test:coverage
       - name: Build
         run: npm run build
+
+  # 66 个 E2E 用例覆盖提交→审稿→接收全链路，是业务核心的兜底网络。后端单测
+  # 已把 submission/routes (91%) 与 review/routes (85%) 补齐，但页面级的真实
+  # 交互路径（路由跳转、表单、cookie 会话）只有 E2E 能覆盖，不进 CI 即零覆盖。
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    env:
+      # playwright.config.ts 里 webServer 默认复用外部已起的服务；CI 置 1 让它
+      # 自己拉起 e2e_run_server.py（SQLite + test 模式：注入 dev-only email-outbox、
+      # 整体跳过 login 限流）与 vite dev。注意不能用生产版后端跑 E2E：它没有
+      # /api/dev/email-outbox 路由（注册验证链路直接 404），且 login 限流 10/min
+      # 会让几十个用例中途 429 超时。
+      E2E_SPAWN_SERVER: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+      - name: Install frontend deps
+        run: npm ci
+      - name: Sync backend deps
+        # 提前同步，避免 webServer 启动后端时再触发（超时 60s 可能不够）
+        run: cd ../backend && uv sync --group dev
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+      - name: E2E tests
+        # CI 下 playwright.config.ts 自动 retries=1，对冲长跑末段的偶发 I/O 竞态
+        run: npx playwright test
+      - name: Upload Playwright report + traces
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: |
+            apps/frontend/playwright-report/
+            apps/frontend/test-results/
+          retention-days: 7
 
   precommit:
     runs-on: ubuntu-latest

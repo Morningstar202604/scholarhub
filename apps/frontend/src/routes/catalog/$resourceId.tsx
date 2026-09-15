@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import {
   Bookmark,
@@ -27,7 +27,7 @@ import {
   useUpdateResource,
 } from '@/hooks/api/use-modules'
 import type { ResourceUpdate } from '@/lib/types'
-import { extractError } from '@/lib/utils'
+import { extractError, formatDateTime } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
+import { MetaItem } from '@/components/common/meta-item'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 
 // 详情页向访客开放（后端 GET /catalog/{id} 本就是公开接口）。
@@ -55,18 +56,6 @@ import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 export const Route = createFileRoute('/catalog/$resourceId')({
   component: CatalogDetailPage,
 })
-
-// value 支持 ReactNode（如格式化时间 + 截断包装）；min-w-0 让 flex 子项可收缩，
-// truncate 确保超长值（DOI、时间戳）截断而非撑破卡片右缘
-function MetaItem({ label, value }: { label: string; value?: ReactNode }) {
-  if (!value) return null
-  return (
-    <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate text-right font-medium">{value}</span>
-    </div>
-  )
-}
 
 function CatalogDetailPage() {
   const { resourceId } = Route.useParams()
@@ -323,13 +312,7 @@ function CatalogDetailPage() {
                   />
                   <MetaItem
                     label="最近阅读"
-                    value={
-                      progress.data.last_read_at
-                        ? // 后端返回原始 ISO 字符串（2026-09-14T14:21:51…Z），
-                          // 与全站其他日期展示一致走格式化，避免裸时间戳撑破卡片
-                          new Date(progress.data.last_read_at).toLocaleString()
-                        : '—'
-                    }
+                    value={formatDateTime(progress.data.last_read_at)}
                   />
                   {progress.data.completed && (
                     <Badge variant="secondary">已完成</Badge>

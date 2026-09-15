@@ -13,6 +13,8 @@
 - 新增 GitHub 治理模板:bug/feature 的 ISSUE_TEMPLATE 与 PR 模板(含 CI 门禁速查)。
 - 新增 `scripts/check-version.sh` 版本一致性校验(VERSION / pyproject / package.json /
   `app.__version__` 四处必须同步),已纳入 CI `backend` job 首步。
+- CI 新增 `e2e` job:此前 66 个 E2E 用例在 CI 上完全不可见(核心业务链路零覆盖),
+  现在 node 20 + uv + chromium 全量跑通并上传 playwright-report 产物。
 
 ### Fixed
 
@@ -26,6 +28,30 @@
 - 侧边栏 admin 组菜单归组:期刊四件套(卷/期/信息/设置)连续排列,审计日志垫底。
 - Cookie 同意横幅层级从 z-50 降至 z-40:模态弹窗(Radix Dialog overlay z-50)压住
   横幅由层级保证,不再依赖 DOM 顺序。
+- **修复后端覆盖率测量系统性失真**:SQLAlchemy async 通过 greenlet 调同步 DBAPI,
+  未声明 `coverage.run.concurrency` 时 tracer 会在 greenlet 切回后丢帧,导致所有 async
+  处理函数在第一个 `await` 之后的整段代码被误判为"未覆盖"。实测该项使 TOTAL 从
+  真实 84% 虚低到 64%（虚低 20 个点),此前所有覆盖率结论与 CI 门槛都基于错误数据。
+- 修复 `vite.config.ts` 类型错误阻塞 CI frontend job:`coverage.all` 在 Vitest 4 已移除
+  (改为 `include` 枚举全部文件),保留该键会让 `tsc` 报 TS2769。
+
+### Tests
+
+- 新增 5 个后端测试文件(共 144 个用例),后端测试数 499 → 643:
+  `test_doi.py`(30)/`test_webauthn.py`(23)/`test_ingest_fetchers.py`(37)/
+  `test_ingest_parsers.py`(24)/`test_tenant_middleware.py`(17)/
+  `test_token_denylist_redis.py`(13)。
+- 后端覆盖率 64% → 84%,CI 门槛 `--cov-fail-under` 从 62 上调至 80。
+  重点模块:`webauthn.py` 20%→100%,`doi/routes.py` 32%→100%,
+  `doi/registration.py` 20%→98%,`ingest/fetchers.py` 37%→97%,
+  `ingest/parsers.py` 77%→96%,`tenant.py` 56%→93%,`token_denylist.py` 59%→89%。
+- 新增 3 个前端测试文件(共 24 个用例),前端测试数 76 → 100,
+  覆盖率 9.3% → 13.0%:`api.test.ts`(9,含并发 401 共用一次 refresh 的竞态回归)/
+  `monitoring.test.ts`(7)/`meta-item.test.tsx`(8)。
+- 抽出纯函数便于测试:`lib/nav.ts`(`resolveActiveNavPath`,最长前缀高亮的回归保护)、
+  `components/common/meta-item.tsx`(详情页截断契约)、`lib/utils.ts::formatDateTime`。
+- 开启 pytest 严格模式(`--strict-markers --strict-config`),避免拼错 marker 导致用例
+  被静默跳过而假绿。
 
 ## [0.2.0] - 2026-09-14
 
