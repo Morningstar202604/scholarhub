@@ -19,12 +19,13 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
-[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square&logo=modin&logoColor=white)](#モジュール一覧)
-[![E2E Specs](https://img.shields.io/badge/E2E_specs-12-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-479-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
-[![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#テスト)
+[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](ARCHITECTURE.md)
+[![Unit tests](https://img.shields.io/badge/unit_tests-643-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
+[![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#テスト)
+[![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
+[![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#テスト)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#プロジェクトステータス)
-[![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
 
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#ドキュメント)
 [![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
@@ -322,7 +323,7 @@ scholarhub/
 
 ## テスト
 
-現在のテスト規模：バックエンド単体/統合 **479** 件（1 skipped）、フロントエンド単体 **70** 件、E2E **64** 件（12 spec ファイル）。
+現在のテスト規模：バックエンド **643** 件（行カバレッジ 84%）、フロントエンド **100** 件、E2E **66** 件。
 
 ### ユニット + 統合
 
@@ -346,7 +347,7 @@ npm run test
 
 ### E2E テスト
 
-12 個の spec ファイル（64 個の Playwright test()）が完全なユーザージャーニーをカバーし、実際のブラウザクリックで各主フローを検証します:
+**66** 個の Playwright テストが完全なユーザージャーニーをカバーし、実際のブラウザクリックで各主フローを検証します:
 
 ```bash
 # バックエンドを起動(テストモード: SQLite + rate_limit スキップ)
@@ -377,7 +378,7 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 
 ## プロジェクトステータス
 
-**バージョン**: `0.1.0` · **状態**: pre-alpha
+**バージョン**: `0.2.0` · **状態**: pre-alpha
 
 11 個のモジュールすべてを出荷済み。バックエンド + フロントエンド + DB マイグレーション + ユニットテスト + E2E テスト + デプロイがすべて揃っています。今後の予定:
 
@@ -433,6 +434,7 @@ issue と PR を歓迎します:
 |---|---|---|
 | GitCode | <https://gitcode.com/badhope/scholarhub> | プライマリ |
 | Gitee | <https://gitee.com/badhope/scholarhub> | ミラー |
+| GitHub | <https://github.com/x33834/scholarhub> | ミラー |
 
 両リモートは完全に同期されています（ブランチ・タグ・HEAD が同一）。
 

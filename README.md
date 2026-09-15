@@ -4,160 +4,72 @@
 
 # ScholarHUB
 
-[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)
+[English](README.md) · [中文](README.zh.md) · [日本語](README.ja.md)
 
-**A modular, multi-tenant platform for running academic journals, preprint servers, and peer-review workflows.**
+**The open-source backbone for academic journals, preprint servers, and peer review — submit → review → publish → read, in one codebase.**
 
-Submissions, peer review, publication, catalog, reader, and subscriptions are included out of the box.
+> 11 backend modules · 643 tests at 84% coverage · 66 end-to-end specs · strict typing, front to back
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white&style=flat-square)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white&style=flat-square)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6.svg?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1.svg?logo=postgresql&logoColor=white&style=flat-square)](https://www.postgresql.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
+[![Docker](https://img.shields.io/badge/Docker--Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
-[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square&logo=modin&logoColor=white)](#modules)
-[![E2E Specs](https://img.shields.io/badge/E2E_specs-12-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
-[![Unit Tests](https://img.shields.io/badge/unit_tests-479-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
-[![Mypy strict](https://img.shields.io/badge/mypy-strict-2C5AA0?style=flat-square&logo=python&logoColor=white)](#testing)
-[![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#project-status)
-[![Version](https://img.shields.io/badge/version-0.1.0-6B7280?style=flat-square)](VERSION)
+[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](ARCHITECTURE.md)
+[![Unit tests](https://img.shields.io/badge/unit_tests-643-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#testing)
+[![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
+[![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#testing)
+[![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#status)
 
-[![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#documentation)
-[![Security](https://img.shields.io/badge/security-policy-DC2626?style=flat-square&logo=dependabot&logoColor=white)](SECURITY.md)
-
-**[Overview](#overview) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Modules](#modules) · [Testing](#testing) · [Docs](#documentation) · [Contributing](#contributing)**
+**[Why](#why-scholarhub) · [What's inside](#whats-inside) · [Architecture](#architecture) · [Quick start](#quick-start) · [Testing](#testing) · [Docs](#docs) · [Contributing](#contributing)**
 
 </div>
 
 ---
 
-## Overview
+## Why ScholarHUB
 
-ScholarHUB is an **opinionated, batteries-included** foundation for academic publishing — a single codebase that turns the *submit → review → accept → publish → read → subscribe* loop into a working website. It is not a writing tool and it is not a reference manager; it is the actual platform that authors, editors, reviewers, and readers log into.
+Most teams rebuild the same journal scaffold from scratch — submission forms, reviewer assignment, a CMS for published papers. ScholarHUB ships that scaffold as a **real, multi-role product** instead of yet another custom CMS:
 
-It is built for the teams who keep rebuilding the same journal scaffold from scratch — labs, departments, conference organizers, and small OA publishers who want a real product instead of yet another custom CMS.
+- **One platform, four roles.** Authors submit; editors assign and decide; reviewers report; readers browse, read, and follow. No glue code between disconnected systems.
+- **The full loop, not a demo.** Manuscript metadata, single/double-blind review, versioned revisions, DOI registration, catalog, in-browser reading with cross-device progress, subscriptions, and recommendations — all wired together.
+- **Secure by default.** Passkeys (WebAuthn) and TOTP two-factor, JWT with a server-side denylist and key rotation, captcha on signup, and a per-action audit log.
+- **Self-hostable in minutes.** `docker compose up` on a single node; PostgreSQL for production, SQLite for dev and CI.
 
-### When ScholarHUB fits
+## What's inside
 
-- A research lab or department wants a self-hosted preprint + journal platform.
-- A conference needs a complete submission + peer-review pipeline.
-- A publisher is piloting an open-access journal without committing to a SaaS lock-in.
-- A teaching institution, charity, or government body needs a non-commercial-grade publishing platform they fully control.
-
-### Three user personas
-
-| Persona | What they can do in ScholarHUB |
+| Capability | Highlights |
 |---|---|
-| **Author** | Register, log in, submit a manuscript with full metadata (title / abstract / subject / keywords / DOI), track status (pending / under review / accepted / rejected / published), upload revisions, reply to reviewer comments, view their published works. |
-| **Editor / Reviewer** *(admin)* | Assign reviewers from the admin shell, accept/decline invitations, submit review reports, accept/reject submissions, organize volumes and issues, push accepted items to *published*, manage users and roles, view the audit log. |
-| **Reader** | Browse the catalog and article metadata without login; after login: read PDFs in-browser, sync reading progress across devices, build personal reading lists, follow authors/subjects, receive subscription notifications, get personalized recommendations. |
+| **Submissions & review** | Full metadata intake, single/double-blind workflows, reviewer assignment, versioned revisions, editor decisions, terminal-state guards |
+| **Publication & catalog** | Volume/issue management, searchable published catalog, DOI registration via DataCite |
+| **Metadata ingest** | Pull authoritative records from Crossref, arXiv, PubMed, OpenAlex, and Semantic Scholar — plus BibTeX / RIS / CSV import |
+| **Reader experience** | In-browser PDF reader, reading-progress sync across devices, personal reading lists, follow authors & subjects |
+| **Auth & security** | WebAuthn passkeys, TOTP 2FA, JWT denylist + key rotation, captcha, RBAC (author / editor / reviewer / reader / admin) |
+| **Multi-tenant** | Host multiple journals on one deployment with host-based tenant resolution and cached routing |
+| **Discovery** | Follow graphs, recommendations, email + in-app notifications, citation export (BibTeX / RIS / CSL) |
 
-### End-to-end workflow
-
-From manuscript submission to a reader's bookmark, every step runs on a single platform:
-
-<div align="center">
-<img src="docs/assets/workflow.svg" alt="Submit → review → publish workflow" width="900" />
-</div>
-
-1. The author submits a manuscript with full metadata.
-2. The editor assigns reviewers; reviewers accept or decline.
-3. Reviewers file reports; the author responds and uploads revisions.
-4. The editor accepts or rejects; accepted manuscripts are pushed to *published*.
-5. Published items appear in the public catalog; logged-in readers can read, save, follow, and receive recommendations.
-
----
-
-## Modules
-
-Each domain capability is an independent module — disable, replace, or extend it without touching core.
-
-| Module | Status | What it does |
-|---|:---:|---|
-| `core` | ✓ shipped | Tenants, users, roles, module registry, admin shell, deployment |
-| `catalog` | ✓ shipped | Article metadata, subjects, authors, journals, volumes/issues, tags |
-| `submission` | ✓ shipped | Submit → editor assigns → review → accept/reject workflow |
-| `review` | ✓ shipped | OJS-style peer-review workflow, reports, reviewer role management |
-| `reader` | ✓ shipped | In-browser PDF reader, reading progress, cross-device sync, outline |
-| `export` | ✓ shipped | BibTeX / RIS / CSV / JSON citation export, round-trippable |
-| `library` | ✓ shipped | User-curated reading lists |
-| `follows` | ✓ shipped | Author/subject subscriptions + notification fan-out |
-| `notifications` | ✓ shipped | In-app notification stream, per-user isolated |
-| `ingest` | ✓ shipped | BibTeX / RIS / CSV batch import + Crossref / arXiv metadata fetch |
-| `recommendations` | ✓ shipped | Personalized recommendations based on reading history + explanations |
-| `doi` | ✓ shipped | DOI registration, metadata lookup and CrossRef cross-linking |
-
----
+Every domain capability is an independent module — disable, replace, or extend it without touching core.
 
 ## Architecture
 
 <div align="center">
-<img src="docs/assets/architecture.svg" alt="ScholarHUB system architecture" width="900" />
+<img src="docs/assets/architecture.svg" alt="ScholarHUB architecture" width="820" />
 </div>
 
-### Two-layer tenant isolation
+- **Backend** — FastAPI (async), SQLAlchemy 2.0 async, PostgreSQL / SQLite, modular `app/modules/*` with strict `mypy` and `ruff`.
+- **Frontend** — React 19 + TanStack Router + TypeScript 5.9 + Tailwind v4 + shadcn/ui, type-safe end to end.
+- **Tests** — `pytest` (parallel, 84% line coverage, `--cov-fail-under=80`), `vitest` for the frontend, Playwright for the full submit → review → publish → read journey.
 
-Every domain table carries a `tenant_id`:
+### Two defenses worth knowing
 
-1. **Application layer** — every `SELECT` / `UPDATE` / `DELETE` explicitly appends `Model.tenant_id == current_user.tenant_id`.
-2. **Database layer** — PostgreSQL Row Level Security runs `SET LOCAL app.current_tenant_id = :tid` in `get_db()`. Even if the application layer forgets the filter, the database refuses cross-tenant rows.
-
-### Module registry
-
-At startup, `app.core.modules.load_all()` loads every module in dependency order, registers its ORM tables on `Base.metadata`, mounts its routes on the FastAPI app, and adds its health checks to the `/health` response. Adding a new module is a single entry in `load_all()` — no core code changes.
-
----
-
-## Tech stack
-
-Every choice is mainstream and long-term hostable — no exotic dependencies.
-
-### Backend
-
-| Layer | Choice |
-|---|---|
-| Language | Python 3.12+ (`async/await` + full type hints) |
-| Framework | FastAPI 0.115+ |
-| ORM | SQLAlchemy 2 (async) |
-| Migrations | Alembic |
-| Database | PostgreSQL 17 (primary, with Row Level Security) |
-| Validation | Pydantic 2 + pydantic-settings |
-| Auth | JWT access + httpOnly cookie refresh; PyJWT + bcrypt |
-| SSO | authlib (OIDC: Google / GitHub / Generic / Keycloak) |
-| HTTP client | httpx |
-| Mail | Pluggable: console (dev) / SMTP relay (Mailgun / SendGrid / SES / Postmark) |
-| Logging | structlog (JSON output) |
-| Toolchain | uv, ruff, mypy (strict), pytest, pytest-asyncio, bandit, pip-audit |
-
-### Frontend
-
-| Layer | Choice |
-|---|---|
-| Framework | React 19 |
-| Language | TypeScript 5.7 |
-| Build | Vite 7 |
-| Router | TanStack Router v1 (file-based + autoCodeSplitting) |
-| Data | TanStack Query v5 |
-| State | Zustand (auth store, sessionStorage + BroadcastChannel cross-tab logout) |
-| UI | shadcn/ui + Radix primitives, Tailwind CSS v4 |
-| Toasts | sonner |
-| Icons | lucide-react |
-| Toolchain | ESLint, Vitest, TypeScript Project References, Playwright (E2E) |
-
-### Deployment
-
-| Item | Choice |
-|---|---|
-| Container | Docker Compose (dev + prod) |
-| TLS | Caddy (automatic Let's Encrypt) |
-| Database | PostgreSQL 17-alpine |
-| Images | backend + frontend pinned together, no drift |
-
----
+- **Two-layer tenant isolation.** Every domain table carries a `tenant_id`. The app appends the filter on every query, and PostgreSQL Row-Level Security rejects cross-tenant rows even if the app forgets — defense in depth, not a hope.
+- **Module registry.** `app.core.modules.load_all()` loads modules in dependency order, registers their ORM tables, mounts their routes, and adds health checks. New capability = one entry, zero core changes.
 
 ## Quick start
 
@@ -182,256 +94,102 @@ Requires Python 3.12+, Node 20+, and a PostgreSQL 17 instance.
 
 ```bash
 # Backend
-cd apps/backend
-uv sync
-uv run alembic upgrade head
+cd apps/backend && uv sync && uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 
-# Frontend (in another terminal)
-cd apps/frontend
-npm install
-npm run dev
+# Frontend (another terminal)
+cd apps/frontend && npm install && npm run dev
 ```
 
-### Option 3 — Production deployment
+### Option 3 — Production
 
 ```bash
-# 1. Copy and fill in the production env
-cp .env .env.prod
-# At least SCHOLARHUB_SECRET_KEY and SCHOLARHUB_ADMIN_PASSWORD
-
-# 2. Edit infra/Caddyfile and replace scholarhub.example.com with your domain
-# 3. Start the prod stack (Caddy provides automatic TLS)
-docker compose -f infra/docker-compose.prod.yml \
-  --env-file .env.prod up -d --build
+cp .env .env.prod                 # fill at least SCHOLARHUB_SECRET_KEY + SCHOLARHUB_ADMIN_PASSWORD
+# edit infra/Caddyfile -> replace scholarhub.example.com with your domain
+docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
-> For mail (Mailgun / SendGrid / SES / Postmark) and OIDC SSO (Google / GitHub / Keycloak) integration, see [docs/integrations.md](docs/integrations.md).
+> Mail (Mailgun / SendGrid / SES / Postmark) and OIDC SSO (Google / GitHub / Keycloak): see [integrations.md](docs/integrations.md).
 
----
+## Tech stack
 
-## Project structure
+Every choice is mainstream and long-term hostable — no exotic dependencies.
 
-```
-scholarhub/
-├── README.md                      # This file (English, default)
-├── README.zh.md                   # 简体中文版
-├── README.ja.md                   # 日本語版
-├── CHANGELOG.md                   # Visible change log
-├── CONTRIBUTING.md                # Contribution workflow
-├── CODE_OF_CONDUCT.md             # Code of conduct
-├── SECURITY.md                    # Security policy
-├── SUPPORT.md                     # Getting help
-├── LICENSE                        # Apache-2.0
-├── VERSION                        # Single source of truth for version
-├── apps/
-│   ├── backend/                   # FastAPI service (base + modules)
-│   │   ├── alembic/versions/      # Per-module migration files
-│   │   ├── app/
-│   │   │   ├── api/               # Top-level routes (admin/auth/oidc/users/health/modules)
-│   │   │   ├── core/              # Startup/config/db/mail/tenancy/tokens/security
-│   │   │   ├── middleware/        # rate_limit / security_headers
-│   │   │   └── modules/           # 11 domain modules
-│   │   ├── tests/                 # pytest + aiosqlite
-│   │   └── pyproject.toml         # uv + ruff + mypy + bandit config
-│   └── frontend/                  # React 19 SPA
-│       ├── src/
-│       │   ├── components/         # Generic UI (shadcn-style)
-│       │   ├── hooks/api/         # React Query hooks grouped by module
-│       │   ├── lib/               # api client / auth store / types
-│       │   └── routes/            # TanStack Router file-based routes
-│       └── package.json
-├── docs/
-│   ├── assets/                    # LOGO + architecture + workflow SVGs
-│   ├── ARCHITECTURE.md            # Architecture contract
-│   └── integrations.md            # Mail + OIDC integration guide
-├── infra/
-│   ├── Dockerfile.backend         # Backend image
-│   ├── docker-compose.yml         # Dev stack
-│   ├── docker-compose.prod.yml    # Prod stack (with Caddy)
-│   └── Caddyfile                  # TLS template
-├── scripts/
-│   ├── dev.sh                     # One-command dev stack (Postgres + API + SPA)
-│   ├── doctor.sh                  # Environment self-check
-│   └── ci_local.sh                # Local mirror of the CI workflow
-└── .github/
-    └── workflows/
-        └── ci.yml                  # ruff + mypy + pytest + frontend + gitleaks + CodeQL
-```
+| Layer | Backend | Frontend |
+|---|---|---|
+| Language / framework | Python 3.12+, FastAPI 0.115+ | React 19, TypeScript 5.9, Vite 7 |
+| Data | SQLAlchemy 2 (async), Alembic, PostgreSQL 17 | TanStack Router v1, TanStack Query v5, Zustand |
+| Validation / auth | Pydantic 2, JWT + bcrypt, PyJWT, authlib (OIDC) | shadcn/ui + Radix, Tailwind v4, lucide-react |
+| Infra | Docker Compose, Caddy (auto TLS), structlog | Playwright (E2E) |
+| Toolchain | uv, ruff, mypy (strict), pytest, bandit | ESLint, Vitest, tsc project references |
 
----
-
-## Configuration
-
-All variables are prefixed `SCHOLARHUB_`. The full list is in [`apps/backend/app/core/config.py`](apps/backend/app/core/config.py); the most important ones:
-
-| Variable | Required | Description |
-|---|:---:|---|
-| `SCHOLARHUB_SECRET_KEY` | ✓ | JWT signing key, at least 32 chars; generate with `openssl rand -hex 32` |
-| `SCHOLARHUB_PREVIOUS_SECRET_KEYS` | | Comma-separated previous JWT signing keys used during the rotation window |
-| `SCHOLARHUB_ADMIN_PASSWORD` | ✓ | Initial admin password, at least 12 chars |
-| `SCHOLARHUB_DATABASE_URL` | | PostgreSQL DSN, default `postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub` |
-| `SCHOLARHUB_TENANCY_MODE` | | `single` (default) / `multi` (host-header resolved; not yet implemented) |
-| `SCHOLARHUB_ENVIRONMENT` | | `development` (default) / `staging` / `production` / `test` |
-| `SCHOLARHUB_FRONTEND_BASE_URL` | | SPA origin used for deep links in emails, e.g. `https://app.yourdomain.com` |
-| `SCHOLARHUB_OIDC_ENABLED` | | `true` enables OIDC SSO (paired with the `OIDC_*` variables); see also `/api/auth/oidc/providers` |
-| `SCHOLARHUB_TOTP_ISSUER` | | Issuer string shown in TOTP authenticator apps (default `ScholarHUB`) |
-| `SCHOLARHUB_REDIS_URL` | | If set, `RedisRateLimiterStore` is used; otherwise `MemoryRateLimiterStore` (Redis errors auto-fail-open) |
-| `SCHOLARHUB_EMAIL_BACKEND` | | `console` (default) / `smtp` |
-| `SCHOLARHUB_CORS_ORIGINS` | | Comma-separated list of frontend origins |
-
-Full template: [`apps/backend/.env.example`](apps/backend/.env.example).
-
----
+All variables are prefixed `SCHOLARHUB_`. The full list and the `.env` template live in [`apps/backend/app/core/config.py`](apps/backend/app/core/config.py) and [`apps/backend/.env.example`](apps/backend/.env.example). Essentials: `SCHOLARHUB_SECRET_KEY`, `SCHOLARHUB_ADMIN_PASSWORD`, `SCHOLARHUB_DATABASE_URL`, `SCHOLARHUB_TENANCY_MODE` (`single` / `multi`), `SCHOLARHUB_ENVIRONMENT`.
 
 ## Security
 
-Defense in depth is shipped by default — every layer below is enabled when
-the backend boots:
+Defense in depth is enabled the moment the backend boots:
 
-- **Authentication.** bcrypt password hashing; JWT access tokens (HS256,
-  short-lived) + httpOnly refresh cookie + `token_version` per user.
-- **Two-factor authentication (TOTP).** RFC 6238 with per-user secret
-  Fernet-encrypted at rest; 10 single-use backup codes SHA-256-hashed.
-  Endpoints under `/api/auth/2fa/` (`setup`, `verify-setup`, `status`,
-  `authenticate`, `disable`, `backup-codes`).
-- **OIDC SSO.** authlib-based; PKCE mandatory; `state` parameter is a
-  short-lived JWT to defend against CSRF. Frontend reads the allowed
-  providers from `GET /api/auth/oidc/providers` on boot (no client
-  hardcoding).
-- **JWT key rotation.** `app/core/key_rotation.py` keeps an ordered key
-  chain; new tokens sign with the newest key, decode iterates the chain.
-  `POST /api/admin/reload-secret-keys` rebuilds the chain in-process —
-  zero downtime, no restarts.
-- **Rate limit.** Sliding window per IP + route, pluggable store
-  (`MemoryRateLimiterStore` default, `RedisRateLimiterStore` when
-  `SCHOLARHUB_REDIS_URL` is set). Redis unreachable → auto-fail-open.
-- **GDPR endpoints.** `GET /api/users/me/export`, `DELETE /api/users/me`
-  (soft delete, 30-day grace, PII anonymised, `token_version` bumped,
-  all sessions invalidated), `POST /api/users/me/restore` (within grace).
-- **Two-layer tenant isolation.** App-layer query filter + PostgreSQL RLS
-  with `SET LOCAL app.current_tenant_id`.
-- **Headers.** CSP, HSTS, X-Frame-Options, X-Content-Type,
-  Referrer-Policy, Permissions-Policy.
-- **CSRF.** Double-submit cookie pattern (configurable, default off for
-  API-first deployments). When enabled, state-changing requests must
-  present a matching `X-CSRF-Token` header + cookie.
-- **RFC 7807.** All error responses follow RFC 7807 `application/problem+json`
-  with `type` / `title` / `status` / `detail` / `instance`.
-- **Audit log.** Every privileged admin action is recorded per tenant.
+- **Auth** — bcrypt hashing; short-lived JWT access + httpOnly refresh cookie + per-user `token_version`.
+- **2FA (TOTP)** — RFC 6238, per-user secret Fernet-encrypted at rest, 10 single-use backup codes (SHA-256).
+- **Passkeys** — WebAuthn registration / authentication state machine with one-time, TTL-bound challenges.
+- **JWT key rotation** — ordered key chain; `POST /api/admin/reload-secret-keys` rotates with zero downtime.
+- **Rate limit** — sliding window per IP + route; `RedisRateLimiterStore` when `SCHOLARHUB_REDIS_URL` is set, otherwise in-memory (Redis errors auto-fail-open).
+- **GDPR** — export / soft-delete (30-day grace) / restore self-service endpoints.
+- **Headers & errors** — CSP, HSTS, CSRF double-submit; RFC 7807 `application/problem+json` everywhere; per-tenant audit log on every privileged action.
 
-See [SECURITY.md](SECURITY.md) for the full policy, threat model, and
-incident-response checklist.
+See [SECURITY.md](SECURITY.md) for the full policy and threat model.
 
----
+## Default roles
 
-## Default roles and permissions
+`core` creates these on startup (assignable from the admin shell):
 
-`core` auto-creates these roles on startup (assignable from the admin shell):
-
-| Role slug | What they can do |
+| Role | Scope |
 |---|---|
 | `admin` | Full access — admin shell, user management, audit log |
 | `editor` | Assign reviewers, organize volumes/issues, accept/reject, push to *published* |
 | `reviewer` | View assigned submissions, file review reports |
 | `author` | Submit manuscripts, view own status, upload revisions |
-| `member` | Read, save, follow, view personalized recommendations |
-
----
+| `member` | Read, save, follow, view recommendations |
 
 ## Testing
 
-Current coverage: **479** backend unit/integration tests (1 skipped), **70** frontend unit tests, and **64** E2E specs across 12 files.
+Quality is enforced in CI, not just claimed:
 
-### Unit + integration
+- **Backend** — **643** `pytest` cases at **84% line coverage** with a hard `--cov-fail-under=80` gate; `mypy --strict` and `ruff` clean.
+- **Frontend** — `vitest` unit + component tests under strict `tsc` (**100** cases).
+- **E2E** — **66 Playwright specs** exercising the real submit → review → publish → read workflow against a spawned test server (no flaky production parity).
+- **CI** — backend, frontend, and e2E jobs on every push; strict pytest markers; a version-consistency guard keeps `VERSION` / `pyproject` / `package.json` / `__version__` in lockstep.
 
 ```bash
-# Backend: lint + type + test
-cd apps/backend
-uv run ruff check .
-uv run mypy app
-uv run pytest -q
-
-# Backend: RLS isolation tests (requires a real PostgreSQL)
-SCHOLARHUB_DATABASE_URL=postgresql+asyncpg://... uv run pytest tests/test_rls_isolation.py -v
+# Backend
+cd apps/backend && uv run ruff check . && uv run mypy app && uv run pytest -q
 
 # Frontend
-cd apps/frontend
-npm run lint
-npm run typecheck
-npm run build
-npm run test
+cd apps/frontend && npm run lint && npm run typecheck && npm run test
+
+# E2E (Playwright spawns both servers via E2E_SPAWN_SERVER=1)
+cd apps/frontend && E2E_SPAWN_SERVER=1 npx playwright test
 ```
 
-### End-to-end
+## Docs
 
-12 spec files / 64 tests cover complete user journeys, validating every main flow with real browser clicks:
-
-```bash
-# Start the backend (test mode: SQLite + rate_limit skipped)
-cd apps/backend
-uv run python e2e_run_server.py &
-
-# Start the frontend dev server
-cd ../frontend
-npm run dev &
-
-# Run the full E2E suite
-npx playwright test
-```
-
-Coverage spans:
-
-- Admin resource CRUD + user management + role assignment
-- Author register / login / email verification / submit / resubmit / upload manuscript
-- Reviewer accept/decline invitations + submit review reports
-- Reader reading-progress sync (simulated cross-device) / reading list CRUD / follow authors / subscribe to subjects
-- Notification center / recommendation engine / citation export (BibTeX / RIS / CSV / JSON)
-- Guest catalog browsing / detail pages
-- Crossref import / parsing
-
-CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
----
-
-## Documentation
-
-- [Architecture contract](docs/ARCHITECTURE.md) — module dependencies, tenant isolation, module registry, migration strategy
-- [Deployment guide](docs/DEPLOYMENT.md) — server sizing, step-by-step first deploy, backup/upgrade, "do I need Cloudflare?"
-- [Mail / OIDC integration](docs/integrations.md) — Mailgun / SendGrid / SES / Postmark + Google / GitHub / Keycloak
-- [Contributing](CONTRIBUTING.md) — branch naming, commit conventions, PR checklist
-- [Security policy](SECURITY.md) — vulnerability reporting, built-in security layers, local tooling
-- [Code of conduct](CODE_OF_CONDUCT.md)
-- [Getting help](SUPPORT.md)
-- [Changelog](CHANGELOG.md)
-
----
+- [Architecture](ARCHITECTURE.md) · [Deployment](DEPLOYMENT.md) · [Integrations](docs/integrations.md)
+- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md)
 
 ## Contributing
 
-Issues and PRs are welcome:
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and conventions.
-
----
+Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit conventions, and the PR checklist.
 
 ## Repository
-
-This repository is hosted at:
 
 | Platform | URL | Role |
 |---|---|---|
 | GitCode | <https://gitcode.com/badhope/scholarhub> | Primary |
 | Gitee | <https://gitee.com/badhope/scholarhub> | Mirror |
+| GitHub | <https://github.com/x33834/scholarhub> | Mirror |
 
-Both remotes are kept byte-for-byte in sync (same branches, tags, and HEAD).
-
----
+All remotes are kept in sync (same branches, tags, and HEAD).
 
 ## License
 
-Copyright © 2026 Morningstar202604. Released under the [Apache-2.0 License](LICENSE).
-
-You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, for commercial and non-commercial purposes alike, provided the copyright notice and permission notice are included in all copies or substantial portions of the Software.
-
-The software is provided "as is", without warranty of any kind. See [LICENSE](LICENSE) for the full text.
+Copyright © 2026 Morningstar202604. Released under the [Apache-2.0 License](LICENSE). Provided "as is", without warranty of any kind.
