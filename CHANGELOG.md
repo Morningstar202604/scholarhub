@@ -28,6 +28,17 @@
 
 ### Fixed
 
+- 修复 CI 首跑 4 个 job 全红的四处问题,实现"推上去即全绿":
+  - `backend` job 的版本校验脚本路径错误(步骤工作目录在 `apps/backend`,脚本在
+    仓库根 `scripts/`),CI 报 127 找不到文件;
+  - `migrations` job 未注入 `SCHOLARHUB_SECRET_KEY`:Settings 强校验拒绝缺失密钥,
+    alembic 读配置时直接 ValidationError(CI 环境无 .env,已 gitignore);
+  - frontend/e2e job 从 node 20 升到 node 22 并补 `engines: node>=22` 与 `.nvmrc`:
+    依赖树里 jsdom@30 → undici@8 使用了 node 22+ 才有的 `webidl.util.markAsUncloneable`,
+    node 20 下 vitest forks worker 全部启动失败(13 个测试文件 "no tests");
+  - 修复推荐 fallback 的 E2E 断言:前端已把 `score === 0` 渲染为"最新收录",
+    测试还在断言后端 reason 原文;用例改为自建前置资源,不再隐式依赖其他 spec
+    的执行顺序(单跑该文件时目录可能为空)。
 - 推荐页在**已读完全部资源**时返回空列表 → 改为回退到最新收录
   (`reason="you have read everything; showing latest"`),不再把用户带进死胡同;
   前端对应把 `score === 0` 的条目显示为"最新收录 · 阅读后可获得个性化推荐"

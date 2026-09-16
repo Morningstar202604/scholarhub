@@ -25,22 +25,42 @@ test.describe('notifications + recommendations', () => {
     await expect(page.getByText('暂无通知')).toBeVisible()
   })
 
-  test('recommendations page renders empty state when no history', async ({ page }) => {
-    // 用全新注册的用户：admin 在前面的测试里可能已阅读资源，推荐非空
+  test('recommendations page renders empty state when no history', async ({ page, request }) => {
+    // 前提：目录里至少有一条资源（fallback"最新收录"才有内容可展示）。
+    // 用例自建资源，不依赖其他 spec 的执行顺序（单跑本文件时 DB 可能是空的）。
+    const login = await request.post('/api/auth/login', {
+      data: { username: ADMIN.username, password: ADMIN.password },
+    })
+    const adminToken = (await login.json()).access_token
+    await request.post('/api/catalog', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: {
+        title: `E2E Fallback ${Date.now()}`,
+        authors: ['Fallback Author'],
+        type: 'paper',
+        year: 2025,
+        discipline: 'computer-science',
+        tags: ['fallback-e2e'],
+        abstract: 'Resource backing the no-history fallback view.',
+        preview: 'Fallback preview…',
+      },
+    })
+
+    // 用全新注册的用户：没有任何阅读历史
     const user = nextTestUser('recempty')
     await registerAndVerifyViaUi(page, user)
     await loginViaUi(page, user)
     await page.goto('/recommendations')
     await expect(page.getByRole('heading', { name: '为你推荐' })).toBeVisible()
-    // 推荐引擎的设计：新用户没有阅读历史时，fallback 展示 catalog 最新资源
-    // （score=0 + reason="no reading history; showing latest"），而不是空状态。
-    // 这里断言 fallback 文案可见，验证新用户的推荐页面有内容、能正常渲染。
-    await expect(page.getByText('no reading history; showing latest').first()).toBeVisible({
+    // 推荐引擎的设计：新用户没有阅读历史时，后端 fallback 展示 catalog 最新资源
+    // （score=0）。前端将 score=0 渲染为"最新收录"徽章与"推荐依据/最新"进度条，
+    // 不伪造"0% 匹配度"。这里断言 fallback 文案可见，验证推荐页面有内容、能正常渲染。
+    await expect(page.getByText('最新收录 · 阅读后可获得个性化推荐').first()).toBeVisible({
       timeout: 10_000,
     })
-    // 匹配度应均为 0%（新用户没有任何画像）
-    await expect(page.getByText('匹配度').first()).toBeVisible()
-    await expect(page.getByText('0%').first()).toBeVisible()
+    // fallback 卡片的进度条区域显示"推荐依据 → 最新"而非匹配度百分比
+    await expect(page.getByText('推荐依据').first()).toBeVisible()
+    await expect(page.getByText('最新', { exact: true }).first()).toBeVisible()
   })
 
   test('recommendations shows entries after reading a resource', async ({ browser }) => {
