@@ -138,3 +138,6 @@ id_dsa.pub
 
 # Local dev runtime written by scripts/dev.sh (logs + pid files)
 .run/
+
+# 原始录屏（体积大、可重新生成；成品在 docs/assets/demo/）
+media/raw/

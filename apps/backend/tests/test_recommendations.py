@@ -200,6 +200,27 @@ async def test_excludes_read_resources(
 
 
 # ---------------------------------------------------------------------------
+# Everything already read → fall back instead of an empty page
+# ---------------------------------------------------------------------------
+
+
+async def test_all_read_falls_back_to_latest(
+    client: AsyncClient, admin_user: dict, test_user: dict
+) -> None:
+    ids = [await _create_resource(client, admin_user, title=f"R{i}") for i in range(3)]
+    for rid in ids:
+        await _read_resource(client, test_user, rid)
+
+    response = await client.get("/api/recommendations/me", headers=auth_headers(test_user))
+    body = response.json()
+    assert body["meta"]["total"] == 3
+    # 已读完全部资源时不再返回空列表，而是回退到最新收录。
+    for item in body["data"]:
+        assert item["score"] == 0.0
+        assert "showing latest" in item["reason"]
+
+
+# ---------------------------------------------------------------------------
 # Limit enforcement
 # ---------------------------------------------------------------------------
 

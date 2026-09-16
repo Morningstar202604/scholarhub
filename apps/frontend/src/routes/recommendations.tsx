@@ -80,13 +80,15 @@ function RecommendationsPage() {
       ) : !data || data.data.length === 0 ? (
         <EmptyState
           title="暂无推荐"
-          description="阅读几篇资源后即可获得个性化推荐"
+          description="资源库还没有可推荐的条目，导入一些资源后即可获得个性化推荐"
         />
       ) : (
         <div className="space-y-4">
           {data.data.map((r) => {
             // 推荐分通常为 0~1，转成可读百分比
             const percent = Math.round(r.score * 100)
+            // 无阅读历史时后端回退到最新资源，此时没有真实匹配度
+            const isFallback = r.score === 0
             return (
               <Card key={r.id}>
                 <CardContent className="space-y-3 py-4">
@@ -114,26 +116,26 @@ function RecommendationsPage() {
                     </Button>
                   </div>
 
-                  {/* 推荐理由高亮 */}
+                  {/* 推荐理由高亮：有历史时是匹配依据，无历史时是兜底说明 */}
                   <Badge
                     variant="secondary"
                     className="bg-amber-500/15 text-amber-700"
                   >
-                    {r.reason}
+                    {isFallback ? '最新收录 · 阅读后可获得个性化推荐' : r.reason}
                   </Badge>
 
                   {/* 匹配度进度条 */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>匹配度</span>
+                      <span>{isFallback ? '推荐依据' : '匹配度'}</span>
                       <span className="font-medium text-foreground">
-                        {percent}%
+                        {isFallback ? '最新' : `${percent}%`}
                       </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-2 rounded-full bg-primary transition-all"
-                        style={{ width: `${percent}%` }}
+                        style={{ width: `${Math.max(percent, 4)}%` }}
                       />
                     </div>
                   </div>

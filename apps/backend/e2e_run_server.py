@@ -176,10 +176,15 @@ def _install_dev_routes() -> None:
 if __name__ == "__main__":
     import uvicorn
 
-    if os.path.exists("./e2e_test.db"):
-        os.remove("./e2e_test.db")
-
-    asyncio.run(_prepare_db())
+    # 默认每次启动都重建数据库（E2E 需要干净起点）。
+    # E2E_KEEP_DB=1 时保留已有数据：给截图/录屏这类"先灌演示数据再重启后端"
+    # 的场景用，避免刚灌好的数据被删掉。CI 走默认值，行为不变。
+    if os.environ.get("E2E_KEEP_DB") == "1":
+        print("[e2e] E2E_KEEP_DB=1 — 保留现有数据库")
+    else:
+        if os.path.exists("./e2e_test.db"):
+            os.remove("./e2e_test.db")
+        asyncio.run(_prepare_db())
     # test 模式下 lifespan 的 run_bootstrap() 会直接 return（见
     # app/core/bootstrap.py:103 的 `if settings.is_test: return`）。
     # 这里手动调用底层函数绕过 is_test 检查，确保 bootstrap tenant + admin

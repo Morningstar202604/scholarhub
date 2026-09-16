@@ -112,15 +112,24 @@ def _score_candidate(candidate: Resource, profile: UserProfile) -> ScoredResourc
     return ScoredResource(resource=candidate, score=score, reason=reason)
 
 
-async def _fallback_latest(db: AsyncSession, limit: int, tenant_id: UUID) -> list[ScoredResource]:
-    """Return the most recently created resources when there is no history."""
+async def _fallback_latest(
+    db: AsyncSession, limit: int, tenant_id: UUID, reason: str = "no reading history; showing latest"
+) -> list[ScoredResource]:
+    """Return the most recently created resources as a last resort.
+
+    Used both for brand-new readers (no history yet) and for readers who
+    have already read everything in the catalog — an empty page would be
+    a dead end either way, while "latest" keeps the page actionable.
+    ``score`` stays 0.0 so the UI can label these as "latest" rather than
+    pretending a real match exists.
+    """
     rows = (
         (
             await db.execute(
                 select(Resource)
                 .where(Resource.tenant_id == tenant_id)
                 .order_by(desc(Resource.created_at), Resource.id.asc())
-                .limit(limit)
+                .limit(limit or 10)
             )
         )
         .scalars()
@@ -130,7 +139,7 @@ async def _fallback_latest(db: AsyncSession, limit: int, tenant_id: UUID) -> lis
         ScoredResource(
             resource=r,
             score=0.0,
-            reason="no reading history; showing latest",
+            reason=reason,
         )
         for r in rows
     ]
@@ -144,6 +153,10 @@ async def recommend(
     No reading history → latest ``limit`` catalog resources (score 0).
     Otherwise → unread resources ranked by content-based score, truncated
     to ``limit``. Ties break by resource id for deterministic ordering.
+
+    Two degenerate cases still return content instead of an empty page:
+    no history at all, and a reader who has already read every resource
+    (no unread candidates left).
 
     All queries are scoped by ``tenant_id`` so recommendations never
     leak across tenants even when RLS is not active (e.g. SQLite tests).
@@ -166,6 +179,11 @@ async def recommend(
         .scalars()
         .all()
     )
+    if not candidates:
+        # 已读完全部资源：回退到最新收录，避免推荐页变成死胡同。
+        return await _fallback_latest(
+            db, limit, tenant_id, reason="you have read everything; showing latest"
+        )
 
     scored = [_score_candidate(c, profile) for c in candidates]
     scored.sort(key=lambda s: (-s.score, s.resource.id))

@@ -20,7 +20,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
 [![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](ARCHITECTURE.md)
-[![Unit tests](https://img.shields.io/badge/unit_tests-643-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
+[![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#テスト)
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#テスト)
@@ -65,6 +65,18 @@ ScholarHUB の全機能はこの三つのユーザーを中心に設計されて
 
 <div align="center">
 <img src="docs/assets/workflow.svg" alt="投稿 → 査読 → 出版ワークフロー" width="900" />
+</div>
+
+### 実際の画面
+
+<div align="center">
+
+<a href="docs/assets/demo/ScholarHUB-promo.mp4">
+<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB 画面一覧 —— カタログ、査読ワークベンチ、推薦、読書リスト、リーダー" width="900" />
+</a>
+
+**▶ [60 秒ツアー](docs/assets/demo/ScholarHUB-promo.mp4)** · [フル ウォークスルー](docs/assets/demo/ScholarHUB-walkthrough.mp4) · [スクリーンショット 19 点](docs/assets/screenshots)
+
 </div>
 
 1. 著者が完全なメタデータを入力して原稿を投稿
@@ -323,7 +335,7 @@ scholarhub/
 
 ## テスト
 
-現在のテスト規模：バックエンド **643** 件（行カバレッジ 84%）、フロントエンド **100** 件、E2E **66** 件。
+現在のテスト規模：バックエンド **644** 件（行カバレッジ 84%）、フロントエンド **100** 件、E2E **66** 件。
 
 ### ユニット + 統合
 
