@@ -54,11 +54,11 @@ Most teams rebuild the same journal scaffold from scratch — submission forms, 
 
 <div align="center">
 
-<a href="docs/assets/demo/ScholarHUB-promo.mp4">
+<a href="docs/assets/demo/ScholarHUB-promo.webm">
 <img src="docs/assets/screenshots-overview.png" alt="ScholarHUB interface overview — catalog, review workbench, recommendations, library, reader" width="900" />
 </a>
 
-**▶ [Watch the 60-second tour](docs/assets/demo/ScholarHUB-promo.mp4)** · [full walkthrough](docs/assets/demo/ScholarHUB-walkthrough.mp4) · [all 19 screenshots](docs/assets/screenshots)
+**▶ [Watch the 60-second tour](docs/assets/demo/ScholarHUB-promo.webm)** · [all 19 screenshots](docs/assets/screenshots)
 
 </div>
 

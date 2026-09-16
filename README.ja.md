@@ -71,11 +71,11 @@ ScholarHUB の全機能はこの三つのユーザーを中心に設計されて
 
 <div align="center">
 
-<a href="docs/assets/demo/ScholarHUB-promo.mp4">
+<a href="docs/assets/demo/ScholarHUB-promo.webm">
 <img src="docs/assets/screenshots-overview.png" alt="ScholarHUB 画面一覧 —— カタログ、査読ワークベンチ、推薦、読書リスト、リーダー" width="900" />
 </a>
 
-**▶ [60 秒ツアー](docs/assets/demo/ScholarHUB-promo.mp4)** · [フル ウォークスルー](docs/assets/demo/ScholarHUB-walkthrough.mp4) · [スクリーンショット 19 点](docs/assets/screenshots)
+**▶ [60 秒ツアー](docs/assets/demo/ScholarHUB-promo.webm)** · [スクリーンショット 19 点](docs/assets/screenshots)
 
 </div>
 

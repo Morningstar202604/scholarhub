@@ -58,11 +58,11 @@ ScholarHUB 是一套**开箱即用、自带电池**的学术出版基座——�
 
 <div align="center">
 
-<a href="docs/assets/demo/ScholarHUB-promo.mp4">
+<a href="docs/assets/demo/ScholarHUB-promo.webm">
 <img src="docs/assets/screenshots-overview.png" alt="ScholarHUB 界面总览 —— 资源目录、审稿工作台、个性化推荐、阅读列表、在线阅读器" width="900" />
 </a>
 
-**▶ [60 秒宣传片](docs/assets/demo/ScholarHUB-promo.mp4)** · [完整使用演示](docs/assets/demo/ScholarHUB-walkthrough.mp4) · [全部 19 张截图](docs/assets/screenshots)
+**▶ [60 秒宣传片](docs/assets/demo/ScholarHUB-promo.webm)** · [全部 19 张截图](docs/assets/screenshots)
 
 </div>
 

@@ -1,40 +1,47 @@
 #!/usr/bin/env bash
-# 把录屏 + 片头片尾合成宣传片（1920×1080 / H.264 / AAC-ready MP4）。
+# 把录屏 + 片头片尾合成宣传片（1920×1080 / VP9 / WebM）。
+#
+# 为什么是 VP9 WebM 而不是 H.264 MP4：
+#   - 沙箱 ffmpeg 没有 libx264，libopenh264 对 UI 屏幕内容压缩效率差
+#     （60s 要 13 MB）；libvpx-vp9 对大面积静止 + 局部变化的屏幕内容
+#     压缩效率高一个量级（同观感约 3-4 MB），且所有现代浏览器可播。
 #
 # 输入：
 #   /tmp/promo/intro.png          — 片头卡片（fade + 缩放）
-#   raw/*.webm                    — Playwright 录制的使用流程
+#   raw/*.webm                    — Playwright 录制的使用流程（取最新一个）
 #   /tmp/promo/outro.png          — 片尾卡片（仓库地址 + 指标）
 # 输出：
-#   /workspace/scholarhub-media/ScholarHUB-promo.mp4      宣传片（含片头尾）
-#   /workspace/scholarhub-media/ScholarHUB-walkthrough.mp4 纯使用演示（含字幕）
+#   /workspace/scholarhub-media/ScholarHUB-promo.webm   宣传片（含片头尾）
+#
+# 说明：不再单独产出 walkthrough —— 它与宣传片中间段完全重复，
+# 需要的话把 list.txt 里的 intro/outro 两行删掉重跑即可。
 set -euo pipefail
 
 MEDIA=/workspace/scholarhub-media
 RAW=$(ls -t "$MEDIA"/raw/*.webm | head -1)
-FONT=/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc
 TMP=$(mktemp -d)
 echo "raw: $RAW"
 
-# 中文字幕样式：底部居中、半透明底、白字
-SUBSTYLE="FontName=Noto Serif CJK SC,FontSize=30,PrimaryColour=&H00FFFFFF,OutlineColour=&H00202020,BorderStyle=3,Outline=1,Shadow=0,MarginV=48,Alignment=2,Bold=1"
+# VP9 参数：good 档 + cpu-used 2 是速度/质量的平衡点；row-mt 多线程。
+# crf 34 对 UI 文字足够干净；b:v 0 = 让 crf 全权决定码率。
+VP9="-c:v libvpx-vp9 -deadline good -cpu-used 2 -row-mt 1 -b:v 0 -pix_fmt yuv420p"
 
 # ---------------------------------------------------------------
-# 1) 片头：4s，黑底淡入 + 轻微放大 → 标题定住
+# 1) 片头：4.2s，深色渐变卡 + 轻微放大
 # ---------------------------------------------------------------
 ffmpeg -v error -y -loop 1 -i /tmp/promo/intro.png -t 4.2 \
   -vf "scale=2112:1188,zoompan=z='min(zoom+0.0004,1.10)':d=105:s=1920x1080:fps=25,format=yuv420p" \
-  -c:v libopenh264 -b:v 6M -pix_fmt yuv420p "$TMP/intro.mp4"
+  $VP9 -crf 30 "$TMP/intro.webm"
 
 # ---------------------------------------------------------------
-# 2) 片尾：5s，淡入 + 缓慢放大
+# 2) 片尾：5.2s，指标 + 仓库地址
 # ---------------------------------------------------------------
 ffmpeg -v error -y -loop 1 -i /tmp/promo/outro.png -t 5.2 \
   -vf "scale=2112:1188,zoompan=z='min(zoom+0.0003,1.08)':d=130:s=1920x1080:fps=25,format=yuv420p" \
-  -c:v libopenh264 -b:v 6M -pix_fmt yuv420p "$TMP/outro.mp4"
+  $VP9 -crf 30 "$TMP/outro.webm"
 
 # ---------------------------------------------------------------
-# 3) 使用演示：加底部中文字幕 + 淡入淡出
+# 3) 使用演示：烧录底部中文字幕 + 淡入淡出
 # ---------------------------------------------------------------
 cat > "$TMP/subs.ass" <<ASS
 [Script Info]
@@ -62,23 +69,19 @@ ASS
 
 ffmpeg -v error -y -i "$RAW" \
   -vf "subtitles='$TMP/subs.ass':fontsdir=/usr/share/fonts/opentype/noto,fade=t=in:st=0:d=0.6,fade=t=out:st=49.6:d=0.8,format=yuv420p" \
-  -c:v libopenh264 -b:v 6M -pix_fmt yuv420p -r 25 "$TMP/walk.mp4"
+  $VP9 -crf 34 -r 25 "$TMP/walk.webm"
 
 # ---------------------------------------------------------------
-# 4) 拼接三段 → 宣传片
+# 4) 拼接三段 → 宣传片（解码后统一编码一遍，保证参数一致）
 # ---------------------------------------------------------------
 : > "$TMP/list.txt"
-for f in intro walk outro; do echo "file '$TMP/$f.mp4'" >> "$TMP/list.txt"; done
-ffmpeg -v error -y -f concat -safe 0 -i "$TMP/list.txt" -c copy "$MEDIA/ScholarHUB-promo.mp4"
-
-# 纯演示版（无片头尾，方便贴 README）
-cp "$TMP/walk.mp4" "$MEDIA/ScholarHUB-walkthrough.mp4"
+for f in intro walk outro; do echo "file '$TMP/$f.webm'" >> "$TMP/list.txt"; done
+ffmpeg -v error -y -f concat -safe 0 -i "$TMP/list.txt" \
+  $VP9 -crf 34 -r 25 "$MEDIA/ScholarHUB-promo.webm"
 
 echo
-for f in "$MEDIA/ScholarHUB-promo.mp4" "$MEDIA/ScholarHUB-walkthrough.mp4"; do
-  echo "== $(basename "$f")"
-  ffprobe -v error -select_streams v:0 \
-    -show_entries stream=codec_name,width,height,r_frame_rate \
-    -show_entries format=duration,size -of default=nw=1 "$f"
-done
+echo "== ScholarHUB-promo.webm"
+ffprobe -v error -select_streams v:0 \
+  -show_entries stream=codec_name,width,height,r_frame_rate \
+  -show_entries format=duration,size -of default=nw=1 "$MEDIA/ScholarHUB-promo.webm"
 rm -rf "$TMP"

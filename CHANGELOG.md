@@ -13,8 +13,10 @@
   移动端外壳、favicon 与文档用同一套几何。
 - 新增界面截图与视频物料:`docs/assets/screenshots/` 19 张(17 桌面 1440×900 +
   2 移动 390×844)、`docs/assets/screenshots-overview.png` 总览图、
-  `docs/assets/demo/ScholarHUB-promo.mp4`(60s 宣传片:片头 + 中文字幕演示 + 片尾
-  仓库地址)与 `docs/assets/demo/ScholarHUB-walkthrough.mp4`(50s 纯演示)。
+  `docs/assets/demo/ScholarHUB-promo.webm`(60s 宣传片:片头 + 中文字幕演示 + 片尾
+  仓库地址)。视频用 VP9/WebM 而非 H.264/MP4:沙箱无 libx264,libopenh264 对
+  UI 屏幕内容压缩效率低(60s 要 13 MB),VP9 同观感约 4 MB;不单独产出
+  walkthrough —— 它与宣传片中间段完全重复,需要时删掉片头尾重跑即可。
 - 新增可复现的媒体工具链 `apps/frontend/scripts/media/`:
   `seed-and-record.mjs`(8 篇演示资源)、`seed-submissions.mjs`(3 位作者投稿 +
   分配/接受/评审全流程)、`seed-reader-data.mjs`(阅读列表/关注/订阅/阅读历史)、
