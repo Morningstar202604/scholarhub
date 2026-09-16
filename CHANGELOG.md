@@ -39,6 +39,15 @@
   - 修复推荐 fallback 的 E2E 断言:前端已把 `score === 0` 渲染为"最新收录",
     测试还在断言后端 reason 原文;用例改为自建前置资源,不再隐式依赖其他 spec
     的执行顺序(单跑该文件时目录可能为空)。
+- CI 第二轮三处残余修复(run #1 后逐 job 转绿的收尾):
+  - `engine.py` 补 `ruff format`(推荐 fallback 改动的遗留格式偏差,本地只跑过
+    `ruff check` 没跑 format);
+  - `migrations` job 密钥注入改用 `SCHOLARHUB_ENVIRONMENT=test`:非 test 环境
+    强校验三件套(secret_key / admin_password / fernet_key),逐个硬编码会
+    挤牙膏式暴露下一个缺失项,test 模式由配置层统一填充;
+  - `e2e_run_server.py` 显式注入 `SCHOLARHUB_STORAGE_PATH=./storage`:默认值
+    `/data/uploads` 在 CI runner(非 root)不可写,上传接口 500,
+    "author can upload a PDF" 用例等不到 toast(本地靠 .env 掩盖)。
 - 推荐页在**已读完全部资源**时返回空列表 → 改为回退到最新收录
   (`reason="you have read everything; showing latest"`),不再把用户带进死胡同;
   前端对应把 `score === 0` 的条目显示为"最新收录 · 阅读后可获得个性化推荐"
