@@ -69,10 +69,10 @@ jobs:
           --health-retries 10
     env:
       SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub_ci
-      # Settings 强校验 secret_key（拒绝缺失/已知弱值）；CI 无 .env（被
-      # gitignore），不注入的话 alembic 在读配置时就直接 ValidationError。
-      # 此值仅存在于 CI 一次性数据库，非生产秘密。
-      SCHOLARHUB_SECRET_KEY: 6b28b669e4022582eeb8a78771118798add7532e01a68a82357cab67a126490a
+      # Settings 对非 test 环境强校验三件套（secret_key / admin_password /
+      # fernet_key），CI 无 .env（已 gitignore）无法满足。迁移 job 用 test 模式：
+      # 配置层自动填充确定性测试密钥，与 e2e_run_server.py 同一套机制。
+      SCHOLARHUB_ENVIRONMENT: test
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7

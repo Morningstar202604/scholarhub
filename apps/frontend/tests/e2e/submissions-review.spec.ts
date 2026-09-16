@@ -178,8 +178,9 @@ test.describe('submissions + review flow', () => {
     // "文件已上传" 在 detail dialog 中既出现在 toast（"文件已上传"），
     // 又以"稿件文件" + Badge "已上传" 的形式拼接成 accessible text "稿件文件已上传"，
     // 被 getByText('文件已上传') 同时匹配。用 exact:true 只匹配 toast 的独立文本节点。
+    // 超时贴齐全局 10s：CI 2 核 runner 上传接口偶发慢于 5s。
     await expect(authorPage.getByText('文件已上传', { exact: true })).toBeVisible({
-      timeout: 5_000,
+      timeout: 10_000,
     })
     // Badge "已上传" 是 detail dialog 内独立节点，用 exact:true 精确匹配
     await expect(authorPage.getByText('已上传', { exact: true })).toBeVisible()

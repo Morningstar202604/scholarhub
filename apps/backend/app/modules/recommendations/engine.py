@@ -113,7 +113,10 @@ def _score_candidate(candidate: Resource, profile: UserProfile) -> ScoredResourc
 
 
 async def _fallback_latest(
-    db: AsyncSession, limit: int, tenant_id: UUID, reason: str = "no reading history; showing latest"
+    db: AsyncSession,
+    limit: int,
+    tenant_id: UUID,
+    reason: str = "no reading history; showing latest",
 ) -> list[ScoredResource]:
     """Return the most recently created resources as a last resort.
 

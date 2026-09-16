@@ -40,6 +40,11 @@ os.environ["SCHOLARHUB_DEBUG"] = "true"
 os.environ["SCHOLARHUB_LOG_LEVEL"] = "WARNING"
 os.environ["SCHOLARHUB_JSON_LOGS"] = "false"
 os.environ["SCHOLARHUB_EMAIL_BACKEND"] = "console"
+# 文件存储必须显式指到本目录：默认值 /data/uploads 在 CI runner（非 root）
+# 上不可写，权限拒绝会让上传接口 500，对应 E2E 用例等不到"文件已上传"。
+# 本地开发不炸只是因为 .env 恰好配置了可写路径。
+os.environ["SCHOLARHUB_STORAGE_BACKEND"] = "local"
+os.environ["SCHOLARHUB_STORAGE_PATH"] = "./storage"
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy.ext.asyncio import create_async_engine
