@@ -22,14 +22,14 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker--Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
-[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](ARCHITECTURE.md)
+[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](docs/ARCHITECTURE.md)
 [![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#测试)
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#测试)
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#测试)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#项目状态)
 
-**[一句话定位](#一句话定位) · [核心能力](#核心能力) · [系统架构](#系统架构) · [快速开始](#快速开始) · [测试](#测试) · [文档](#文档) · [贡献](#贡献)**
+**[一句话定位](#一句话定位) · [界面实拍](#界面实拍) · [核心能力](#核心能力) · [系统架构](#系统架构) · [快速开始](#快速开始) · [测试](#测试) · [文档](#文档) · [贡献](#贡献)**
 
 </div>
 
@@ -54,17 +54,49 @@ ScholarHUB 是一套**开箱即用、自带电池**的学术出版基座——�
 <img src="docs/assets/workflow.svg" alt="投稿 → 审稿 → 发表 → 阅读 主流程" width="900" />
 </div>
 
-### 界面实拍
+## 界面实拍
+
+> 全部为**真实运行截图**——桌面 1440×900 · 移动端 390×844。点主图可看 60 秒演示。
 
 <div align="center">
 
 <a href="docs/assets/demo/ScholarHUB-promo.webm">
-<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB 界面总览 —— 资源目录、审稿工作台、个性化推荐、阅读列表、在线阅读器" width="900" />
+<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB 界面总览 —— 目录、审稿工作台、发表、推荐、阅读列表与阅读器共 19 张" width="940" />
 </a>
 
-**▶ [60 秒宣传片](docs/assets/demo/ScholarHUB-promo.webm)** · [全部 19 张截图](docs/assets/screenshots)
+**▶ [观看 60 秒演示](docs/assets/demo/ScholarHUB-promo.webm)** · [全部 19 张截图](docs/assets/screenshots)
 
 </div>
+
+### 阅读 — 发现、查看、就地阅读
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/02-catalog.png" alt="资源目录" width="100%" /><br /><sub><b>资源目录</b> — 对已发表作品的分类检索</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/03-resource-detail.png" alt="资源详情" width="100%" /><br /><sub><b>资源详情</b> — 元数据、DOI、摘要、文件</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/17-reader.png" alt="在线阅读器" width="100%" /><br /><sub><b>在线阅读器</b> — 浏览器内 PDF,进度跨设备同步</sub></td>
+</tr>
+</table>
+
+### 发表 — 作者 → 编辑 → 审稿人闭环
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/07-my-submissions.png" alt="我的提交" width="100%" /><br /><sub><b>作者</b> — 投稿、修改稿与状态</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/05-editor-workbench.png" alt="编辑工作台" width="100%" /><br /><sub><b>编辑</b> — 分配审稿人、裁决、发表</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/06-reviewer-workbench.png" alt="审稿工作台" width="100%" /><br /><sub><b>审稿人</b> — 阅读稿件、提交意见</sub></td>
+</tr>
+</table>
+
+### 发现与运营 — 个性化与后台管理
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/11-recommendations.png" alt="个性化推荐" width="100%" /><br /><sub><b>个性化推荐</b> — 按阅读历史排序</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/12-library.png" alt="阅读列表" width="100%" /><br /><sub><b>阅读列表</b> — 收藏与跨设备进度</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/08-admin-users.png" alt="后台管理" width="100%" /><br /><sub><b>后台管理</b> — 用户、角色与审计日志</sub></td>
+</tr>
+</table>
 
 ## 核心能力
 
@@ -197,8 +229,8 @@ cd apps/frontend && E2E_SPAWN_SERVER=1 npx playwright test
 
 ## 文档
 
-- [架构](ARCHITECTURE.md) · [部署](DEPLOYMENT.md) · [集成](docs/integrations.md)
-- [贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [行为准则](CODE_OF_CONDUCT.md) · [变更记录](CHANGELOG.md)
+- [架构](docs/ARCHITECTURE.md) · [部署](docs/DEPLOYMENT.md) · [集成](docs/integrations.md)
+- [贡献](CONTRIBUTING.md) · [安全](SECURITY.md) · [行为准则](CODE_OF_CONDUCT.md) · [帮助](SUPPORT.md) · [变更记录](CHANGELOG.md)
 
 ## 贡献
 
