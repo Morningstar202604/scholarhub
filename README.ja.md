@@ -14,12 +14,12 @@
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white&style=flat-square)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white&style=flat-square)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6.svg?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1.svg?logo=postgresql&logoColor=white&style=flat-square)](https://www.postgresql.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
-[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](ARCHITECTURE.md)
+[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](docs/ARCHITECTURE.md)
 [![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#テスト)
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
@@ -69,15 +69,47 @@ ScholarHUB の全機能はこの三つのユーザーを中心に設計されて
 
 ### 実際の画面
 
+> すべて**実機キャプチャ**——デスクトップ 1440×900 · モバイル 390×844。ヒーロー画像をクリックすると 60 秒ツアーが再生されます。
+
 <div align="center">
 
 <a href="docs/assets/demo/ScholarHUB-promo.webm">
-<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB 画面一覧 —— カタログ、査読ワークベンチ、推薦、読書リスト、リーダー" width="900" />
+<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB 画面一覧 —— カタログ、査読ワークベンチ、出版、推薦、読書リスト、リーダー 全 19 点" width="940" />
 </a>
 
-**▶ [60 秒ツアー](docs/assets/demo/ScholarHUB-promo.webm)** · [スクリーンショット 19 点](docs/assets/screenshots)
+**▶ [60 秒ツアーを見る](docs/assets/demo/ScholarHUB-promo.webm)** · [スクリーンショット 19 点](docs/assets/screenshots)
 
 </div>
+
+#### 読む — 発見・確認・その場で閲覧
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/02-catalog.png" alt="カタログ" width="100%" /><br /><sub><b>カタログ</b> — 出版済み作品のファセット検索</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/03-resource-detail.png" alt="リソース詳細" width="100%" /><br /><sub><b>リソース詳細</b> — メタデータ・DOI・要旨・ファイル</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/17-reader.png" alt="ブラウザ内リーダー" width="100%" /><br /><sub><b>リーダー</b> — ブラウザ内 PDF・進捗同期</sub></td>
+</tr>
+</table>
+
+#### 出版する — 著者 → 編集者 → 査読者のループ
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/07-my-submissions.png" alt="マイ投稿" width="100%" /><br /><sub><b>著者</b> — 投稿・改訂・ステータス</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/05-editor-workbench.png" alt="編集ワークベンチ" width="100%" /><br /><sub><b>編集者</b> — 査読者割当・判断・出版</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/06-reviewer-workbench.png" alt="査読ワークベンチ" width="100%" /><br /><sub><b>査読者</b> — 原稿閲覧・報告提出</sub></td>
+</tr>
+</table>
+
+#### 発見と運用 — パーソナル・管理
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/11-recommendations.png" alt="おすすめ" width="100%" /><br /><sub><b>おすすめ</b> — 閲読履歴に基づくランキング</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/12-library.png" alt="読書リスト" width="100%" /><br /><sub><b>読書リスト</b> — 保存とデバイス間の進捗</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/08-admin-users.png" alt="管理" width="100%" /><br /><sub><b>管理</b> — ユーザー・ロール・監査ログ</sub></td>
+</tr>
+</table>
 
 1. 著者が完全なメタデータを入力して原稿を投稿
 2. 編集者が査読者を割り当て、査読者は承諾または辞退
@@ -153,7 +185,7 @@ ScholarHUB の全機能はこの三つのユーザーを中心に設計されて
 | 層 | 選択 |
 |---|---|
 | フレームワーク | React 19 |
-| 言語 | TypeScript 5.7 |
+| 言語 | TypeScript 5.9 |
 | ビルド | Vite 7 |
 | ルーター | TanStack Router v1(file-based + autoCodeSplitting) |
 | データ | TanStack Query v5 |
@@ -286,7 +318,7 @@ scholarhub/
 | `SCHOLARHUB_PREVIOUS_SECRET_KEYS` | | ローテーションウィンドウ中の旧 JWT 署名キー(カンマ区切り) |
 | `SCHOLARHUB_ADMIN_PASSWORD` | ✓ | 初回起動時の admin パスワード、12 文字以上 |
 | `SCHOLARHUB_DATABASE_URL` | | PostgreSQL DSN、デフォルト `postgresql+asyncpg://scholarhub:scholarhub@localhost:5432/scholarhub` |
-| `SCHOLARHUB_TENANCY_MODE` | | `single`(デフォルト)/ `multi`(host-header 解決、未実装) |
+| `SCHOLARHUB_TENANCY_MODE` | | `single`(デフォルト)/ `multi`(host-header による解決、キャッシュ付き) |
 | `SCHOLARHUB_ENVIRONMENT` | | `development`(デフォルト)/ `staging` / `production` / `test` |
 | `SCHOLARHUB_FRONTEND_BASE_URL` | | メール内ディープリンク用の SPA オリジン、例 `https://app.yourdomain.com` |
 | `SCHOLARHUB_OIDC_ENABLED` | | `true` で OIDC SSO を有効化(`OIDC_*` 変数と併用); `/api/auth/oidc/providers` も参照 |
@@ -406,11 +438,11 @@ CI ワークフロー: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
 - [x] 学科/サブ学科 ontology テーブル — shipped
 - [x] Crossref リッチ化 (出版社/雑誌略称/巻/号/ページ/ISSN) — shipped
 - [x] プライバシーページ + cookie consent banner + 保持ポリシー — shipped
-- [ ] マルチテナントモードの実装(host-header → テナントマッピングテーブル)
+- [x] マルチテナントモード(host-header → テナントマッピングテーブル) — shipped
 - [ ] refresh token の明示的 denylist
-- [ ] WebAuthn / passkeys による TOTP 2FA の代替
+- [x] WebAuthn / passkeys による二要素認証の強化 — shipped
 - [ ] 高度な巻号管理 UI
-- [ ] DOI 登録と相互リンク
+- [x] DOI 登録と相互リンク — shipped
 - [ ] フルテキスト検索(PostgreSQL FTS または Meilisearch)
 - [ ] ファイルストレージをローカルから S3 に切替
 - [ ] ワークフロー可視化(投稿 → 査読 → 採用)

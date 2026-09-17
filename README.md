@@ -22,14 +22,14 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker--Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
-[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](ARCHITECTURE.md)
+[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](docs/ARCHITECTURE.md)
 [![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#testing)
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#testing)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#status)
 
-**[Why](#why-scholarhub) · [What's inside](#whats-inside) · [Architecture](#architecture) · [Quick start](#quick-start) · [Testing](#testing) · [Docs](#docs) · [Contributing](#contributing)**
+**[Why](#why-scholarhub) · [Screenshots](#screenshots) · [What's inside](#whats-inside) · [Architecture](#architecture) · [Quick start](#quick-start) · [Testing](#testing) · [Docs](#docs) · [Contributing](#contributing)**
 
 </div>
 
@@ -50,17 +50,49 @@ Most teams rebuild the same journal scaffold from scratch — submission forms, 
 <img src="docs/assets/workflow.svg" alt="Submit → review → publish → read workflow" width="900" />
 </div>
 
-### See it running
+## Screenshots
+
+> Real captures from the running app — **desktop 1440×900 · mobile 390×844**. Click the hero image for the 60-second tour.
 
 <div align="center">
 
 <a href="docs/assets/demo/ScholarHUB-promo.webm">
-<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB interface overview — catalog, review workbench, recommendations, library, reader" width="900" />
+<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB interface overview — 19 screens across catalog, review, publication, recommendations, library and reader" width="940" />
 </a>
 
 **▶ [Watch the 60-second tour](docs/assets/demo/ScholarHUB-promo.webm)** · [all 19 screenshots](docs/assets/screenshots)
 
 </div>
+
+### Read — discover, inspect, read in place
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/02-catalog.png" alt="Catalog" width="100%" /><br /><sub><b>Catalog</b> — faceted search over published work</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/03-resource-detail.png" alt="Resource detail" width="100%" /><br /><sub><b>Resource detail</b> — metadata, DOI, abstract, files</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/17-reader.png" alt="In-browser reader" width="100%" /><br /><sub><b>Reader</b> — in-browser PDF with synced progress</sub></td>
+</tr>
+</table>
+
+### Publish — the author → editor → reviewer loop
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/07-my-submissions.png" alt="My submissions" width="100%" /><br /><sub><b>Author</b> — submissions, revisions and status</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/05-editor-workbench.png" alt="Editor workbench" width="100%" /><br /><sub><b>Editor</b> — assign reviewers, decide, publish</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/06-reviewer-workbench.png" alt="Reviewer workbench" width="100%" /><br /><sub><b>Reviewer</b> — read manuscripts, file reports</sub></td>
+</tr>
+</table>
+
+### Discover &amp; operate — personal &amp; admin
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/11-recommendations.png" alt="Recommendations" width="100%" /><br /><sub><b>Recommendations</b> — ranked by your reading history</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/12-library.png" alt="Personal library" width="100%" /><br /><sub><b>Library</b> — reading lists, cross-device progress</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/08-admin-users.png" alt="Admin shell" width="100%" /><br /><sub><b>Admin</b> — users, roles and audit log</sub></td>
+</tr>
+</table>
 
 ## What's inside
 
@@ -178,7 +210,7 @@ Quality is enforced in CI, not just claimed:
 - **Backend** — **644** `pytest` cases at **84% line coverage** with a hard `--cov-fail-under=80` gate; `mypy --strict` and `ruff` clean.
 - **Frontend** — `vitest` unit + component tests under strict `tsc` (**100** cases).
 - **E2E** — **66 Playwright specs** exercising the real submit → review → publish → read workflow against a spawned test server (no flaky production parity).
-- **CI** — backend, frontend, and e2E jobs on every push; strict pytest markers; a version-consistency guard keeps `VERSION` / `pyproject` / `package.json` / `__version__` in lockstep.
+- **CI** — backend, frontend, and e2e jobs on every push; strict pytest markers; a version-consistency guard keeps `VERSION` / `pyproject` / `package.json` / `__version__` in lockstep.
 
 ```bash
 # Backend
@@ -193,8 +225,8 @@ cd apps/frontend && E2E_SPAWN_SERVER=1 npx playwright test
 
 ## Docs
 
-- [Architecture](ARCHITECTURE.md) · [Deployment](DEPLOYMENT.md) · [Integrations](docs/integrations.md)
-- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md)
+- [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md) · [Integrations](docs/integrations.md)
+- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md)
 
 ## Contributing
 
