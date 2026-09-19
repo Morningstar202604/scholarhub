@@ -25,6 +25,11 @@
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#テスト)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#プロジェクトステータス)
+
+[![GitHub](https://img.shields.io/badge/GitHub-x33834-24292F?style=flat-square&logo=github)](https://github.com/x33834/scholarhub)
+[![GitHub](https://img.shields.io/badge/GitHub-Morningstar202604-24292F?style=flat-square&logo=github)](https://github.com/Morningstar202604/scholarhub)
+[![GitCode](https://img.shields.io/badge/GitCode-badhope-3A72BE?style=flat-square&logo=git)](https://gitcode.com/badhope/scholarhub)
+[![Gitee](https://img.shields.io/badge/Gitee-badhope-C71D23?style=flat-square&logo=git)](https://gitee.com/badhope/scholarhub)
 [![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
 
 [![Docs](https://img.shields.io/badge/docs-full-0E7490?style=flat-square&logo=gitbook&logoColor=white)](#ドキュメント)
@@ -474,16 +479,16 @@ issue と PR を歓迎します:
 
 本リポジトリは以下でホストされています:
 
-| プラットフォーム | URL | 役割 |
-|---|---|---|
-| GitHub | <https://github.com/x33834/scholarhub> | プライマリ |
-| GitHub（ミラー） | <https://github.com/Morningstar202604/scholarhub> | ミラー |
-| GitCode | <https://gitcode.com/badhope/scholarhub> | ミラー |
-| Gitee | <https://gitee.com/badhope/scholarhub> | ミラー |
+四プラットフォームで並列同期（ブランチ / タグ / HEAD 完全一致）。どれでもお好みで：
 
-プロジェクトサイト: <https://x33834.github.io/scholarhub/>
+| プラットフォーム | URL |
+|---|---|
+| **GitHub** | <https://github.com/x33834/scholarhub> |
+| **GitHub** | <https://github.com/Morningstar202604/scholarhub> |
+| **GitCode** | <https://gitcode.com/badhope/scholarhub> |
+| **Gitee** | <https://gitee.com/badhope/scholarhub> |
 
-4 つのリモートは完全に同期されています（ブランチ・タグ・HEAD が同一）。
+**🌐 公式サイト**（GitHub Pages 両アカウント、内容同一）：<https://x33834.github.io/scholarhub/> · <https://morningstar202604.github.io/scholarhub/>
 
 ---
 

@@ -29,6 +29,11 @@
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#testing)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#status)
 
+[![GitHub](https://img.shields.io/badge/GitHub-x33834-24292F?style=flat-square&logo=github)](https://github.com/x33834/scholarhub)
+[![GitHub](https://img.shields.io/badge/GitHub-Morningstar202604-24292F?style=flat-square&logo=github)](https://github.com/Morningstar202604/scholarhub)
+[![GitCode](https://img.shields.io/badge/GitCode-badhope-3A72BE?style=flat-square&logo=git)](https://gitcode.com/badhope/scholarhub)
+[![Gitee](https://img.shields.io/badge/Gitee-badhope-C71D23?style=flat-square&logo=git)](https://gitee.com/badhope/scholarhub)
+
 **[Why](#why-scholarhub) · [Screenshots](#screenshots) · [What's inside](#whats-inside) · [Architecture](#architecture) · [Quick start](#quick-start) · [Testing](#testing) · [Docs](#docs) · [Contributing](#contributing)**
 
 </div>
@@ -234,16 +239,17 @@ Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for branch
 
 ## Repository
 
-| Platform | URL | Role |
-|---|---|---|
-| GitHub | <https://github.com/x33834/scholarhub> | Primary |
-| GitHub (mirror) | <https://github.com/Morningstar202604/scholarhub> | Mirror |
-| GitCode | <https://gitcode.com/badhope/scholarhub> | Mirror |
-| Gitee | <https://gitee.com/badhope/scholarhub> | Mirror |
+Four platforms in parallel (same branches, tags, and HEAD) — no favorites, pick any one:
 
-Project site: <https://x33834.github.io/scholarhub/>
+| Platform | URL |
+|---|---|
+| GitHub | <https://github.com/x33834/scholarhub> |
+| GitHub | <https://github.com/Morningstar202604/scholarhub> |
+| GitCode | <https://gitcode.com/badhope/scholarhub> |
+| Gitee | <https://gitee.com/badhope/scholarhub> |
 
-All four remotes are kept in sync (same branches, tags, and HEAD).
+Official sites (GitHub Pages, both accounts, identical):
+<https://x33834.github.io/scholarhub/> · <https://morningstar202604.github.io/scholarhub/>
 
 ## License
 

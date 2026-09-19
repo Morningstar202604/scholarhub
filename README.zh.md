@@ -29,6 +29,11 @@
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#测试)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#项目状态)
 
+[![GitHub](https://img.shields.io/badge/GitHub-x33834-24292F?style=flat-square&logo=github)](https://github.com/x33834/scholarhub)
+[![GitHub](https://img.shields.io/badge/GitHub-Morningstar202604-24292F?style=flat-square&logo=github)](https://github.com/Morningstar202604/scholarhub)
+[![GitCode](https://img.shields.io/badge/GitCode-badhope-3A72BE?style=flat-square&logo=git)](https://gitcode.com/badhope/scholarhub)
+[![Gitee](https://img.shields.io/badge/Gitee-badhope-C71D23?style=flat-square&logo=git)](https://gitee.com/badhope/scholarhub)
+
 **[一句话定位](#一句话定位) · [界面实拍](#界面实拍) · [核心能力](#核心能力) · [系统架构](#系统架构) · [快速开始](#快速开始) · [测试](#测试) · [文档](#文档) · [贡献](#贡献)**
 
 </div>
@@ -238,16 +243,16 @@ cd apps/frontend && E2E_SPAWN_SERVER=1 npx playwright test
 
 ## 仓库地址
 
-| 平台 | 地址 | 角色 |
-|---|---|---|
-| GitHub | <https://github.com/x33834/scholarhub> | 主仓库 |
-| GitHub(镜像) | <https://github.com/Morningstar202604/scholarhub> | 镜像 |
-| GitCode | <https://gitcode.com/badhope/scholarhub> | 镜像 |
-| Gitee | <https://gitee.com/badhope/scholarhub> | 镜像 |
+四平台并列同步（分支 / 标签 / HEAD 完全一致），不偏心任何一个，任选其一：
 
-项目主页:<https://x33834.github.io/scholarhub/>
+| 平台 | 地址 |
+|---|---|
+| **GitHub** | <https://github.com/x33834/scholarhub> |
+| **GitHub** | <https://github.com/Morningstar202604/scholarhub> |
+| **GitCode** | <https://gitcode.com/badhope/scholarhub> |
+| **Gitee** | <https://gitee.com/badhope/scholarhub> |
 
-四个远端保持同步(分支、标签、HEAD 均一致)。
+**🌐 官方网站**（GitHub Pages 双号部署，内容一致）：<https://x33834.github.io/scholarhub/> · <https://morningstar202604.github.io/scholarhub/>
 
 ## 项目状态
 
