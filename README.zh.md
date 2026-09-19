@@ -240,11 +240,14 @@ cd apps/frontend && E2E_SPAWN_SERVER=1 npx playwright test
 
 | 平台 | 地址 | 角色 |
 |---|---|---|
-| GitCode | <https://gitcode.com/badhope/scholarhub> | 主仓库 |
+| GitHub | <https://github.com/x33834/scholarhub> | 主仓库 |
+| GitHub(镜像) | <https://github.com/Morningstar202604/scholarhub> | 镜像 |
+| GitCode | <https://gitcode.com/badhope/scholarhub> | 镜像 |
 | Gitee | <https://gitee.com/badhope/scholarhub> | 镜像 |
-| GitHub | <https://github.com/x33834/scholarhub> | 镜像 |
 
-三个远端保持同步(分支、标签、HEAD 均一致)。
+项目主页:<https://x33834.github.io/scholarhub/>
+
+四个远端保持同步(分支、标签、HEAD 均一致)。
 
 ## 项目状态
 

@@ -236,11 +236,14 @@ Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for branch
 
 | Platform | URL | Role |
 |---|---|---|
-| GitCode | <https://gitcode.com/badhope/scholarhub> | Primary |
+| GitHub | <https://github.com/x33834/scholarhub> | Primary |
+| GitHub (mirror) | <https://github.com/Morningstar202604/scholarhub> | Mirror |
+| GitCode | <https://gitcode.com/badhope/scholarhub> | Mirror |
 | Gitee | <https://gitee.com/badhope/scholarhub> | Mirror |
-| GitHub | <https://github.com/x33834/scholarhub> | Mirror |
 
-All remotes are kept in sync (same branches, tags, and HEAD).
+Project site: <https://x33834.github.io/scholarhub/>
+
+All four remotes are kept in sync (same branches, tags, and HEAD).
 
 ## License
 

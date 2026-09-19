@@ -476,11 +476,14 @@ issue と PR を歓迎します:
 
 | プラットフォーム | URL | 役割 |
 |---|---|---|
-| GitCode | <https://gitcode.com/badhope/scholarhub> | プライマリ |
+| GitHub | <https://github.com/x33834/scholarhub> | プライマリ |
+| GitHub（ミラー） | <https://github.com/Morningstar202604/scholarhub> | ミラー |
+| GitCode | <https://gitcode.com/badhope/scholarhub> | ミラー |
 | Gitee | <https://gitee.com/badhope/scholarhub> | ミラー |
-| GitHub | <https://github.com/x33834/scholarhub> | ミラー |
 
-両リモートは完全に同期されています（ブランチ・タグ・HEAD が同一）。
+プロジェクトサイト: <https://x33834.github.io/scholarhub/>
+
+4 つのリモートは完全に同期されています（ブランチ・タグ・HEAD が同一）。
 
 ---
 
