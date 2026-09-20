@@ -88,45 +88,6 @@ def _get_refresh_token_expire_days() -> int:
     return get_settings().refresh_token_expire_days
 
 
-# Short-lived (5 min) JWT that proves the holder has just completed the
-# password step of /auth/login for a 2FA-enabled account. The token carries
-# only ``sub`` (user id) and ``type: 2fa_pending``; it carries no scopes
-# and is rejected by every other endpoint that needs auth.
-_2FA_PENDING_TTL_MINUTES = 5
-
-
-def create_2fa_pending_token(user_id: int) -> str:
-    """Issue a short-lived token proving password step is done.
-
-    Used by the login flow when the account has 2FA enabled. The token
-    is consumed once by ``POST /auth/2fa/authenticate`` and is not a
-    bearer token for any other endpoint.
-    """
-    return _create_token(
-        {"sub": str(user_id)},
-        timedelta(minutes=_2FA_PENDING_TTL_MINUTES),
-        "2fa_pending",
-    )
-
-
-def decode_2fa_pending_token(token: str) -> int | None:
-    """Return the user id from a 2fa_pending token, or None on any error.
-
-    We deliberately return None on every failure mode (expired,
-    malformed, wrong type, signature mismatch) so the caller can
-    surface a single generic 'verification failed' error to the
-    client without leaking which check failed.
-    """
-    payload = decode_jwt(token, expected_type="2fa_pending")
-    if payload is None:
-        return None
-    sub = payload.get("sub")
-    try:
-        return int(str(sub))
-    except (TypeError, ValueError):
-        return None
-
-
 def token_version_matches(payload: dict[str, Any] | None, expected_version: int) -> bool:
     """Return True if the access-token payload carries the expected ``token_version``."""
     if payload is None:

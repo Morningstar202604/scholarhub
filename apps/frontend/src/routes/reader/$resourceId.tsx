@@ -235,6 +235,10 @@ function ReaderPage() {
               <CardTitle className="text-base">阅读进度</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* 读屏：当前页码变化实时播报（视觉隐藏，仅读屏可见） */}
+              <p className="sr-only" aria-live="polite">
+                当前第 {page} 页
+              </p>
               <div className="space-y-1.5">
                 <Label htmlFor="page">页码</Label>
                 <div className="flex items-center gap-2">
@@ -277,6 +281,7 @@ function ReaderPage() {
                   max={100}
                   value={progressPercent}
                   onChange={(e) => setProgressPercent(Number(e.target.value))}
+                  aria-valuetext={`阅读进度 ${progressPercent}%`}
                   className="w-full"
                 />
               </div>

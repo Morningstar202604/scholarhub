@@ -31,7 +31,6 @@ from app.api.deps import get_current_user
 from app.core.db import get_db
 from app.core.logging import get_logger
 from app.core.security import (
-    decode_2fa_pending_token,
     verify_password,
 )
 from app.core.totp import (
@@ -43,6 +42,9 @@ from app.core.totp import (
     normalize_backup_code,
     otpauth_uri,
     verify_totp,
+)
+from app.core.twofactor import (
+    decode_two_factor_pending_token,
 )
 from app.models import User
 from app.schemas import (
@@ -230,7 +232,8 @@ async def authenticate_2fa(
     token is single-use - a second call with the same token fails (we
     do not currently denylist, but the JWT expires in 5 minutes).
     """
-    user_id = decode_2fa_pending_token(payload.two_factor_token)
+    claims = decode_two_factor_pending_token(payload.two_factor_token)
+    user_id = int(claims["sub"]) if claims is not None else None
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

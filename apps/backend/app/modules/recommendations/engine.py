@@ -32,6 +32,25 @@ from app.modules.reader.models import ReadingHistory
 TAG_WEIGHT = 0.6
 DISCIPLINE_WEIGHT = 0.3
 SUBDISCIPLINE_WEIGHT = 0.1
+# Cap the candidate set scanned for ranking. Beyond this the user has
+# read so little of a very large catalog that scanning the rest in one
+# pass is wasteful; falling back to "latest" is cheaper and still useful.
+_MAX_CANDIDATE_SCAN = 5000
+
+
+@dataclass
+class _Candidate:
+    """Lightweight scoring row.
+
+    Only the columns the content-based score needs are fetched — no
+    ``abstract``/``preview``/JSON payloads — so a large catalog does not
+    drag heavy BLOB-like data into Python just to rank it.
+    """
+
+    id: int
+    tags: list[str]
+    discipline: str
+    subdiscipline: str | None
 
 
 @dataclass
@@ -53,7 +72,13 @@ class ScoredResource:
 
 
 async def _load_read_resources(db: AsyncSession, user_id: int, tenant_id: UUID) -> list[Resource]:
-    """Return the resources the user has reading history for (tenant-scoped)."""
+    """Return the resources the user has reading history for (tenant-scoped).
+
+    Read-history is bounded by the user's own activity and is used to
+    build the profile + the ``read_ids`` set, so the full row is fetched
+    here. The heavy candidate scan (which can span the whole catalog)
+    is what's pruned to lightweight columns in :func:`recommend`.
+    """
     rows = (
         (
             await db.execute(
@@ -72,6 +97,12 @@ async def _load_read_resources(db: AsyncSession, user_id: int, tenant_id: UUID) 
 
 
 def _build_profile(read_resources: list[Resource]) -> UserProfile:
+    """Aggregate the user's interest profile from read resources.
+
+    Only ``tags`` / ``discipline`` / ``subdiscipline`` are consulted —
+    the heavy ``abstract`` / ``preview`` / JSON columns stay out of the
+    Python heap even when the user has read many items.
+    """
     profile = UserProfile()
     for r in read_resources:
         for tag in r.tags or []:
@@ -83,7 +114,17 @@ def _build_profile(read_resources: list[Resource]) -> UserProfile:
     return profile
 
 
-def _score_candidate(candidate: Resource, profile: UserProfile) -> ScoredResource:
+def _score_candidate(
+    candidate: _Candidate,
+    profile: UserProfile,
+) -> tuple[float, str]:
+    """Compute the content-based score + reason for one lightweight candidate.
+
+    Only the scoring columns are needed (tags, discipline, subdiscipline);
+    no full ``Resource`` row is materialized during the ranking pass. The
+    returned ``(score, reason)`` pair is attached to the full ORM row
+    after the top-N selection is known.
+    """
     candidate_tags = candidate.tags or []
     overlap = [t for t in candidate_tags if t in profile.tags]
     # Precision: fraction of the candidate's tags the user cares about.
@@ -109,7 +150,7 @@ def _score_candidate(candidate: Resource, profile: UserProfile) -> ScoredResourc
     if subdiscipline_match:
         parts.append(f"subdiscipline '{candidate.subdiscipline}'")
     reason = "; ".join(parts) if parts else "no direct match"
-    return ScoredResource(resource=candidate, score=score, reason=reason)
+    return score, reason
 
 
 async def _fallback_latest(
@@ -170,24 +211,54 @@ async def recommend(
 
     profile = _build_profile(read_resources)
     read_ids = {r.id for r in read_resources}
-    candidates = (
-        (
-            await db.execute(
-                select(Resource).where(
-                    ~Resource.id.in_(read_ids),
-                    Resource.tenant_id == tenant_id,
-                )
+    # Phase 1: score on lightweight columns only (id, tags, discipline,
+    # subdiscipline) so a large catalog never drags abstract/preview/JSON
+    # payloads into Python just to rank it.
+    candidate_rows = (
+        await db.execute(
+            select(
+                Resource.id,
+                Resource.tags,
+                Resource.discipline,
+                Resource.subdiscipline,
+            ).where(
+                ~Resource.id.in_(read_ids),
+                Resource.tenant_id == tenant_id,
             )
+            .order_by(desc(Resource.created_at))
+            .limit(_MAX_CANDIDATE_SCAN)
         )
-        .scalars()
-        .all()
-    )
-    if not candidates:
+    ).all()
+    if not candidate_rows:
         # 已读完全部资源：回退到最新收录，避免推荐页变成死胡同。
         return await _fallback_latest(
             db, limit, tenant_id, reason="you have read everything; showing latest"
         )
 
-    scored = [_score_candidate(c, profile) for c in candidates]
-    scored.sort(key=lambda s: (-s.score, s.resource.id))
-    return scored[:limit]
+    # 候选排序：(score, id, reason)，稳定排序用 (-score, id)。
+    ranked: list[tuple[float, int, str]] = []
+    for row in candidate_rows:
+        candidate = _Candidate(
+            id=row[0],
+            tags=row[1] or [],
+            discipline=row[2],
+            subdiscipline=row[3],
+        )
+        score, reason = _score_candidate(candidate, profile)
+        ranked.append((score, candidate.id, reason))
+    ranked.sort(key=lambda r: (-r[0], r[1]))
+
+    top_ids = [r[1] for r in ranked[: max(limit, 1)]]
+    # Phase 2: hydrate full rows only for the survivors.
+    top_resources = (
+        await db.execute(
+            select(Resource).where(Resource.id.in_(top_ids))
+        )
+    ).scalars().all()
+    # SQLAlchemy does not guarantee IN-list ordering, so rebuild by id.
+    by_id = {r.id: r for r in top_resources}
+    result: list[ScoredResource] = []
+    for score, rid, reason in ranked[: max(limit, 1)]:
+        if rid in by_id:
+            result.append(ScoredResource(resource=by_id[rid], score=score, reason=reason))
+    return result
