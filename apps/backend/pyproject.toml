@@ -121,6 +121,9 @@ ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["B017"]  # 允许测试中对 Exception 通用断言
+# E402: 该脚本必须在 import app 之前设置环境变量（config 在 import 时读取 env），
+# import 后置是刻意设计，非疏漏。
+"e2e_run_server.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.12"
