@@ -8,7 +8,7 @@ conftest overrides the engine to aiosqlite).
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Sequence
-from typing import Any
+from typing import Any, TypeVar
 
 from sqlalchemy import event, func, select, text
 from sqlalchemy.ext.asyncio import (
@@ -128,14 +128,20 @@ async def dispose_engine() -> None:
     logger.info("database_engine_disposed")
 
 
-async def paginate[T](
+# 3.11 兼容：PEP 695 的 `async def paginate[T](...)` 语法要求 3.12+，
+# 部署沙箱是 3.11，这里用等价 TypeVar 写法（3.12+ 行为完全一致）。
+# UP047 建议改回 PEP 695 语法，为兼容 3.11 有意 noqa。
+_PaginateT = TypeVar("_PaginateT")
+
+
+async def paginate(  # noqa: UP047 - 3.11 兼容，见上注释
     db: AsyncSession,
-    stmt: Select[tuple[T]],
+    stmt: Select[tuple[_PaginateT]],
     *,
     page: int,
     page_size: int,
     order_by: Sequence[ColumnElement[Any]],
-) -> tuple[list[T], PaginationMeta]:
+) -> tuple[list[_PaginateT], PaginationMeta]:
     """Run a paginated query; return (rows, PaginationMeta).
 
     Caller builds the base ``select(SomeModel).where(...)`` (no ORDER BY,
