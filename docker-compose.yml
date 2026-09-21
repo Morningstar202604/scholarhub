@@ -1,0 +1,82 @@
+# ScholarHUB 单机全家桶：数据库 + 后端(含前端静态) + 自动 HTTPS，一条命令上线。
+# 适用：任意 VPS（Hetzner/腾讯云轻量等，1C2G 起步）。前提：装好 Docker + Compose v2。
+#
+# 使用：
+#   1. cp .env.example .env  然后填好（必填项见文件内注释与 DEPLOY.md checklist）
+#   2. 在 .env 里设置 SITE_DOMAIN=你的域名（DNS A 记录指到本机），Caddy 自动签发 HTTPS
+#   3. docker compose up -d --build
+#   4. 验证: curl https://$SITE_DOMAIN/api/health
+#
+# 功能完整性：真 PostgreSQL（RLS/pg_trgm/UUID 全生效）+ 本地持久卷（上传的 PDF
+# 重启不丢）+ 无冷启动 + 无平台配额。这是"功能不打折"的最小平台数方案。
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scholarhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in apps/backend/.env}
+      POSTGRES_DB: scholarhub
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scholarhub -d scholarhub"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SCHOLARHUB_ENVIRONMENT: production
+      # 容器网络内直连 db 服务； Neon 等外部库时替换此值即可。
+      SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:${POSTGRES_PASSWORD}@db:5432/scholarhub
+      SCHOLARHUB_SECRET_KEY: ${SCHOLARHUB_SECRET_KEY:?set in apps/backend/.env}
+      SCHOLARHUB_FERNET_KEY: ${SCHOLARHUB_FERNET_KEY:?set in apps/backend/.env}
+      SCHOLARHUB_ADMIN_EMAIL: ${SCHOLARHUB_ADMIN_EMAIL:-admin@scholarhub.local}
+      SCHOLARHUB_ADMIN_USERNAME: ${SCHOLARHUB_ADMIN_USERNAME:-admin}
+      SCHOLARHUB_ADMIN_PASSWORD: ${SCHOLARHUB_ADMIN_PASSWORD:?set in apps/backend/.env}
+      SCHOLARHUB_ALLOWED_HOSTS: ${SITE_DOMAIN},localhost
+      SCHOLARHUB_CORS_ORIGINS: https://${SITE_DOMAIN}
+      SCHOLARHUB_STORAGE_BACKEND: local
+      SCHOLARHUB_STORAGE_PATH: /data/uploads
+      SCHOLARHUB_STATIC_DIR: /app/static
+      SCHOLARHUB_LOG_LEVEL: WARNING
+      SCHOLARHUB_JSON_LOGS: "false"
+    volumes:
+      - uploads:/data/uploads
+    # 必须先跑迁移再启动：RLS 策略只存在于 alembic 迁移里，
+    # ORM create_all 不会生成（见 tests/test_rls_coverage.py 的守门逻辑）。
+    command: >
+      sh -c "uv run --no-sync alembic upgrade head
+      && uv run --no-sync python deploy_server.py"
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

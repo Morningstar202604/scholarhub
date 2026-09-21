@@ -1,0 +1,19 @@
+# Caddy 自动 HTTPS 反代。域名从环境变量 SITE_DOMAIN 读取（docker-compose.yml 注入）。
+# 没有域名时 SITE_DOMAIN=localhost，Caddy 用自签证书，仅适合本机验证。
+{
+	# 邮箱留空则用 Caddy 内部 ACME 账户签 Let's Encrypt 证书。
+	# email: you@example.com
+}
+
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	# 健康检查直通，便于平台探活与 uptime 监控。
+	handle /api/health* {
+		reverse_proxy app:8080
+	}
+
+	handle {
+		reverse_proxy app:8080
+	}
+}

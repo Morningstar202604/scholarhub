@@ -55,10 +55,19 @@ Dockerfile），一个服务搞定，前端走同源 `/api`，**无需 CORS**：
 
 > 方案 B 静态托管由 FastAPI 提供，无 CF 边缘缓存；流量大时可再加 CF 前置 CDN。
 
-## 方案 C：VPS + Cloudflare Tunnel（已有自己的服务器时）
+## 方案 C：VPS 单机全家桶 ⭐ 平台数最少、功能最完整
 
-服务器上 `docker compose up`（或裸跑 `deploy_server.py`），
-`cloudflared tunnel` 把域名打进内网，无需开放入站端口。
+一台 VPS 跑全部（PostgreSQL + 后端 + 前端 + HTTPS），`docker-compose.yml` 已备好：
+
+1. VPS 装 Docker + Compose v2，克隆仓库
+2. `cp .env.example .env` → 填好 `SITE_DOMAIN` / `POSTGRES_PASSWORD` / 三个密钥（生成命令在文件注释里）
+3. DNS A 记录：你的域名 → VPS IP
+4. `docker compose up -d --build`
+5. 验证：`curl https://$SITE_DOMAIN/api/health`
+
+内置能力：Caddy 自动 HTTPS（Let's Encrypt，无需手工证书）、`alembic upgrade head` 随启动自动执行（RLS 就位）、`pgdata`/`uploads` 持久卷（数据与上传的 PDF 重启不丢）。功能 100% 完整：RLS、pg_trgm 搜索、文件持久、无冷启动、无平台配额。
+
+成本参考：Hetzner CX22 / 腾讯云轻量 2C2G ≈ $4–5/月。可选：前面再套一层 Cloudflare 免费 CDN（只需把 NS 指到 CF）。
 
 ## 上线前 checklist
 
