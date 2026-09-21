@@ -12,6 +12,20 @@ The short version:
 > optional — nice to have for CDN / origin hiding / Turnstile, never a
 > hard requirement.
 
+Two more deployment shapes exist besides this compose stack (see
+[DEPLOY.md](../DEPLOY.md) for the full comparison):
+
+- **Single container, single port** — `apps/backend/Dockerfile` is a
+  multi-stage build that bakes the frontend `dist/` into the backend
+  image (`deploy_server.py` serves SPA + API same-origin, no CORS) and
+  runs `alembic upgrade head` automatically at startup. One service on
+  any Docker PaaS (Render / Railway / Fly.io) runs the whole stack —
+  point `SCHOLARHUB_DATABASE_URL` at a managed Postgres (e.g. Neon).
+- **Root `docker-compose.yml` (VPS all-in-one)** — PostgreSQL 17 +
+  backend + Caddy auto-HTTPS with persistent volumes and startup
+  migrations; copy the root `.env.example`, fill secrets, `docker
+  compose up -d --build`.
+
 ---
 
 ## 1. Prerequisites

@@ -7,6 +7,32 @@
 
 ### Added
 
+- **单端口一体化部署**:`apps/backend/Dockerfile` 多阶段构建把前端 `dist/` 打进后端镜像
+  (`deploy_server.py` 同源托管 SPA + API,无 CORS),任意 Docker PaaS(Render / Railway /
+  Fly)一个服务跑全栈;容器启动自动执行 `alembic upgrade head`(RLS 随启动就位)。
+- **VPS 单机全家桶**:仓库根 `docker-compose.yml`(PostgreSQL 17 + 后端 + Caddy 自动
+  HTTPS、`pgdata`/`uploads` 持久卷、启动自动迁移),配套 `.env.example`,一条
+  `docker compose up -d --build` 上线。
+- 性能索引迁移 `020_performance_indexes`:`resources` 两个复合索引
+  (tenant+created_at DESC / tenant+type+created_at DESC)与两个 pg_trgm GIN 索引
+  (title / abstract),对应 ORM 模型侧同名同形声明。
+
+### Changed
+
+- `TenantScopedMixin` 重构:统一租户列与索引声明,RLS 覆盖门(`test_rls_coverage`)
+  保持全绿。
+
+### Fixed
+
+- Python 3.11 部署沙箱兼容:`app/core/db.py` 的 `paginate` 泛型从 PEP 695 语法改为
+  等价 TypeVar 写法(3.12+ 行为不变)。
+- CI 第三轮收尾:migrations job 的 `alembic check` 漂移(020 raw DDL 索引未在 ORM
+  声明)→ 模型侧补齐 4 个同名同形索引;backend job lint 扩到 CI 全目录口径
+  (`e2e_run_server.py` 的 import 后置属刻意设计,加 E402 per-file-ignores);
+  precommit `fix end of files` 补 `.audit/W3-progress.md` 尾换行。
+
+### Added
+
 - 品牌物料升级:重绘 logo(`docs/assets/logo.svg` "S · 书页流转"一笔成型标志)、
   重建架构图(11 个模块 + core,修正旧图遗漏 `doi`/`recommendations`)与流程图
   (横向主流程 + 回流虚线 + 角色图例),新增前端 `BrandMark` 内联组件让侧边栏、

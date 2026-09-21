@@ -20,8 +20,8 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
 [![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](docs/ARCHITECTURE.md)
-[![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
-[![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#テスト)
+[![Unit tests](https://img.shields.io/badge/unit_tests-646-10B981?style=flat-square&logo=pytest&logoColor=white)](#テスト)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-2C5AA0?style=flat-square)](#テスト)
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#テスト)
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#テスト)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#プロジェクトステータス)
@@ -372,7 +372,7 @@ scholarhub/
 
 ## テスト
 
-現在のテスト規模：バックエンド **644** 件（行カバレッジ 84%）、フロントエンド **100** 件、E2E **66** 件。
+現在のテスト規模：バックエンド **646** 件（行カバレッジ 83%）、フロントエンド **100** 件、E2E **66** 件。
 
 ### ユニット + 統合
 

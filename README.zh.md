@@ -10,7 +10,7 @@
 
 **一套开箱即用的开源基座——投稿、审稿、发表、阅读,一个代码库跑通全流程。**
 
-> 11 个后端模块 · 644 个测试 / 覆盖率 84% · 66 个端到端用例 · 前后端全程严格类型
+> 11 个后端模块 · 646 个测试 / 覆盖率 83% · 66 个端到端用例 · 前后端全程严格类型
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
@@ -23,8 +23,8 @@
 [![Docker](https://img.shields.io/badge/Docker--Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
 [![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](docs/ARCHITECTURE.md)
-[![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
-[![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#测试)
+[![Unit tests](https://img.shields.io/badge/unit_tests-646-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-2C5AA0?style=flat-square)](#测试)
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#测试)
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#测试)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#项目状态)
@@ -125,7 +125,7 @@ ScholarHUB 是一套**开箱即用、自带电池**的学术出版基座——�
 
 - **后端** — FastAPI(async)、SQLAlchemy 2.0 async、PostgreSQL / SQLite,模块化 `app/modules/*`,`mypy` 严格模式 + `ruff` 全绿。
 - **前端** — React 19 + TanStack Router + TypeScript 5.9 + Tailwind v4 + shadcn/ui,端到端类型安全。
-- **测试** — `pytest`(并行、行覆盖率 84%、硬性 `--cov-fail-under=80`)、前端 `vitest`、Playwright 跑完整的投稿 → 审稿 → 发表 → 阅读旅程。
+- **测试** — `pytest`(并行、行覆盖率 83%、硬性 `--cov-fail-under=80`)、前端 `vitest`、Playwright 跑完整的投稿 → 审稿 → 发表 → 阅读旅程。
 
 ### 两个值得记住的防御
 
@@ -216,7 +216,7 @@ docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d --bui
 
 质量由 CI 兜底,不是嘴上说说:
 
-- **后端** — **644** 个 `pytest` 用例,行覆盖率 **84%**,硬性门槛 `--cov-fail-under=80`;`mypy --strict` 与 `ruff` 全绿。
+- **后端** — **646** 个 `pytest` 用例,行覆盖率 **83%**,硬性门槛 `--cov-fail-under=80`;`mypy --strict` 与 `ruff` 全绿。
 - **前端** — `vitest` 单元 + 组件测试,严格 `tsc` 下 **100** 个用例。
 - **E2E** — **66** 个 Playwright 用例,在 Playwright 拉起的真实服务上跑投稿 → 审稿 → 发表 → 阅读全流程(不靠脆弱的生产环境 parity)。
 - **CI** — 每次推送都跑后端 / 前端 / E2E 三个 job;pytest 严格 marker;版本一致性守卫让 `VERSION` / `pyproject` / `package.json` / `__version__` 始终一致。

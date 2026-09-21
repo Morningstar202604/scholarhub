@@ -10,7 +10,7 @@
 
 **An open-source backbone that ships the entire academic publishing loop — submit, review, publish, read — in one codebase.**
 
-> 11 backend modules · 644 tests at 84% coverage · 66 end-to-end specs · strict typing end to end
+> 11 backend modules · 646 tests at 83% coverage · 66 end-to-end specs · strict typing end to end
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
@@ -23,8 +23,8 @@
 [![Docker](https://img.shields.io/badge/Docker--Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
 
 [![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](docs/ARCHITECTURE.md)
-[![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
-[![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#testing)
+[![Unit tests](https://img.shields.io/badge/unit_tests-646-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-2C5AA0?style=flat-square)](#testing)
 [![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
 [![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#testing)
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#status)
@@ -212,7 +212,7 @@ See [SECURITY.md](SECURITY.md) for the full policy and threat model.
 
 Quality is enforced in CI, not just claimed:
 
-- **Backend** — **644** `pytest` cases at **84% line coverage** with a hard `--cov-fail-under=80` gate; `mypy --strict` and `ruff` clean.
+- **Backend** — **646** `pytest` cases at **83% line coverage** with a hard `--cov-fail-under=80` gate; `mypy --strict` and `ruff` clean.
 - **Frontend** — `vitest` unit + component tests under strict `tsc` (**100** cases).
 - **E2E** — **66 Playwright specs** exercising the real submit → review → publish → read workflow against a spawned test server (no flaky production parity).
 - **CI** — backend, frontend, and e2e jobs on every push; strict pytest markers; a version-consistency guard keeps `VERSION` / `pyproject` / `package.json` / `__version__` in lockstep.
