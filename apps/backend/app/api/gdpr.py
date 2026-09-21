@@ -294,7 +294,7 @@ async def delete_my_account(
     # Destroy the TOTP secret so even a future restore + new password
     # would need to re-enroll 2FA. Only the encrypted ``totp_*`` column
     # group remains — the plaintext ``two_factor_*`` columns were dropped
-    # by migration 021_merge_two_factor.
+    # by migration 021_unify_two_factor.
     current_user.totp_secret_encrypted = None
     current_user.totp_enabled_at = None
     current_user.totp_backup_codes_hashed = None

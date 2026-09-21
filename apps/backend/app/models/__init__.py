@@ -162,18 +162,11 @@ class User(Base, TenantScopedMixin):
     # every device the way logout / password change do.
     refresh_token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # --- TOTP two-factor auth (opt-in per user) ---
-    # The secret is written during setup but 2FA only takes effect once
-    # ``two_factor_enabled`` flips True — i.e. after the user has proven
-    # they can produce a valid code from it. Stored in plaintext by TOTP
-    # necessity; see app/core/twofactor.py for the rationale.
-    two_factor_enabled: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False, server_default="false"
-    )
-    two_factor_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # SHA-256 digests of the still-unused single-use recovery codes.
-    two_factor_recovery_codes: Mapped[list[str] | None] = mapped_column(JSONBVariant, nullable=True)
-    # TOTP 2FA secret encrypted at rest with Fernet (legacy column set from
-    # migration 012_user_totp; used by app/api/two_factor.py via core/totp.py).
+    # TOTP 2FA secret encrypted at rest with Fernet; used by app/api/two_factor.py
+    # via core/totp.py. 2FA takes effect once ``totp_enabled_at`` is stamped
+    # (i.e. after the user has proven they can produce a valid code).
+    # The legacy plaintext ``two_factor_*`` column group was dropped by
+    # migration 021_unify_two_factor.
     totp_secret_encrypted: Mapped[str | None] = mapped_column(String(512), nullable=True)
     # JSON array of SHA-256 hashes of the one-time backup codes.
     totp_backup_codes_hashed: Mapped[str | None] = mapped_column(String(2048), nullable=True)
