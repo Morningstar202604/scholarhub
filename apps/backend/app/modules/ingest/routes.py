@@ -27,7 +27,6 @@ from app.modules.ingest.parsers import parse_bibtex, parse_csv, parse_ris
 from app.modules.ingest.schemas import (
     FetchRequest,
     IngestResource,
-    ParseError,
     ParseRequest,
     ParseResponse,
 )
@@ -93,6 +92,3 @@ async def fetch_endpoint(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Upstream service error",
         ) from None
-
-
-__all__ = ["ParseError"]

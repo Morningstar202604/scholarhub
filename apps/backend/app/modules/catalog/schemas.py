@@ -8,7 +8,7 @@ pagination metadata.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import (
     AnyHttpUrl,
@@ -121,7 +121,9 @@ class ResourceUpdate(BaseModel):
 
     type: ResourceType | None = None
     title: str | None = Field(default=None, min_length=1, max_length=1000)
-    authors: list[str] | None = Field(default=None, min_length=1, max_length=200)
+    # 与 ResourceCreate 用同一个 Authors 注解：PATCH 也必须做逐元素校验
+    # （长度 1..200、非空），否则可以写入空串或超长作者名。
+    authors: Authors | None = None
     year: int | None = Field(default=None, ge=-3000, le=2100)
     venue: str | None = Field(default=None, max_length=500)
     discipline: str | None = Field(default=None, min_length=1, max_length=100)
@@ -158,23 +160,6 @@ class ResourceResponse(ResourceBase):
     slug: str | None = None
     created_at: datetime
     updated_at: datetime
-
-    @model_validator(mode="before")
-    @classmethod
-    def _coerce_authors_meta(cls, data: Any) -> Any:
-        """Map the JSON column ``authors_meta`` (list[dict]) into a
-        list of :class:`AuthorMeta` for the response. When ``data``
-        is a plain dict we just leave it alone (Pydantic does the
-        construction). For ORM instances we extract the column by
-        name and replace the list of dicts with Pydantic models.
-        """
-        if hasattr(data, "_sa_instance_state"):
-            # ORM: take the raw value and let Pydantic build the models
-            raw = getattr(data, "authors_meta", None)
-            return {c.name: getattr(data, c.name) for c in data.__table__.columns} | {
-                "authors_meta": raw
-            }
-        return data
 
 
 class ResourceListResponse(BaseModel):

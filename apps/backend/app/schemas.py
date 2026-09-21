@@ -174,10 +174,6 @@ class UserResponse(BaseModel):
         并只取标量字段，让 roles 走默认空列表（admin 端点用 _user_with_roles 显式填充）。
         """
         # 用 duck typing 避免循环 import：检查是否为 SQLAlchemy ORM 实例
-        if hasattr(data, "__dict__") and hasattr(data, "__table__") is False:
-            # 不是 ORM 实例的常见情况：dict、关键字参数等直接返回
-            if not hasattr(data, "_sa_instance_state"):
-                return data
         if hasattr(data, "_sa_instance_state"):
             # ORM 实例：只取标量列，避免触发 relationship lazy load
             return {

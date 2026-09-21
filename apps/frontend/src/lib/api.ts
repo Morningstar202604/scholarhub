@@ -65,6 +65,20 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    // 公开认证端点的 401 含义是「这次提交的凭据不对」，不是「token 过期」：
+    // 打 refresh 没有意义（白多一次请求），而且 refresh 失败会把错误对象
+    // 换成 refresh 的 error —— 登录页就再也看不到后端的 "Invalid credentials"。
+    const PUBLIC_AUTH = [
+      '/auth/login',
+      '/auth/register',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/verify-email',
+    ]
+    if (PUBLIC_AUTH.some((p) => original.url?.includes(p))) {
+      return Promise.reject(error)
+    }
+
     // If /auth/refresh itself returns 401, the refresh_token is also dead —
     // clear auth state so the route guard bounces to /login.
     if (original.url?.includes('/auth/refresh')) {

@@ -65,7 +65,9 @@ function LoginPage() {
           err instanceof AxiosError
             ? (err.response?.data as { detail?: string })?.detail
             : undefined
-        // pending token 过期（5 分钟）→ 回到第一步重新输密码
+        // pending token 过期（5 分钟）→ 回到第一步重新输密码。
+        // 这里是靠后端文案子串判断的，后端一改措辞就会静默失效；
+        // 正解是让后端返回结构化的 error code，前端按 code 分支。
         if (detail?.includes('session')) {
           toast.error('验证会话已过期，请重新登录')
           setPendingToken(null)

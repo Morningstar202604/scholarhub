@@ -27,3 +27,41 @@ export function extractError(err: unknown, fallback: string): string {
   }
   return fallback
 }
+
+// Parse a comma-separated list field (authors / tags / keywords / jel_codes)
+// into a trimmed, empty-filtered string array. Replaces the repeated inline
+// `.split(',').map(s => s.trim()).filter(Boolean)` pattern across the app.
+export function parseListField(s: string): string[] {
+  return s
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+// Trigger a browser download from a Blob response (export / file download).
+// Filename is parsed from Content-Disposition, falling back to fallbackName.
+// Deduplicates the blob-download logic previously hand-rolled in
+// exportResources() and downloadSubmissionFile().
+export function downloadBlob(data: Blob, disposition: string, fallbackName: string): void {
+  const match = /filename="?([^";]+)"?/.exec(disposition)
+  const filename = match?.[1] ?? fallbackName
+  const url = URL.createObjectURL(data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+// Backend list endpoints return a bare array with no meta; the total page
+// count is inferred from whether the current page came back full. Extracted
+// from the identical logic in admin/users.tsx and admin/audit-logs.tsx.
+export function inferTotalPagesFromFullPage(
+  items: unknown[],
+  pageSize: number,
+  page: number,
+): number {
+  return items.length >= pageSize ? page + 1 : page
+}

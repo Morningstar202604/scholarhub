@@ -5,7 +5,6 @@ interface WorkflowTimelineProps {
   status: SubmissionStatus
   submittedAt: Date
   reviewedAt: Date | null
-  reviewedBy: number | null
 }
 
 interface StepDef {
@@ -58,7 +57,6 @@ export default function WorkflowTimeline({
   status,
   submittedAt,
   reviewedAt,
-  reviewedBy: _reviewedBy,
 }: WorkflowTimelineProps) {
   const { current, rejected } = resolveStep(status)
   const stepCount = rejected ? 3 : 4

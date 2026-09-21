@@ -14,6 +14,8 @@ bulk revocation (revoke-all, password change).
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -44,11 +46,13 @@ from app.core.tokens import (
     decode_token,
     random_jti,
 )
-from app.core.twofactor import (
-    consume_recovery_code,
+from app.core.totp import (
     create_two_factor_pending_token,
     decode_two_factor_pending_token,
-    verify_totp_code,
+    decrypt_secret,
+    hash_backup_code,
+    normalize_backup_code,
+    verify_totp,
 )
 from app.models import User
 from app.schemas import (
@@ -204,7 +208,7 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
 
-    if user.two_factor_enabled:
+    if user.totp_enabled_at is not None:
         # Password OK, but the second factor is outstanding. Issue a
         # 5-minute pending token instead of real credentials.
         return TwoFactorRequiredResponse(
@@ -222,8 +226,9 @@ async def login_two_factor(
 ) -> TokenResponse:
     """Second step of 2FA login: pending token + TOTP/recovery code → tokens.
 
-    Accepts either a 6-digit TOTP code or an unused xxxx-xxxx-xxxx
-    recovery code (which is consumed on success).
+    Accepts either a 6-digit TOTP code or an unused XXXXX-XXXXX recovery
+    code (which is consumed on success). The source of truth is the
+    encrypted ``totp_*`` column group.
     """
     claims = decode_two_factor_pending_token(payload.pending_token)
     if claims is None:
@@ -245,8 +250,8 @@ async def login_two_factor(
     if (
         user is None
         or not user.is_active
-        or not user.two_factor_enabled
-        or user.two_factor_secret is None
+        or user.totp_enabled_at is None
+        or user.totp_secret_encrypted is None
         or claims.get("token_version") != user.token_version
     ):
         raise HTTPException(
@@ -254,21 +259,47 @@ async def login_two_factor(
             detail="Invalid or expired two-factor session; log in again",
         )
 
-    if verify_totp_code(user.two_factor_secret, payload.code):
-        return _issue_tokens(user, response)
+    ok = False
+    if payload.code:
+        try:
+            secret = decrypt_secret(user.totp_secret_encrypted)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="2FA secret cannot be decrypted - encryption key may have rotated",
+            ) from exc
+        # A TOTP code is exactly 6 digits; recovery codes are XXXXX-XXXXX.
+        if payload.code.isdigit() and len(payload.code) == 6:
+            ok = verify_totp(secret, payload.code) is not None
+        if not ok:
+            # Try the provided value as a single-use recovery code.
+            candidate_hash = hash_backup_code(normalize_backup_code(payload.code))
+            try:
+                hashes = (
+                    set(json.loads(user.totp_backup_codes_hashed))
+                    if user.totp_backup_codes_hashed
+                    else set()
+                )
+            except (json.JSONDecodeError, TypeError):
+                hashes = set()
+            if candidate_hash in hashes:
+                hashes.discard(candidate_hash)
+                user.totp_backup_codes_hashed = json.dumps(sorted(hashes))
+                await db.commit()
+                logger.info(
+                    "two_factor_recovery_code_used",
+                    user_id=user.id,
+                    remaining=len(hashes),
+                )
+                ok = True
 
-    # Fall back to recovery codes (single use).
-    remaining = consume_recovery_code(user.two_factor_recovery_codes or [], payload.code)
-    if remaining is not None:
-        user.two_factor_recovery_codes = remaining
-        await db.commit()
-        logger.info("two_factor_recovery_code_used", user_id=user.id, remaining=len(remaining))
-        return _issue_tokens(user, response)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid two-factor code",
+        )
 
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid two-factor code",
-    )
+    return _issue_tokens(user, response)
 
 
 @router.post("/refresh", response_model=TokenResponse)

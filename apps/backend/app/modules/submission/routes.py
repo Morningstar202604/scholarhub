@@ -18,8 +18,9 @@ Approval semantics:
 - If the reviewer provides ``resource_id``, it must point to an existing
   catalog Resource in the same tenant; the submission is linked to it.
 - If ``resource_id`` is omitted on approval, a new catalog Resource is
-  materialized from the submission payload via the catalog admin POST
-  endpoint (the conversion logic stays in the catalog module).
+  materialized from the submission payload in-process by
+  ``_materialize_resource_from_submission`` (same transaction as the
+  status change; no cross-module HTTP call).
 - Once approved, the submission is terminal: status cannot be changed.
 """
 
@@ -44,17 +45,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import (
+    ROLE_EDITOR,
+    ROLE_REVIEWER,
     get_current_user,
     require_admin,
     require_editor,
     require_tenant_id,
+    user_has_role,
 )
 from app.core import search as fulltext
 from app.core.db import get_db, paginate
 from app.core.time import utcnow
 from app.models import AuditLog, Role, User, UserRole
 from app.modules.catalog.models import Resource
-from app.modules.catalog.schemas import ResourceCreate
 from app.modules.notifications import services as notifications
 from app.modules.review.models import ReviewAssignment, ReviewReport
 from app.modules.review.schemas import (
@@ -128,7 +131,9 @@ async def _materialize_resource_from_submission(
         download_url=submission.download_url,
         external_url=submission.external_url,
         doi=submission.doi,
-        # 修复：物化时把 submission 的 keywords 带过去
+        # 物化时把 submission 的 keywords 带过去，与 catalog.Resource 对齐。
+        # jel_codes 不在此物化——catalog.Resource 没有该列（功能未落地），
+        # 此处不声称不存在的字段对齐。
         keywords=submission.keywords or None,
     )
     db.add(resource)
@@ -286,8 +291,8 @@ async def create_submission(
         tags=body.tags,
         abstract=body.abstract,
         preview=body.preview,
-        download_url=body.download_url,
-        external_url=body.external_url,
+        download_url=str(body.download_url) if body.download_url else None,
+        external_url=str(body.external_url) if body.external_url else None,
         doi=body.doi,
         corresponding_author_email=body.corresponding_author_email,
     )
@@ -367,9 +372,13 @@ async def get_submission(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SubmissionResponse:
-    """View a submission. Owner sees their own; admin sees any."""
+    """View a submission. Owner sees their own; admin or editor sees any."""
     entry = await _get_or_404(db, submission_id)
-    if entry.submitted_by != current_user.id and not current_user.is_admin:
+    if (
+        entry.submitted_by != current_user.id
+        and not current_user.is_admin
+        and not await user_has_role(db, current_user, ROLE_EDITOR)
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
@@ -434,8 +443,6 @@ async def list_submission_versions(
     可见方：作者本人、admin/editor。审稿人故意不给 —— 双盲模式下
     历史版本可能残留身份信息，且审稿人只需要看「当前版本」。
     """
-    from app.api.deps import ROLE_EDITOR, user_has_role
-
     entry = await _get_or_404(db, submission_id)
     allowed = (
         entry.submitted_by == current_user.id
@@ -517,36 +524,13 @@ async def review_submission(
             # The conversion stays here (orchestration); catalog owns the
             # Resource shape — we just construct it via the same fields the
             # catalog admin POST would accept.
-            _ = ResourceCreate(
-                type=entry.type,
-                title=entry.title,
-                authors=entry.authors,
-                year=entry.year,
-                venue=entry.venue,
-                discipline=entry.discipline,
-                subdiscipline=entry.subdiscipline,
-                tags=entry.tags,
-                abstract=entry.abstract,
-                preview=entry.preview,
-                download_url=entry.download_url,
-                external_url=entry.external_url,
-                doi=entry.doi,
-            )
             new_resource = await _materialize_resource_from_submission(db, entry)
             entry.resource_id = new_resource.id
 
-    try:
-        await db.commit()
-    except IntegrityError as exc:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Submission could not be reviewed (concurrent update)",
-        ) from exc
-    await db.refresh(entry)
     # Audit: reviewer's approve/reject decision is a destructive state
     # transition (terminal). Log actor + outcome so the trail survives
-    # even if the submission row is later purged.
+    # even if the submission row is later purged. Written in the SAME
+    # transaction as the state change (before commit) per S-3.
     db.add(
         AuditLog(
             tenant_id=current_user.tenant_id,
@@ -561,7 +545,15 @@ async def review_submission(
             },
         )
     )
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Submission could not be reviewed (concurrent update)",
+        ) from exc
+    await db.refresh(entry)
     return _to_response(entry)
 
 
@@ -638,6 +630,13 @@ async def assign_reviewer(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reviewer not found or inactive",
         )
+    # 被指派者必须持有 reviewer 角色；否则该用户在所有 /review 端点都会
+    # 卡死（require_reviewer 直接 403），分配毫无意义。
+    if not await user_has_role(db, reviewer, ROLE_REVIEWER):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Assigned user is not a reviewer",
+        )
     assignment = ReviewAssignment(
         tenant_id=entry.tenant_id,
         submission_id=entry.id,
@@ -646,10 +645,38 @@ async def assign_reviewer(
         status="pending",
         due_date=body.due_date,
     )
-    db.add(assignment)
-    if entry.status == "pending":
-        entry.status = "under_review"
     try:
+        db.add(assignment)
+        if entry.status == "pending":
+            entry.status = "under_review"
+        # 先 flush：重复分配会在此触发唯一约束（而非在 notifications/commit
+        # 内部，那样会绕过下面的 409 处理），同时让 assignment.id 可用于通知。
+        await db.flush()
+        # 通知审稿人（与状态变更同事务，遵循 S-3：通知/审计并入主事务）
+        await notifications.create(
+            db,
+            tenant_id=entry.tenant_id,
+            user_id=reviewer.id,
+            type_="review.invited",
+            title=f"您被邀请审稿：{entry.title}",
+            body=f"Submission #{entry.id} 已分配给您，请前往审稿工作台回应。",
+            related_type="review_assignment",
+            related_id=str(assignment.id),
+        )
+        # S-3：审计写入并入主事务（commit 前 add）。
+        db.add(
+            AuditLog(
+                tenant_id=current_user.tenant_id,
+                actor_user_id=current_user.id,
+                action="submission.assign_reviewer",
+                target_type="submission",
+                target_id=str(entry.id),
+                payload={
+                    "reviewer_id": reviewer.id,
+                    "assignment_id": assignment.id,
+                },
+            )
+        )
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
@@ -658,33 +685,6 @@ async def assign_reviewer(
             detail="Reviewer already assigned or concurrent update",
         ) from exc
     await db.refresh(assignment)
-    # 通知审稿人
-    await notifications.create(
-        db,
-        tenant_id=entry.tenant_id,
-        user_id=reviewer.id,
-        type_="review.invited",
-        title=f"您被邀请审稿：{entry.title}",
-        body=f"Submission #{entry.id} 已分配给您，请前往审稿工作台回应。",
-        related_type="review_assignment",
-        related_id=str(assignment.id),
-    )
-    # S-3：审计写入并入主事务（commit 前 add），避免 commit 后二次 add
-    # 跨事务导致审计行在回滚时丢失。
-    db.add(
-        AuditLog(
-            tenant_id=current_user.tenant_id,
-            actor_user_id=current_user.id,
-            action="submission.assign_reviewer",
-            target_type="submission",
-            target_id=str(entry.id),
-            payload={
-                "reviewer_id": reviewer.id,
-                "assignment_id": assignment.id,
-            },
-        )
-    )
-    await db.commit()
     return AssignmentResponse(
         id=assignment.id,
         submission_id=assignment.submission_id,
@@ -818,16 +818,27 @@ async def list_review_reports(
     """
     entry = await _get_or_404(db, submission_id)
     # 单盲：编辑（admin 或有 editor 角色）看完整报告；
-    # 作者只看 comments_to_author；其他人无权限
-    from app.api.deps import ROLE_EDITOR, _user_has_role
-
-    is_editor = current_user.is_admin or await _user_has_role(db, current_user, ROLE_EDITOR)
+    # 作者只看 comments_to_author；被指派审稿人可看自己评审的稿件报告
+    # （含自己写的 editor-only comments）。无上述身份者 403。
+    is_editor = current_user.is_admin or await user_has_role(db, current_user, ROLE_EDITOR)
     is_author = entry.submitted_by == current_user.id
+    is_reviewer = False
     if not is_editor and not is_author:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+        assignment = (
+            await db.execute(
+                select(ReviewAssignment).where(
+                    ReviewAssignment.submission_id == entry.id,
+                    ReviewAssignment.reviewer_id == current_user.id,
+                    ReviewAssignment.status.in_(("pending", "accepted", "completed")),
+                )
+            )
+        ).scalar_one_or_none()
+        is_reviewer = assignment is not None
+        if not is_reviewer:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
 
     rows = (
         (
@@ -931,21 +942,6 @@ async def editor_decision(
                 )
             entry.resource_id = existing.id
         else:
-            _ = ResourceCreate(
-                type=entry.type,
-                title=entry.title,
-                authors=entry.authors,
-                year=entry.year,
-                venue=entry.venue,
-                discipline=entry.discipline,
-                subdiscipline=entry.subdiscipline,
-                tags=entry.tags,
-                abstract=entry.abstract,
-                preview=entry.preview,
-                download_url=entry.download_url,
-                external_url=entry.external_url,
-                doi=entry.doi,
-            )
             new_resource = await _materialize_resource_from_submission(db, entry)
             entry.resource_id = new_resource.id
         entry.status = "accepted"
@@ -958,16 +954,6 @@ async def editor_decision(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown decision: {decision}",
         )
-
-    try:
-        await db.commit()
-    except IntegrityError as exc:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Could not apply decision (concurrent update)",
-        ) from exc
-    await db.refresh(entry)
 
     # 通知作者。录用时 related 指向物化出的公开目录条目而非 submission，
     # 作者点通知即可直达自己已发表的文章（目录详情页对访客也公开）。
@@ -1007,7 +993,15 @@ async def editor_decision(
             },
         )
     )
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Could not apply decision (concurrent update)",
+        ) from exc
+    await db.refresh(entry)
     return _to_response(entry)
 
 
@@ -1046,17 +1040,7 @@ async def author_resubmit(
     snapshot = await _snapshot_submission(db, entry, created_by=current_user.id, note=note)
     # commit 后 ORM 对象过期，异步会话下惰性刷新会炸；版本号在 commit 前取出
     version_no = snapshot.version
-    try:
-        await db.commit()
-    except IntegrityError as exc:
-        # (submission_id, version) 唯一约束冲突 = 并发重投撞号
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Concurrent resubmit detected, please retry",
-        ) from exc
-    await db.refresh(entry)
-    # 通知编辑：作者已重投。
+    # 通知编辑：作者已重投（与状态变更同事务，遵循 S-3）。
     # admin 在权限模型里视同 editor（deps._user_has_role 对 admin 直接放行），
     # fan-out 必须与之对齐 —— 否则只有 admin 的小刊重投通知会石沉大海。
     editor_ids = (
@@ -1097,7 +1081,16 @@ async def author_resubmit(
             related_type="submission",
             related_id=str(entry.id),
         )
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # (submission_id, version) 唯一约束冲突 = 并发重投撞号
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Concurrent resubmit detected, please retry",
+        ) from exc
+    await db.refresh(entry)
     return _to_response(entry)
 
 
@@ -1220,7 +1213,6 @@ async def download_submission_file(
 
     from fastapi.responses import RedirectResponse, StreamingResponse
 
-    from app.api.deps import ROLE_EDITOR, user_has_role
     from app.core.storage import get_storage
 
     entry = await _get_or_404(db, submission_id)
@@ -1257,11 +1249,9 @@ async def download_submission_file(
     storage = get_storage()
     url = storage.presigned_url(entry.file_path)
     if url:
-        # S3 预签名 URL 直接重定向到对象存储，对象存储自身支持 Range 头。
-        # 将客户端 Range 透传给 S3（由 S3 处理 206）。
-        range_header = request.headers.get("Range")
-        if range_header:
-            url = f"{url}&range={range_header}"
+        # S3 预签名 URL 直接重定向到对象存储；对象存储自身会依据客户端的
+        # Range 头返回 206，无需在此追加（追加未签名的 range 参数会让
+        # SigV4 签名失效，导致 SignatureDoesNotMatch → 403）。
         return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
 
     try:

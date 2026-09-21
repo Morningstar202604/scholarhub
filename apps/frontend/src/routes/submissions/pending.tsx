@@ -47,6 +47,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 
+// 指派审稿人时从 /admin/users 取多少候选。超出时 UI 会明确提示"只取了前 N 个"，
+// 避免目标审稿人只是没被列出来却被当成"不存在"。
+const REVIEWER_CANDIDATE_LIMIT = 200
+
 export const Route = createFileRoute('/submissions/pending')({
   beforeLoad: () => {
     if (!getAuthState().isAdmin) throw redirect({ to: '/login' })
@@ -507,7 +511,15 @@ function AssignReviewerDialog({
   submission: SubmissionResponse
   onClose: () => void
 }) {
-  const { data: users, isLoading } = useAdminUsers(200, 0)
+  const { data: users, isLoading } = useAdminUsers(REVIEWER_CANDIDATE_LIMIT, 0)
+  // 后端只接受持 reviewer 角色（或管理员）的用户，选错会在提交时报 422。
+  // 这里先把不可选的人从下拉里滤掉，不让用户走到"选了才报错"那一步。
+  const candidates = (users ?? []).filter(
+    (u) => u.is_admin || u.roles.includes('reviewer'),
+  )
+  // /admin/users 是分页接口，这里固定取前 N 个：超出时要让用户知道，
+  // 否则目标审稿人可能只是"没被列出来"，看起来像不存在。
+  const truncated = users !== undefined && users.length >= REVIEWER_CANDIDATE_LIMIT
   const assignMut = useAssignReviewer()
   const [reviewerId, setReviewerId] = useState<number | null>(null)
   const [dueDate, setDueDate] = useState('')
@@ -543,6 +555,10 @@ function AssignReviewerDialog({
             <Label htmlFor="reviewer">审稿人</Label>
             {isLoading ? (
               <Loading />
+            ) : candidates.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                没有可指派的审稿人：请先在「用户管理」里给用户授予审稿人（reviewer）角色。
+              </p>
             ) : (
               <Select
                 value={reviewerId !== null ? String(reviewerId) : undefined}
@@ -552,13 +568,19 @@ function AssignReviewerDialog({
                   <SelectValue placeholder="选择用户…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(users ?? []).map((u) => (
+                  {candidates.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.username} ({u.email})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {truncated && (
+              <p className="text-xs text-muted-foreground">
+                候选列表只取了前 {REVIEWER_CANDIDATE_LIMIT} 个用户，目标审稿人不在其中时请用
+                「用户管理」确认其角色。
+              </p>
             )}
           </div>
           <div className="space-y-2">

@@ -49,6 +49,24 @@ async def _register(client: AsyncClient, username: str, email: str) -> dict:
     return {"token": data["access_token"], "user_id": data["user_id"], "username": username}
 
 
+async def _register_reviewer(
+    client: AsyncClient, admin_user: dict, username: str, email: str
+) -> dict:
+    """注册用户并授予 reviewer 角色。
+
+    分配审稿人时会校验被指派者持有 reviewer 角色（否则该用户在 /review
+    端点全部 403，分配即死路），所以测试里的审稿人必须先拿角色。
+    """
+    user = await _register(client, username, email)
+    response = await client.post(
+        f"/api/admin/users/{user['user_id']}/roles",
+        json={"role": "reviewer"},
+        headers=auth_headers(admin_user),
+    )
+    assert response.status_code == 201, response.text
+    return user
+
+
 async def _get(client: AsyncClient, submission_id: int, user: dict) -> dict:
     response = await client.get(f"/api/submissions/{submission_id}", headers=auth_headers(user))
     response.raise_for_status()
@@ -64,7 +82,7 @@ async def test_admin_assigns_reviewer_flips_status_to_under_review(
     client: AsyncClient, test_user: dict, admin_user: dict
 ) -> None:
     sub = await _create_submission(client, test_user)
-    reviewer = await _register(client, "rev_one", "rev1@example.com")
+    reviewer = await _register_reviewer(client, admin_user, "rev_one", "rev1@example.com")
 
     response = await client.post(
         f"/api/submissions/{sub['id']}/assignments",
@@ -111,7 +129,7 @@ async def test_assign_reviewer_rejected_on_terminal_status(
 ) -> None:
     """accepted / rejected 是终态，不能再分配审稿人。"""
     sub = await _create_submission(client, test_user)
-    reviewer = await _register(client, "rev_three", "rev3@example.com")
+    reviewer = await _register_reviewer(client, admin_user, "rev_three", "rev3@example.com")
 
     decision = await client.patch(
         f"/api/submissions/{sub['id']}/decision",
@@ -132,7 +150,7 @@ async def test_admin_lists_and_cancels_assignment(
     client: AsyncClient, test_user: dict, admin_user: dict
 ) -> None:
     sub = await _create_submission(client, test_user)
-    reviewer = await _register(client, "rev_four", "rev4@example.com")
+    reviewer = await _register_reviewer(client, admin_user, "rev_four", "rev4@example.com")
 
     created = await client.post(
         f"/api/submissions/{sub['id']}/assignments",
@@ -187,7 +205,7 @@ async def test_author_sees_report_without_editor_comments(
 ) -> None:
     """单盲核心断言：作者可见 comments_to_author，但 comments_to_editor 必须为 None。"""
     sub = await _create_submission(client, test_user)
-    reviewer = await _register(client, "rev_five", "rev5@example.com")
+    reviewer = await _register_reviewer(client, admin_user, "rev_five", "rev5@example.com")
     await client.post(
         f"/api/submissions/{sub['id']}/assignments",
         json={"reviewer_id": reviewer["user_id"]},
@@ -209,7 +227,7 @@ async def test_editor_sees_full_report_including_editor_comments(
     client: AsyncClient, test_user: dict, admin_user: dict, db_session: object
 ) -> None:
     sub = await _create_submission(client, test_user)
-    reviewer = await _register(client, "rev_six", "rev6@example.com")
+    reviewer = await _register_reviewer(client, admin_user, "rev_six", "rev6@example.com")
     await client.post(
         f"/api/submissions/{sub['id']}/assignments",
         json={"reviewer_id": reviewer["user_id"]},
@@ -228,7 +246,7 @@ async def test_unrelated_user_cannot_read_reports(
     client: AsyncClient, test_user: dict, admin_user: dict, db_session: object
 ) -> None:
     sub = await _create_submission(client, test_user)
-    reviewer = await _register(client, "rev_seven", "rev7@example.com")
+    reviewer = await _register_reviewer(client, admin_user, "rev_seven", "rev7@example.com")
     await client.post(
         f"/api/submissions/{sub['id']}/assignments",
         json={"reviewer_id": reviewer["user_id"]},

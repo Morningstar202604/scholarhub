@@ -7,6 +7,7 @@ import { Pagination } from '@/components/common/pagination'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { inferTotalPagesFromFullPage } from '@/lib/utils'
 
 const PAGE_SIZE = 50
 
@@ -25,8 +26,8 @@ function AuditLogsPage() {
     offset,
   )
 
-  // 后端返回裸数组无 meta，totalPages 用“当前页是否满页”推断：满页则假定还有下一页
-  const totalPages = data && data.length >= PAGE_SIZE ? page + 1 : page
+  // 后端返回裸数组无 meta，totalPages 用「当前页是否满页」推断（与用户管理页共用）。
+  const totalPages = inferTotalPagesFromFullPage(data ?? [], PAGE_SIZE, page)
 
   return (
     <div>

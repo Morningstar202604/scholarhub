@@ -91,7 +91,9 @@ class Submission(Base, TenantScopedMixin):
     venue: Mapped[str | None] = mapped_column(Text, nullable=True)
     discipline: Mapped[str] = mapped_column(String(100), nullable=False)
     subdiscipline: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    # 关键词 + JEL 分类码：补 submission → catalog 物化时丢失的字段
+    # 关键词：补 submission → catalog 物化时丢失的字段，与 catalog.Resource
+    # 对齐。jel_codes 暂不同步——catalog.Resource 没有该列（功能未落地），
+    # 仅 keywords 参与物化，避免声称不存在的字段对齐。
     keywords: Mapped[list[str]] = mapped_column(JSONBVariant, nullable=False, default=list)
     jel_codes: Mapped[list[str]] = mapped_column(JSONBVariant, nullable=False, default=list)
     tags: Mapped[list[str]] = mapped_column(JSONBVariant, nullable=False)
@@ -159,8 +161,6 @@ class SubmissionVersion(Base, TenantScopedMixin):
         nullable=False,
         index=True,
     )
-    # 版本号从 1 开始、按 submission 单调递增；(submission_id, version)
-    # 唯一约束由迁移创建，防并发重投产生重号。
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     # 完整书目 payload 快照（title/authors/abstract/... 与 Submission 列同形）
     payload: Mapped[dict[str, Any]] = mapped_column(JSONBVariant, nullable=False)

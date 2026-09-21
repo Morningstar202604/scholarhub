@@ -3,6 +3,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { AxiosError } from 'axios'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
+import { parseListField } from '@/lib/utils'
 import { useCreateResource } from '@/hooks/api/use-modules'
 import type { PublicationStatus, ResourceCreate, ResourceType } from '@/lib/types'
 import { PageHeader } from '@/components/common/page-header'
@@ -100,18 +101,12 @@ function NewResourcePage() {
     const body: ResourceCreate = {
       type: form.type,
       title: form.title,
-      authors: form.authors
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      authors: parseListField(form.authors),
       year: Number(form.year),
       discipline: form.discipline,
       abstract: form.abstract,
       preview: form.preview,
-      tags: form.tags
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      tags: parseListField(form.tags),
       language: form.language,
       publication_status: form.publication_status,
       venue: form.venue || undefined,

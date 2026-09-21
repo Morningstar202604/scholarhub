@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { exportResources, useResources } from '@/hooks/api/use-modules'
 import type { ResourceType } from '@/lib/types'
+import { extractError } from '@/lib/utils'
 import { PageHeader } from '@/components/common/page-header'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 import { Pagination } from '@/components/common/pagination'
@@ -76,8 +77,11 @@ function CatalogListPage() {
   const { data, isLoading, isError, refetch } = useResources(params)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
 
-  // 筛选条件写到 URL，replace 避免每次筛选都污染历史
+  // 筛选条件写到 URL，replace 避免每次筛选都污染历史。
+  // 顺带清空勾选：翻页/改筛选后旧 id 已经不在页面上，留着会让「导出」
+  // 把用户看不见的记录也一起导出去。
   const updateSearch = (patch: Partial<CatalogSearch>) => {
+    setSelectedIds([])
     void navigate({
       to: '/catalog',
       search: { ...search, ...patch },
@@ -86,7 +90,9 @@ function CatalogListPage() {
   }
 
   const allIds = data?.data.map((r) => r.id) ?? []
-  const allSelected = allIds.length > 0 && selectedIds.length === allIds.length
+  // 用「本页 id 是否都选中」判断，不能比长度：两页各有 10 条时
+  // length 相等会让全选框误显示为已勾选。
+  const allSelected = allIds.length > 0 && allIds.every((rid) => selectedIds.includes(rid))
 
   const toggleAll = () => {
     setSelectedIds(allSelected ? [] : allIds)
@@ -106,8 +112,8 @@ function CatalogListPage() {
     try {
       await exportResources(selectedIds, format)
       toast.success(`已导出 ${selectedIds.length} 条为 ${format.toUpperCase()}`)
-    } catch {
-      toast.error('导出失败')
+    } catch (err) {
+      toast.error(extractError(err, '导出失败'))
     }
   }
 
@@ -132,78 +138,11 @@ function CatalogListPage() {
       {!isMobile && (
         <Card className="mb-4">
           <CardContent className="pt-0">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">搜索</label>
-                <Input
-                  placeholder="标题/作者/摘要"
-                  defaultValue={search.q ?? ''}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      updateSearch({
-                        q: (e.target as HTMLInputElement).value,
-                        page: 1,
-                      })
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">类型</label>
-                <Select
-                  value={search.type ?? 'all'}
-                  onValueChange={(v) =>
-                    updateSearch({
-                      type: v === 'all' ? undefined : (v as ResourceType),
-                      page: 1,
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">学科</label>
-                <Input
-                  placeholder="如 computer science"
-                  defaultValue={search.discipline ?? ''}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      updateSearch({
-                        discipline: (e.target as HTMLInputElement).value,
-                        page: 1,
-                      })
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">年份</label>
-                <Input
-                  type="number"
-                  placeholder="如 2024"
-                  defaultValue={search.year ?? ''}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const v = (e.target as HTMLInputElement).value
-                      updateSearch({
-                        year: v ? Number(v) : undefined,
-                        page: 1,
-                      })
-                    }
-                  }}
-                />
-              </div>
-            </div>
+            <CatalogFilterFields
+              search={search}
+              updateSearch={updateSearch}
+              className="grid grid-cols-1 gap-3 md:grid-cols-4"
+            />
           </CardContent>
         </Card>
       )}
@@ -328,7 +267,90 @@ function CatalogListPage() {
   )
 }
 
-// 移动端筛选：默认收起，点击"筛选"展开。与桌面常驻筛选卡片是不同的交互形态。
+// 桌面常驻卡片与移动折叠面板共用同一组筛选字段（此前是整段复制）。
+// 两边只有容器布局不同，所以布局由调用方用 className 指定。
+function CatalogFilterFields({
+  search,
+  updateSearch,
+  className,
+}: {
+  search: CatalogSearch
+  updateSearch: (patch: Partial<CatalogSearch>) => void
+  className: string
+}) {
+  return (
+    <div className={className}>
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground">
+          搜索（输入后按回车）
+        </label>
+        <Input
+          placeholder="标题/作者/摘要"
+          defaultValue={search.q ?? ''}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              updateSearch({ q: (e.target as HTMLInputElement).value, page: 1 })
+            }
+          }}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground">类型</label>
+        <Select
+          value={search.type ?? 'all'}
+          onValueChange={(v) =>
+            updateSearch({
+              type: v === 'all' ? undefined : (v as ResourceType),
+              page: 1,
+            })
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground">学科</label>
+        <Input
+          placeholder="如 computer science"
+          defaultValue={search.discipline ?? ''}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              updateSearch({
+                discipline: (e.target as HTMLInputElement).value,
+                page: 1,
+              })
+            }
+          }}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-xs text-muted-foreground">年份</label>
+        <Input
+          type="number"
+          placeholder="如 2024"
+          defaultValue={search.year ?? ''}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const v = (e.target as HTMLInputElement).value
+              updateSearch({ year: v ? Number(v) : undefined, page: 1 })
+            }
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// 移动端筛选：默认收起，点击"筛选"展开。字段与桌面共用，只是容器形态不同。
 function MobileFilters({
   search,
   updateSearch,
@@ -366,71 +388,12 @@ function MobileFilters({
       </Button>
 
       {open && (
-        <div className="mt-3 space-y-3 rounded-lg border bg-muted/30 p-3">
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">搜索</label>
-            <Input
-              placeholder="标题/作者/摘要"
-              defaultValue={search.q ?? ''}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  updateSearch({ q: (e.target as HTMLInputElement).value, page: 1 })
-                }
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">类型</label>
-            <Select
-              value={search.type ?? 'all'}
-              onValueChange={(v) =>
-                updateSearch({
-                  type: v === 'all' ? undefined : (v as ResourceType),
-                  page: 1,
-                })
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TYPE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">学科</label>
-            <Input
-              placeholder="如 computer science"
-              defaultValue={search.discipline ?? ''}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  updateSearch({
-                    discipline: (e.target as HTMLInputElement).value,
-                    page: 1,
-                  })
-                }
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">年份</label>
-            <Input
-              type="number"
-              placeholder="如 2024"
-              defaultValue={search.year ?? ''}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const v = (e.target as HTMLInputElement).value
-                  updateSearch({ year: v ? Number(v) : undefined, page: 1 })
-                }
-              }}
-            />
-          </div>
+        <div className="mt-3 rounded-lg border bg-muted/30 p-3">
+          <CatalogFilterFields
+            search={search}
+            updateSearch={updateSearch}
+            className="space-y-3"
+          />
         </div>
       )}
     </div>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { ArrowLeft, Search } from 'lucide-react'
 import { getAuthState } from '@/lib/auth'
-import { useIssueList } from '@/hooks/api/use-modules'
+import { CATALOG_PAGE_MAX, useIssueList } from '@/hooks/api/use-modules'
 import { PageHeader } from '@/components/common/page-header'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 import { Badge } from '@/components/ui/badge'
@@ -35,13 +35,15 @@ function AdminIssuesPage() {
   const { volume } = Route.useSearch()
   const [query, setQuery] = useState('')
   const { data, isLoading, isError, refetch } = useIssueList(volume ?? '')
+  // 用 useMemo 固定引用：直接写 `data?.items ?? []` 每渲染都是新数组，
+  // 会让下面 filtered 的 useMemo 依赖每次都变（eslint exhaustive-deps 警告）。
+  const issues = useMemo(() => data?.items ?? [], [data])
 
   const filtered = useMemo(() => {
-    if (!data) return []
     const q = query.trim().toLowerCase()
-    if (!q) return data
-    return data.filter((item) => item.issue.toLowerCase().includes(q))
-  }, [data, query])
+    if (!q) return issues
+    return issues.filter((item) => item.issue.toLowerCase().includes(q))
+  }, [issues, query])
 
   if (!volume) {
     return (
@@ -79,7 +81,7 @@ function AdminIssuesPage() {
         actions={
           <div className="flex items-center gap-2">
             {data ? (
-              <Badge variant="secondary">{data.length} 期</Badge>
+              <Badge variant="secondary">{issues.length} 期</Badge>
             ) : null}
             <Button asChild variant="outline" size="sm">
               <Link to="/admin/volumes">
@@ -90,6 +92,13 @@ function AdminIssuesPage() {
           </div>
         }
       />
+
+      {data?.truncated && (
+        <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+          仅统计了最近 {CATALOG_PAGE_MAX} 条资源（后端单页上限），更多资源未纳入，
+          期数与文章数可能偏小。
+        </div>
+      )}
 
       <div className="mb-4 max-w-sm">
         <div className="relative">

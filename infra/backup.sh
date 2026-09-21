@@ -10,7 +10,7 @@
 #   --output-dir  ./backups
 #
 # Behaviour:
-#   - Runs pg_dump (custom format), compresses with gzip, timestamps filename.
+#   - Runs pg_dump in custom format (already compressed); timestamps filename.
 #   - Keeps the last 7 daily backups; removes older ones.
 #   - Logs to stdout with [YYYY-MM-DD HH:MM:SS] timestamps.
 
@@ -57,23 +57,20 @@ done
 
 # --- pre-flight checks --------------------------------------------------
 command -v pg_dump >/dev/null 2>&1 || die "pg_dump not found — install PostgreSQL client tools"
-command -v gzip    >/dev/null 2>&1 || die "gzip not found"
 
 mkdir -p "$OUTPUT_DIR"
 
 # --- run backup ---------------------------------------------------------
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
-BACKUP_FILE="${OUTPUT_DIR}/scholarhub-${TIMESTAMP}.dump.gz"
+BACKUP_FILE="${OUTPUT_DIR}/scholarhub-${TIMESTAMP}.dump"
 
 log "Starting backup → ${BACKUP_FILE}"
 
-pg_dump --dbname="$DB_URL" --format=custom --no-owner --no-acl 2>&1 \
-  | gzip > "$BACKUP_FILE"
-
-if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-  rm -f "$BACKUP_FILE"
-  die "pg_dump failed — backup aborted"
-fi
+# pg_dump --format=custom already compresses; writing directly to the
+# output file means `set -e` aborts on any failure (no pipe → no dead
+# PIPESTATUS guard needed). The file is restored directly with pg_restore.
+pg_dump --dbname="$DB_URL" --format=custom --no-owner --no-acl --file="$BACKUP_FILE" 2>&1 \
+  || die "pg_dump failed — backup aborted"
 
 SIZE="$(du -h "$BACKUP_FILE" | cut -f1)"
 log "Backup complete — ${BACKUP_FILE} (${SIZE})"
@@ -86,7 +83,7 @@ while IFS= read -r -d '' old; do
   log "Removing old backup: $(basename "$old")"
   rm -f "$old"
   DELETED=$((DELETED + 1))
-done < <(find "$OUTPUT_DIR" -maxdepth 1 -name 'scholarhub-*.dump.gz' -mtime "+${RETENTION_DAYS}" -print0 2>/dev/null || true)
+done < <(find "$OUTPUT_DIR" -maxdepth 1 -name 'scholarhub-*.dump' -mtime "+${RETENTION_DAYS}" -print0 2>/dev/null || true)
 
 if [[ $DELETED -eq 0 ]]; then
   log "No old backups to rotate"

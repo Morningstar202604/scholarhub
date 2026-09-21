@@ -457,7 +457,9 @@ async def test_fetch_openalex_happy_path(monkeypatch: pytest.MonkeyPatch) -> Non
     # OpenAlex 返回完整 URL，必须剥掉前缀
     assert resource.doi == "10.1000/openalex"
     assert resource.abstract == "an abstract"
-    assert urls == [f"{fetchers.OPENALEX_BASE_URL}/doi:10.1000%2Fopenalex"]
+    # DOI 里的 "/" 保留（OpenAlex 的 doi: 前缀路径就长这样）：
+    # 编码成 %2F 会被上游当成未知 ID，等于每次 DOI 抓取都 404。
+    assert urls == [f"{fetchers.OPENALEX_BASE_URL}/doi:10.1000/openalex"]
 
 
 async def test_fetch_openalex_accepts_bare_work_id(monkeypatch: pytest.MonkeyPatch) -> None:

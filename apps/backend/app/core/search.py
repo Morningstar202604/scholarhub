@@ -134,7 +134,7 @@ async def search_resource_ids(
     client = await _get_client()
     if client is None:
         return None
-    filters = [f"tenant_id = {tenant_id}"]
+    filters = [f"tenant_id = {_quote(str(tenant_id))}"]
     if type_ is not None:
         filters.append(f"type = {_quote(type_)}")
     if discipline is not None:

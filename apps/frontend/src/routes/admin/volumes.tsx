@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { ChevronRight, Search } from 'lucide-react'
 import { getAuthState } from '@/lib/auth'
-import { useVolumeList } from '@/hooks/api/use-modules'
+import { CATALOG_PAGE_MAX, useVolumeList } from '@/hooks/api/use-modules'
 import { PageHeader } from '@/components/common/page-header'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 import { Badge } from '@/components/ui/badge'
@@ -26,13 +26,15 @@ export const Route = createFileRoute('/admin/volumes')({
 function AdminVolumesPage() {
   const [query, setQuery] = useState('')
   const { data, isLoading, isError, refetch } = useVolumeList()
+  // 用 useMemo 固定引用：直接写 `data?.items ?? []` 每渲染都是新数组，
+  // 会让下面 filtered 的 useMemo 依赖每次都变（eslint exhaustive-deps 警告）。
+  const volumes = useMemo(() => data?.items ?? [], [data])
 
   const filtered = useMemo(() => {
-    if (!data) return []
     const q = query.trim().toLowerCase()
-    if (!q) return data
-    return data.filter((v) => v.volume.toLowerCase().includes(q))
-  }, [data, query])
+    if (!q) return volumes
+    return volumes.filter((v) => v.volume.toLowerCase().includes(q))
+  }, [volumes, query])
 
   return (
     <div>
@@ -41,10 +43,17 @@ function AdminVolumesPage() {
         description="管理期刊卷（Volume）的组织结构。点击卷查看期列表。"
         actions={
           data ? (
-            <Badge variant="secondary">{data.length} 卷</Badge>
+            <Badge variant="secondary">{volumes.length} 卷</Badge>
           ) : null
         }
       />
+
+      {data?.truncated && (
+        <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+          仅统计了最近 {CATALOG_PAGE_MAX} 条资源（后端单页上限），更多资源未纳入，
+          卷数与文章数可能偏小。
+        </div>
+      )}
 
       <div className="mb-4 max-w-sm">
         <div className="relative">

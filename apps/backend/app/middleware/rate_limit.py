@@ -25,6 +25,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.core.config import settings
+from app.core.metrics import inc_rate_limit_rejection
 from app.core.rate_limit_store import get_rate_limiter_store
 
 # Per-endpoint stricter limits: path -> max requests per minute
@@ -84,6 +85,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Conservative Retry-After: full window. We don't track the
             # oldest entry's exact age here, so a one-window wait is the
             # safest single-shot response.
+            inc_rate_limit_rejection(path)
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please slow down."},

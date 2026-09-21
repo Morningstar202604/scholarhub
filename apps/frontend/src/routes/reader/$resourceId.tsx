@@ -3,6 +3,7 @@ import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-ro
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
+import { formatDateTime } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import {
   useReadingProgress,
@@ -94,6 +95,11 @@ function ReaderPage() {
     // 用初始值覆盖服务端的真实进度。
     if (!hasSyncedRef.current) return
     const s = stateRef.current
+    // 先把时长取出来并立刻清零，再 await 上报。若清零发生在 await 之后，
+    // 30s ticker / 手动保存 / unmount 三个 flush 并发时会读到同一份
+    // localDuration，把时长重复报给后端。
+    const duration = s.localDuration
+    if (duration > 0) setLocalDuration(0)
     // 即使 localDuration=0 也可能 page/progress/completed 已变更，
     // 所以无条件上报（duration=0 后端 no-op）。
     try {
@@ -102,11 +108,10 @@ function ReaderPage() {
         body: {
           page: s.page,
           progress_percent: s.progressPercent,
-          duration_sec: s.localDuration,
+          duration_sec: duration,
           completed: s.completed,
         },
       })
-      setLocalDuration(0)
     } catch {
       // flush 失败静默，下个周期会重试
     }
@@ -247,7 +252,11 @@ function ReaderPage() {
                     type="number"
                     min={1}
                     value={page}
-                    onChange={(e) => setPage(Number(e.target.value))}
+                    onChange={(e) =>
+                      // 清空输入框时 Number('') === 0，会让 30s 后把 page:0
+                      // 原样上报；这里兜底到第 1 页。
+                      setPage(Math.max(1, Number(e.target.value) || 1))
+                    }
                     className="h-8 w-20"
                   />
                   {/* 移动端：翻页由底部固定操作栏独占，这里仅桌面端显示，避免控件重复 */}
@@ -305,7 +314,7 @@ function ReaderPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">最近阅读</span>
-                  <span>{progress.data?.last_read_at ?? '—'}</span>
+                  <span>{formatDateTime(progress.data?.last_read_at)}</span>
                 </div>
               </div>
 

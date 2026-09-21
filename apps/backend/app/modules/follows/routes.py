@@ -30,6 +30,7 @@ from app.modules.follows.models import AuthorFollow, DisciplineSubscription
 from app.modules.follows.schemas import (
     AUTHOR_NAME_MAX,
     AUTHOR_NAME_MIN,
+    DISCIPLINE_MAX,
     AuthorFollowEntry,
     AuthorFollowListResponse,
     DisciplineSubscriptionListResponse,
@@ -233,10 +234,11 @@ async def subscribe_discipline(
     db: AsyncSession = Depends(get_db),
 ) -> SubscriptionStatusResponse:
     """Subscribe to a discipline by slug. Idempotent: re-subscribing is a no-op."""
-    if not discipline or len(discipline) > 100:
+    # 超长/空串是输入问题（422），不是"资源不存在"（404）。
+    if not discipline or len(discipline) > DISCIPLINE_MAX:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Discipline not found",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Discipline must be 1-{DISCIPLINE_MAX} characters",
         )
 
     existing = await db.execute(

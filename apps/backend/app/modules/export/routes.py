@@ -45,7 +45,8 @@ async def export_endpoint(
     is scoped by tenant — exporting a resource from another tenant is
     treated the same as a non-existent id (silently dropped).
     """
-    requested_ids = list(ids)
+    # 去重但保持调用方顺序：?ids=1&ids=1 不应让同一资源在导出里出现两次。
+    requested_ids = list(dict.fromkeys(ids))
     if len(requested_ids) > EXPORT_MAX_IDS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -74,12 +75,11 @@ async def export_endpoint(
             detail="No resources found for the given ids.",
         )
 
-    try:
-        # Resource satisfies Exportable structurally (duck-typed), but
-        # mypy can't see that without a runtime check; cast through.
-        body = export_resources(format, cast(list[Exportable], ordered))
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    # format 已被 Query 的正则约束在四选一内，export_resources 不会抛
+    # ValueError —— 无需 try/except。
+    # Resource satisfies Exportable structurally (duck-typed), but mypy
+    # can't see that without a runtime check; cast through.
+    body = export_resources(format, cast(list[Exportable], ordered))
 
     extension = FILE_EXTENSIONS[format]
     media_type = MIME_TYPES[format]

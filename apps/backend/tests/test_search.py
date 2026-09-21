@@ -128,7 +128,9 @@ async def test_search_builds_tenant_filter(monkeypatch: pytest.MonkeyPatch) -> N
     )
     assert result == ([7, 3], 2)
     assert captured["q"] == "graph"
-    assert "tenant_id = 42" in captured["filter"]
+    # UUID/数字租户都要按字面量加引号，否则 Meilisearch 解析失败会静默
+    # 退化成 DB ILIKE（全文搜索功能形同虚设）。
+    assert 'tenant_id = "42"' in captured["filter"]
     assert 'type = "paper"' in captured["filter"]
     assert captured["offset"] == 10  # (page-1) * page_size
     assert captured["limit"] == 10

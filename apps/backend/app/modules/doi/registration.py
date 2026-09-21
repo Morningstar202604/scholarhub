@@ -14,7 +14,7 @@ https://support.datacite.org/docs/api-mds
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 
 import httpx
 
@@ -22,7 +22,6 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-DATACITE_BASE_URL = "https://mds.datacite.org"
 DATACITE_API_URL = "https://api.datacite.org"
 HTTP_TIMEOUT = 15.0
 
@@ -37,14 +36,6 @@ def _auth_headers() -> dict[str, str]:
     s = get_settings()
     return {
         "Content-Type": "application/vnd.api+json",
-        "Authorization": f"Basic {s.datacite_api_key}",
-    }
-
-
-def _xml_headers() -> dict[str, str]:
-    s = get_settings()
-    return {
-        "Content-Type": "application/xml;charset=UTF-8",
         "Authorization": f"Basic {s.datacite_api_key}",
     }
 
@@ -164,36 +155,7 @@ async def mint_doi(
     return doi, "completed"
 
 
-async def get_doi_metadata(doi: str) -> dict[str, Any] | None:
-    """Fetch metadata for an existing DOI from DataCite API.
-
-    Returns the parsed JSON response, or None if not found/error.
-    """
-    if not datacite_enabled():
-        return None
-
-    try:
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-            resp = await client.get(
-                f"{DATACITE_API_URL}/dois/{doi}",
-                headers=_auth_headers(),
-            )
-            if resp.status_code == 404:
-                return None
-            if resp.status_code >= 400:
-                logger.warning("DataCite GET failed: %s %s", resp.status_code, resp.text[:200])
-                return None
-            return cast(dict[str, Any], resp.json())
-    except httpx.TimeoutException:
-        logger.warning("DataCite GET timeout for %s", doi)
-        return None
-    except httpx.RequestError as exc:
-        logger.warning("DataCite GET request failed: %s", exc)
-        return None
-
-
 __all__ = [
     "datacite_enabled",
-    "get_doi_metadata",
     "mint_doi",
 ]

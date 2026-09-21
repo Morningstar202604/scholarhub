@@ -366,10 +366,6 @@ class Settings(BaseSettings):
                 raise ValueError("SCHOLARHUB_ALLOWED_HOSTS must be explicitly set in production")
             if "*" in self.cors_origins_list:
                 raise ValueError("CORS wildcard '*' is not allowed in production")
-            if self.tenancy_mode == "single" and self.bootstrap_tenant_slug == "default":
-                # Allow default slug in single mode for self-hosted convenience;
-                # warn but don't fail �?single mode has exactly one tenant.
-                pass
 
         return self
 
@@ -398,7 +394,9 @@ class Settings(BaseSettings):
     @property
     def cors_headers(self) -> list[str]:
         if self.is_production:
-            return ["Authorization", "Content-Type", "X-Tenant-ID"]
+            # X-CSRF-Token must be allowed so enabling CSRF protection in
+            # production does not break the browser's preflight (CORS) request.
+            return ["Authorization", "Content-Type", "X-Tenant-ID", "X-CSRF-Token"]
         return ["*"]
 
     @property

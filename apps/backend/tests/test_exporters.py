@@ -147,3 +147,28 @@ def test_dispatch_rejects_unknown_format() -> None:
 
     with pytest.raises(ValueError, match="Unsupported export format"):
         export_resources("yaml", [_stub()])
+
+
+def test_bibtex_escapes_latex_specials() -> None:
+    """标题/摘要里的 LaTeX 特殊字符必须转义：未转义的 } 会截断整个条目。
+
+    这是引文导出器，输出会被 LaTeX 直接编译；一个花括号就能让整篇文献表
+    编译失败，所以按字段逐个断言。
+    """
+    out = to_bibtex(
+        [
+            _stub(
+                # raw string：标题里就是一个反斜杠字符，不是转义序列
+                title=r"On {Braces} & 100% \ backslash",
+                abstract="Cost is $5 for a_b #1",
+            )
+        ]
+    )
+    assert "  title = {On \\{Braces\\} \\& 100\\% \\textbackslash{} backslash}" in out
+    assert "  abstract = {Cost is \\$5 for a\\_b \\#1}" in out
+
+
+def test_bibtex_leaves_structured_fields_raw() -> None:
+    """DOI/URL 不做转义：给 DOI 里的下划线加反斜杠会把标识符弄坏。"""
+    out = to_bibtex([_stub(doi="10.1000/abc_def")])
+    assert "  doi = {10.1000/abc_def}" in out

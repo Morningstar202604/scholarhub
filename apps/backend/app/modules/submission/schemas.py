@@ -32,12 +32,6 @@ SubmissionStatus = Literal[
     "approved",
 ]
 SubmissionType = Literal["paper", "book", "dataset", "tutorial"]
-ReviewRecommendation = Literal[
-    "accept",
-    "minor_revision",
-    "major_revision",
-    "reject",
-]
 EditorDecision = Literal[
     "accept",
     "minor_revision",
@@ -198,7 +192,6 @@ __all__ = [
     "MessageResponse",
     "PaginationMeta",
     "ResubmitRequest",
-    "ReviewRecommendation",
     "SubmissionCreate",
     "SubmissionDecision",
     "SubmissionListResponse",

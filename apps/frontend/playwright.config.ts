@@ -31,8 +31,13 @@ export default defineConfig({
     video: 'off',
     // 用 Playwright 自带 chromium（npm install 后已下载）；
     // 沙箱无系统 Chrome，故不指定 channel。
+    // 离线/受限环境可用 PLAYWRIGHT_CHROMIUM_EXECUTABLE 指向已缓存的
+    // chrome.exe，省掉一次 ~190MB 的联网下载；CI 不设该变量，走自带构建。
     launchOptions: {
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+        ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
+        : {}),
     },
   },
   projects: [

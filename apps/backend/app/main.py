@@ -46,6 +46,7 @@ from app.core.db import check_db_connection, dispose_engine
 from app.core.logging import configure_logging, get_logger
 from app.core.modules import load_all, registry
 from app.core.monitoring import init_monitoring
+from app.core.rate_limit_store import close_rate_limiter_store
 from app.core.tenant import TenantContextMiddleware
 from app.middleware.csrf import CSRFMiddleware
 from app.middleware.metrics import HTTPMetricsMiddleware
@@ -94,6 +95,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     if not settings.is_test:
+        # Close the rate-limiter store (releases the Redis client) before
+        # tearing down the engine / other resources that may depend on it.
+        await close_rate_limiter_store()
         await dispose_engine()
         logger.info("database_engine_disposed")
 
@@ -276,7 +280,9 @@ if _static_dir_env:
                 raise HTTPException(status_code=404, detail="Not Found")
             candidate = (_static_root / full_path).resolve()
             # 防目录穿越：candidate 必须仍在静态根内。
-            if full_path and candidate.is_file() and str(candidate).startswith(str(_static_root)):
+            # 用 is_relative_to 精确判断，避免 ../static-dev 之类同级目录被
+            # startswith 误判为命中（前缀绕过）。
+            if full_path and candidate.is_file() and candidate.is_relative_to(_static_root):
                 return FileResponse(str(candidate))
             index_file = _static_root / "index.html"
             if index_file.is_file():

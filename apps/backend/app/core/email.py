@@ -114,8 +114,18 @@ class SMTPEmailSender:
         # the event loop for one SMTP round-trip is acceptable. If a
         # caller needs strict non-blocking, await asyncio.to_thread(...)
         # around send_message.
-        with smtplib.SMTP(self._host, self._port) as client:
-            if self._starttls:
+        # TLS strategy:
+        # - use_tls True  -> implicit TLS (SMTP over SSL, typically :465);
+        #   the connection is encrypted from the handshake, so STARTTLS is
+        #   meaningless and ignored.
+        # - use_tls False -> plain SMTP, optionally upgraded via STARTTLS
+        #   when starttls is set (the common :587 submission scenario).
+        if self._use_tls:
+            client_cm: smtplib.SMTP = smtplib.SMTP_SSL(self._host, self._port)
+        else:
+            client_cm = smtplib.SMTP(self._host, self._port)
+        with client_cm as client:
+            if not self._use_tls and self._starttls:
                 client.starttls()
             if self._username and self._password:
                 client.login(self._username, self._password)

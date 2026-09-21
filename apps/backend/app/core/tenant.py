@@ -21,7 +21,6 @@ from __future__ import annotations
 import time
 import uuid
 from contextvars import ContextVar
-from typing import Any
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -58,10 +57,6 @@ def invalidate_host_cache(host: str | None = None) -> None:
         _host_cache = {}
     else:
         _host_cache.pop(host.lower(), None)
-
-
-def _generate_tenant_uuid() -> uuid.UUID:
-    return uuid.uuid4()
 
 
 # The current request's tenant id. Set by middleware, read by get_db.
@@ -246,8 +241,3 @@ class TenantContextMiddleware:
             await session.refresh(tenant)
             logger.info("bootstrap_tenant_created", slug=slug, tenant_id=str(tenant.id))
             return tenant.id
-
-
-# Type alias for clarity in function signatures.
-TenantId = uuid.UUID
-TenantPayload = dict[str, Any]

@@ -292,10 +292,12 @@ async def delete_my_account(
     current_user.is_active = False
     current_user.is_email_verified = False
     # Destroy the TOTP secret so even a future restore + new password
-    # would need to re-enroll 2FA.
-    current_user.two_factor_secret = None
+    # would need to re-enroll 2FA. Only the encrypted ``totp_*`` column
+    # group remains — the plaintext ``two_factor_*`` columns were dropped
+    # by migration 021_merge_two_factor.
+    current_user.totp_secret_encrypted = None
     current_user.totp_enabled_at = None
-    current_user.two_factor_recovery_codes = None
+    current_user.totp_backup_codes_hashed = None
     current_user.deleted_at = datetime.now(UTC)
     # Invalidate every active session immediately. The bump below is
     # enough — no separate "log out everywhere" call is needed.

@@ -12,9 +12,10 @@ import { useIsMobile } from '@/hooks/use-is-mobile'
 import {
   useCatalogStats,
   useMyRecommendations,
+  useMySubmissions,
   useNotifications,
-  usePendingSubmissions,
   useReadingLists,
+  useUnreadCount,
 } from '@/hooks/api/use-modules'
 import { PageHeader } from '@/components/common/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,9 +44,14 @@ interface StatCard {
 function DashboardPage() {
   const stats = useCatalogStats()
   const recs = useMyRecommendations(5)
+  // 未读数走 /notifications/unread-count：列表接口的 meta.total 是
+  // 「通知总数」，跟「未读」根本不是一回事。
   const notifs = useNotifications(1, 5)
+  const unread = useUnreadCount({ enabled: true })
   const lists = useReadingLists(1, 5)
-  const pending = usePendingSubmissions(1, 5)
+  // 这里要的是「我自己的投稿数」。以前调 /submissions/pending，那是编辑的
+  // 待审队列（require_editor），普通用户只会拿到 403 而永远显示 "—"。
+  const mine = useMySubmissions(undefined, 1, 1)
   const isMobile = useIsMobile()
 
   const cards: StatCard[] = [
@@ -63,7 +69,7 @@ function DashboardPage() {
     },
     {
       label: '未读通知',
-      value: notifs.data?.meta.total ?? '—',
+      value: unread.data?.unread ?? '—',
       to: '/notifications',
       icon: Bell,
     },
@@ -74,8 +80,8 @@ function DashboardPage() {
       icon: Library,
     },
     {
-      label: '我的提交',
-      value: pending.data?.meta.total ?? '—',
+      label: '我的投稿',
+      value: mine.data?.meta.total ?? '—',
       to: '/submissions',
       icon: ScrollText,
     },

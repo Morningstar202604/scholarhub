@@ -27,7 +27,7 @@ import {
   useUpdateResource,
 } from '@/hooks/api/use-modules'
 import type { ResourceUpdate } from '@/lib/types'
-import { extractError, formatDateTime } from '@/lib/utils'
+import { extractError, formatDateTime, parseListField } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -72,18 +72,18 @@ function CatalogDetailPage() {
 
   // ref guard: avoid double recordView call under React StrictMode
   // 访客不上报浏览记录（后端该接口需要登录）。
-  const viewRecordedRef = useRef(false)
+  // 存的是「已上报过的资源 id」而不是布尔量：StrictMode 下 effect 会
+  // effect → cleanup → effect 跑两遍，cleanup 里把标志复位等于把守卫
+  // 抹掉、反而上报两次——正是这段注释想避免的事。
+  const viewRecordedRef = useRef<number | null>(null)
   // ref-stabilize the mutation so the effect deps stay [id, isAuthenticated]
   // (the mutation object is recreated each render; depending on it directly
   // would reset the guard and re-record on every render).
   const recordViewRef = useRef(recordView)
   useEffect(() => {
-    if (!isAuthenticated || viewRecordedRef.current) return
-    viewRecordedRef.current = true
+    if (!isAuthenticated || viewRecordedRef.current === id) return
+    viewRecordedRef.current = id
     void recordViewRef.current.mutateAsync(id).catch(() => {})
-    return () => {
-      viewRecordedRef.current = false
-    }
   }, [id, isAuthenticated])
 
   const [editOpen, setEditOpen] = useState(false)
@@ -417,17 +417,11 @@ function EditDialog({
     e.preventDefault()
     const body: ResourceUpdate = {
       title: form.title,
-      authors: form.authors
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      authors: parseListField(form.authors),
       year: Number(form.year),
       discipline: form.discipline,
       abstract: form.abstract,
-      tags: form.tags
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      tags: parseListField(form.tags),
       preview: form.preview,
     }
     await onSubmit(body)

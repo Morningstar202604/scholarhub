@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { downloadBlob } from '@/lib/utils'
 import type {
   AssignmentCreate,
   AssignmentListResponse,
@@ -8,22 +9,16 @@ import type {
   AuditLogEntry,
   AuthorFollowListResponse,
   DisciplineSubscriptionListResponse,
-  FacetBucket,
   FetchRequest,
-  FileAssetCreate,
-  FileAssetResponse,
   FollowStatusResponse,
-  HealthResponse,
   IngestResource,
   IssueInfo,
   JournalSettings,
   MessageResponse,
-  ModuleInfo,
   NotificationListResponse,
   NotificationResponse,
   ParseRequest,
   ParseResponse,
-  ReadingHistoryListResponse,
   ReadingListCreate,
   ReadingListDetailResponse,
   ReadingListItemCreate,
@@ -33,7 +28,6 @@ import type {
   ReadingProgressUpdate,
   RecommendationListResponse,
   ResourceCreate,
-  ResourceFacets,
   ResourceListParams,
   ResourceListResponse,
   ResourceResponse,
@@ -62,27 +56,26 @@ export const keys = {
     list: (params: ResourceListParams) => ['catalog', 'list', params] as const,
     detail: (id: number) => ['catalog', 'detail', id] as const,
     stats: () => ['catalog', 'stats'] as const,
-    facets: (params?: { type?: string; discipline?: string }) =>
-      ['catalog', 'facets', params ?? {}] as const,
   },
   reader: {
-    history: (page = 1) => ['reader', 'history', page] as const,
     progress: (id: number) => ['reader', 'progress', id] as const,
-    fileAssets: () => ['reader', 'file-assets'] as const,
-    fileAsset: (id: number) => ['reader', 'file-assets', id] as const,
   },
   submission: {
-    mine: (status?: string) => ['submissions', 'mine', status ?? 'all'] as const,
-    all: (status?: string) => ['submissions', 'all', status ?? 'all'] as const,
-    pending: () => ['submissions', 'pending'] as const,
+    // page 必须进 key：queryFn 用了它，key 里没有就会出现「翻页后 60 秒内
+    // 仍显示上一页」（staleTime 内命中同一 key 不会 refetch）。
+    mine: (status?: string, page = 1) =>
+      ['submissions', 'mine', status ?? 'all', page] as const,
+    all: (status?: string, page = 1) =>
+      ['submissions', 'all', status ?? 'all', page] as const,
+    pending: (page = 1) => ['submissions', 'pending', page] as const,
     detail: (id: number) => ['submissions', 'detail', id] as const,
     assignments: (id: number) => ['submissions', id, 'assignments'] as const,
     reports: (id: number) => ['submissions', id, 'reports'] as const,
     versions: (id: number) => ['submissions', id, 'versions'] as const,
   },
   review: {
-    myAssignments: (status?: string) =>
-      ['review', 'my-assignments', status ?? 'all'] as const,
+    myAssignments: (status?: string, page = 1) =>
+      ['review', 'my-assignments', status ?? 'all', page] as const,
     assignment: (id: number) => ['review', 'assignment', id] as const,
     // 审稿人查看分配稿件的完整内容
     submission: (assignmentId: number) =>
@@ -93,7 +86,10 @@ export const keys = {
     detail: (id: number) => ['library', 'detail', id] as const,
   },
   notifications: {
-    list: (page = 1) => ['notifications', 'list', page] as const,
+    // pageSize 也要进 key：仪表盘取 (1,5)、通知页取 (1,20)，
+    // 只带 page 会让两者共用一个缓存条目、互相污染数据。
+    list: (page = 1, pageSize = 20) =>
+      ['notifications', 'list', page, pageSize] as const,
     unread: () => ['notifications', 'unread'] as const,
   },
   recommendations: {
@@ -113,26 +109,7 @@ export const keys = {
     myAuthors: (page = 1) => ['follows', 'my-authors', page] as const,
     myDisciplines: () => ['follows', 'my-disciplines'] as const,
   },
-  modules: () => ['modules'] as const,
-  health: () => ['health'] as const,
 } as const
-
-// --- Modules + Health ---
-export function useModules() {
-  return useQuery<ModuleInfo[]>({
-    queryKey: keys.modules(),
-    queryFn: async () => (await api.get<ModuleInfo[]>('/modules')).data,
-    staleTime: 5 * 60_000,
-  })
-}
-
-export function useHealth() {
-  return useQuery<HealthResponse>({
-    queryKey: keys.health(),
-    queryFn: async () => (await api.get<HealthResponse>('/health')).data,
-    staleTime: 30_000,
-  })
-}
 
 // --- Catalog ---
 export function useResources(params: ResourceListParams = {}) {
@@ -156,14 +133,6 @@ export function useCatalogStats() {
   return useQuery<ResourceStats>({
     queryKey: keys.catalog.stats(),
     queryFn: async () => (await api.get<ResourceStats>('/catalog/stats')).data,
-    staleTime: 5 * 60_000,
-  })
-}
-
-export function useCatalogFacets(params?: { type?: string; discipline?: string }) {
-  return useQuery<ResourceFacets>({
-    queryKey: keys.catalog.facets(params),
-    queryFn: async () => (await api.get<ResourceFacets>('/catalog/facets', { params })).data,
     staleTime: 5 * 60_000,
   })
 }
@@ -212,31 +181,10 @@ export async function exportResources(ids: number[], format: 'bibtex' | 'ris' | 
     params: { ids, format },
     responseType: 'blob',
   })
-  // 从 Content-Disposition 解析文件名
-  const disp = res.headers['content-disposition'] ?? ''
-  const match = disp.match(/filename="?([^";]+)"?/i)
-  const filename = match?.[1] ?? `export.${format}`
-  const url = URL.createObjectURL(res.data)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloadBlob(res.data, res.headers['content-disposition'] ?? '', `export.${format}`)
 }
 
 // --- Reader ---
-export function useReadingHistory(page = 1, pageSize = 20) {
-  return useQuery<ReadingHistoryListResponse>({
-    queryKey: keys.reader.history(page),
-    queryFn: async () =>
-      (await api.get<ReadingHistoryListResponse>('/reader/history', {
-        params: { page, page_size: pageSize },
-      })).data,
-  })
-}
-
 export function useReadingProgress(
   resourceId: number,
   options?: { enabled?: boolean },
@@ -288,35 +236,6 @@ export function useRemoveFromHistory() {
   })
 }
 
-export function useFileAssets() {
-  return useQuery<FileAssetResponse[]>({
-    queryKey: keys.reader.fileAssets(),
-    queryFn: async () => (await api.get<FileAssetResponse[]>('/reader/file-assets')).data,
-  })
-}
-
-export function useCreateFileAsset() {
-  const qc = useQueryClient()
-  return useMutation<FileAssetResponse, Error, FileAssetCreate>({
-    mutationFn: async (body) =>
-      (await api.post<FileAssetResponse>('/reader/file-assets', body)).data,
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['reader', 'file-assets'] })
-    },
-  })
-}
-
-export function useDeleteFileAsset() {
-  const qc = useQueryClient()
-  return useMutation<MessageResponse, Error, number>({
-    mutationFn: async (id) =>
-      (await api.delete<MessageResponse>(`/reader/file-assets/${id}`)).data,
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['reader', 'file-assets'] })
-    },
-  })
-}
-
 // --- Submission ---
 export function useCreateSubmission() {
   const qc = useQueryClient()
@@ -331,7 +250,7 @@ export function useCreateSubmission() {
 
 export function useMySubmissions(status?: string, page = 1, pageSize = 20) {
   return useQuery<SubmissionListResponse>({
-    queryKey: keys.submission.mine(status),
+    queryKey: keys.submission.mine(status, page),
     queryFn: async () =>
       (await api.get<SubmissionListResponse>('/submissions/me', {
         params: { status, page, page_size: pageSize },
@@ -341,7 +260,7 @@ export function useMySubmissions(status?: string, page = 1, pageSize = 20) {
 
 export function useAllSubmissions(status?: string, page = 1, pageSize = 20) {
   return useQuery<SubmissionListResponse>({
-    queryKey: keys.submission.all(status),
+    queryKey: keys.submission.all(status, page),
     queryFn: async () =>
       (await api.get<SubmissionListResponse>('/submissions', {
         params: { status, page, page_size: pageSize },
@@ -351,7 +270,7 @@ export function useAllSubmissions(status?: string, page = 1, pageSize = 20) {
 
 export function usePendingSubmissions(page = 1, pageSize = 20) {
   return useQuery<SubmissionListResponse>({
-    queryKey: keys.submission.pending(),
+    queryKey: keys.submission.pending(page),
     queryFn: async () =>
       (await api.get<SubmissionListResponse>('/submissions/pending', {
         params: { page, page_size: pageSize },
@@ -458,6 +377,9 @@ export function useResubmitSubmission() {
     onSuccess: (data, { id }) => {
       qc.setQueryData(keys.submission.detail(id), data)
       void qc.invalidateQueries({ queryKey: ['submissions'] })
+      // 后端把重投快照成新版本，版本历史必须跟着失效，否则详情弹窗
+      // 里的「版本历史」永远停在重投前。
+      void qc.invalidateQueries({ queryKey: keys.submission.versions(id) })
     },
   })
 }
@@ -496,7 +418,8 @@ export function useUploadSubmissionFile() {
     mutationFn: async ({ id, file }) => {
       const form = new FormData()
       form.append('file', file)
-      // axios 自动设置 multipart boundary；这里显式清掉 Content-Type 让浏览器接管
+      // 显式给的 multipart/form-data 没有 boundary，axios 检测到 FormData
+      // 后会丢弃这个头、由浏览器自己补 boundary —— 行为正确，注释按实情写。
       const { data } = await api.post<SubmissionResponse>(
         `/submissions/${id}/files`,
         form,
@@ -517,17 +440,11 @@ export async function downloadSubmissionFile(id: number): Promise<void> {
   const { data, headers } = await api.get<Blob>(`/submissions/${id}/files`, {
     responseType: 'blob',
   })
-  const disposition = (headers['content-disposition'] as string | undefined) ?? ''
-  const match = /filename="?([^";]+)"?/.exec(disposition)
-  const filename = match?.[1] ?? `submission-${id}.pdf`
-  const url = URL.createObjectURL(data)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloadBlob(
+    data,
+    (headers['content-disposition'] as string | undefined) ?? '',
+    `submission-${id}.pdf`,
+  )
 }
 
 // 审稿报告列表（单盲：作者只看 comments_to_author）
@@ -543,7 +460,7 @@ export function useSubmissionReports(id: number) {
 // --- Reviewer side ---
 export function useMyReviewAssignments(status?: string, page = 1, pageSize = 20) {
   return useQuery<AssignmentListResponse>({
-    queryKey: keys.review.myAssignments(status),
+    queryKey: keys.review.myAssignments(status, page),
     queryFn: async () =>
       (await api.get<AssignmentListResponse>('/review/assignments/me', {
         params: { status, page, page_size: pageSize },
@@ -697,7 +614,7 @@ export function useRemoveReadingListItem() {
 // --- Notifications ---
 export function useNotifications(page = 1, pageSize = 20) {
   return useQuery<NotificationListResponse>({
-    queryKey: keys.notifications.list(page),
+    queryKey: keys.notifications.list(page, pageSize),
     queryFn: async () =>
       (await api.get<NotificationListResponse>('/notifications', {
         params: { page, page_size: pageSize },
@@ -937,12 +854,22 @@ export function useAdminAuditLogs(limit = 50, offset = 0) {
 
 // --- Volume / Issue management (admin) ---
 
+// 后端单页上限（catalog/routes.py MAX_PAGE_SIZE）。卷/期聚合目前只能拉一页
+// 在前端推导，超过这个量就会少数据，所以页面必须把 truncated 提示出来。
+export const CATALOG_PAGE_MAX = 100
+
+export interface AggregatedListResult<T> {
+  items: T[]
+  /** 源数据已达单页上限：统计不完整，数字偏小。 */
+  truncated: boolean
+}
+
 export function useVolumeList() {
-  return useQuery<VolumeInfo[]>({
+  return useQuery<AggregatedListResult<VolumeInfo>>({
     queryKey: keys.admin.volumes(),
     queryFn: async () => {
       const res = await api.get<ResourceListResponse>('/catalog', {
-        params: { page_size: 100, sort: 'year', order: 'desc' },
+        params: { page_size: CATALOG_PAGE_MAX, sort: 'year', order: 'desc' },
       })
       const resources = res.data.data
       const volumeMap = new Map<string, { articles: number; issues: Set<string> }>()
@@ -953,29 +880,32 @@ export function useVolumeList() {
         if (r.issue) v.issues.add(r.issue)
         volumeMap.set(r.volume, v)
       }
-      return Array.from(volumeMap.entries())
-        .map(([volume, info]) => ({
-          volume,
-          articleCount: info.articles,
-          issueCount: info.issues.size,
-        }))
-        .sort((a, b) => {
-          const na = Number(a.volume)
-          const nb = Number(b.volume)
-          if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
-          return b.volume.localeCompare(a.volume)
-        })
+      return {
+        items: Array.from(volumeMap.entries())
+          .map(([volume, info]) => ({
+            volume,
+            articleCount: info.articles,
+            issueCount: info.issues.size,
+          }))
+          .sort((a, b) => {
+            const na = Number(a.volume)
+            const nb = Number(b.volume)
+            if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
+            return b.volume.localeCompare(a.volume)
+          }),
+        truncated: resources.length >= CATALOG_PAGE_MAX,
+      }
     },
     staleTime: 2 * 60_000,
   })
 }
 
 export function useIssueList(volume: string) {
-  return useQuery<IssueInfo[]>({
+  return useQuery<AggregatedListResult<IssueInfo>>({
     queryKey: keys.admin.issues(volume),
     queryFn: async () => {
       const res = await api.get<ResourceListResponse>('/catalog', {
-        params: { page_size: 100, sort: 'year', order: 'desc' },
+        params: { page_size: CATALOG_PAGE_MAX, sort: 'year', order: 'desc' },
       })
       const resources = res.data.data.filter((r) => r.volume === volume)
       const issueMap = new Map<string, { articles: number; years: number[] }>()
@@ -986,20 +916,24 @@ export function useIssueList(volume: string) {
         v.years.push(r.year)
         issueMap.set(r.issue, v)
       }
-      return Array.from(issueMap.entries())
-        .map(([issue, info]) => ({
-          issue,
-          articleCount: info.articles,
-          firstYear: Math.min(...info.years),
-          lastYear: Math.max(...info.years),
-        }))
-        .sort((a, b) => {
-          const na = Number(a.issue)
-          const nb = Number(b.issue)
-          if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
-          return b.issue.localeCompare(a.issue)
-        })
+      return {
+        items: Array.from(issueMap.entries())
+          .map(([issue, info]) => ({
+            issue,
+            articleCount: info.articles,
+            firstYear: Math.min(...info.years),
+            lastYear: Math.max(...info.years),
+          }))
+          .sort((a, b) => {
+            const na = Number(a.issue)
+            const nb = Number(b.issue)
+            if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
+            return b.issue.localeCompare(a.issue)
+          }),
+        truncated: res.data.data.length >= CATALOG_PAGE_MAX,
+      }
     },
+    // 未选卷时不发请求：组件已经早退到空态，白打一个全量 /catalog 没意义。
     enabled: !!volume,
     staleTime: 2 * 60_000,
   })
@@ -1022,6 +956,3 @@ export function useJournalSettings() {
     staleTime: 5 * 60_000,
   })
 }
-
-// 把 FacetBucket 类型重导出供消费方使用
-export type { FacetBucket }

@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: scholarhub
       POSTGRES_USER: scholarhub
-      POSTGRES_PASSWORD: ${SCHOLARHUB_DB_PASSWORD:-scholarhub_dev}
+      POSTGRES_PASSWORD: ${SCHOLARHUB_DB_PASSWORD:?SCHOLARHUB_DB_PASSWORD is required — set it in repo-root .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
@@ -33,7 +33,7 @@ services:
   meilisearch:
     image: getmeili/meilisearch:v1.12
     environment:
-      MEILI_MASTER_KEY: ${SCHOLARHUB_MEILISEARCH_API_KEY:-scholarhub_prod_meili_key}
+      MEILI_MASTER_KEY: ${SCHOLARHUB_MEILISEARCH_API_KEY:?SCHOLARHUB_MEILISEARCH_API_KEY is required — set it in repo-root .env}
       MEILI_NO_ANALYTICS: "true"
     volumes:
       - meilisearch_data:/meili_data
@@ -51,9 +51,9 @@ services:
     env_file:
       - ../.env
     environment:
-      SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:${SCHOLARHUB_DB_PASSWORD:-scholarhub_dev}@postgres:5432/scholarhub
+      SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:${SCHOLARHUB_DB_PASSWORD:?SCHOLARHUB_DB_PASSWORD is required — set it in repo-root .env}@postgres:5432/scholarhub
       SCHOLARHUB_MEILISEARCH_URL: http://meilisearch:7700
-      SCHOLARHUB_MEILISEARCH_API_KEY: ${SCHOLARHUB_MEILISEARCH_API_KEY:-scholarhub_prod_meili_key}
+      SCHOLARHUB_MEILISEARCH_API_KEY: ${SCHOLARHUB_MEILISEARCH_API_KEY:?SCHOLARHUB_MEILISEARCH_API_KEY is required — set it in repo-root .env}
       SCHOLARHUB_ENVIRONMENT: production
     depends_on:
       postgres:

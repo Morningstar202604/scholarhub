@@ -39,13 +39,13 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.time import utcnow
 from app.models import Base, TenantScopedMixin
 
 if TYPE_CHECKING:
-    from app.models import User
+    pass
 
 
 class AuthorFollow(Base, TenantScopedMixin):
@@ -79,8 +79,6 @@ class AuthorFollow(Base, TenantScopedMixin):
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
-    user: Mapped[User] = relationship("User", foreign_keys="AuthorFollow.user_id")
-
 
 class DisciplineSubscription(Base, TenantScopedMixin):
     """A user's subscription to a discipline slug.
@@ -111,8 +109,6 @@ class DisciplineSubscription(Base, TenantScopedMixin):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
-
-    user: Mapped[User] = relationship("User", foreign_keys="DisciplineSubscription.user_id")
 
 
 __all__ = ["AuthorFollow", "DisciplineSubscription"]

@@ -3,13 +3,13 @@
 # ScholarHUB database restore script.
 #
 # Usage:
-#   ./restore.sh <backup-file.gz> [--db-url URL]
+#   ./restore.sh <backup-file> [--db-url URL]
 #
 # Defaults:
 #   --db-url  postgresql://scholarhub:scholarhub_dev@localhost:5432/scholarhub
 #
 # Behaviour:
-#   - Validates the backup file exists and is a gzip file.
+#   - Validates the backup file exists and is a pg_dump custom-format archive.
 #   - Drops and recreates the public schema, then restores via pg_restore.
 #   - Logs to stdout with [YYYY-MM-DD HH:MM:SS] timestamps.
 
@@ -30,10 +30,10 @@ die() {
 
 # --- parse args ---------------------------------------------------------
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <backup-file.gz> [--db-url URL]"
+  echo "Usage: $0 <backup-file> [--db-url URL]"
   echo ""
-  echo "  backup-file.gz  Path to a gzip-compressed pg_dump custom-format backup"
-  echo "  --db-url URL    Target PostgreSQL connection URL"
+  echo "  backup-file  Path to a pg_dump custom-format backup (produced by backup.sh)"
+  echo "  --db-url URL Target PostgreSQL connection URL"
   exit 1
 fi
 
@@ -47,10 +47,10 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --help|-h)
-      echo "Usage: $0 <backup-file.gz> [--db-url URL]"
+      echo "Usage: $0 <backup-file> [--db-url URL]"
       echo ""
-      echo "  backup-file.gz  Path to a gzip-compressed pg_dump custom-format backup"
-      echo "  --db-url URL    Target PostgreSQL connection URL (default: postgresql://scholarhub:scholarhub_dev@localhost:5432/scholarhub)"
+      echo "  backup-file  Path to a pg_dump custom-format backup (produced by backup.sh)"
+      echo "  --db-url URL Target PostgreSQL connection URL (default: postgresql://scholarhub:scholarhub_dev@localhost:5432/scholarhub)"
       exit 0
       ;;
     *)
@@ -62,14 +62,15 @@ done
 # --- pre-flight checks --------------------------------------------------
 command -v pg_restore >/dev/null 2>&1 || die "pg_restore not found — install PostgreSQL client tools"
 command -v psql       >/dev/null 2>&1 || die "psql not found — install PostgreSQL client tools"
-command -v gzip       >/dev/null 2>&1 || die "gzip not found"
 
 if [[ ! -f "$BACKUP_FILE" ]]; then
   die "Backup file not found: ${BACKUP_FILE}"
 fi
 
-if ! gzip -t "$BACKUP_FILE" 2>/dev/null; then
-  die "File is not a valid gzip archive: ${BACKUP_FILE}"
+# Validate it's a real pg_dump custom-format archive (no gzip step — the
+# dump is already in custom format and is restored directly).
+if ! pg_restore --list "$BACKUP_FILE" >/dev/null 2>&1; then
+  die "File is not a valid pg_dump custom-format archive: ${BACKUP_FILE}"
 fi
 
 # --- restore ------------------------------------------------------------
@@ -80,10 +81,7 @@ psql "$DB_URL" -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;" 
   || die "Failed to reset public schema"
 
 log "Restoring database…"
-gunzip -c "$BACKUP_FILE" | pg_restore --dbname="$DB_URL" --clean --if-exists --no-owner --no-acl --single-transaction 2>&1
-
-if [[ ${PIPESTATUS[0]} -ne 0 || ${PIPESTATUS[1]} -ne 0 ]]; then
-  die "pg_restore failed — restore may be incomplete"
-fi
+pg_restore --dbname="$DB_URL" --clean --if-exists --no-owner --no-acl --single-transaction --format=custom --file="$BACKUP_FILE" 2>&1 \
+  || die "pg_restore failed — restore may be incomplete"
 
 log "Restore complete"

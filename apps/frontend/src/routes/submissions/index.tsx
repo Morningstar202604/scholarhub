@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   createFileRoute,
   Link,
@@ -39,7 +39,7 @@ import type {
   SubmissionStatus,
   SubmissionType,
 } from '@/lib/types'
-import { extractError } from '@/lib/utils'
+import { extractError, parseListField } from '@/lib/utils'
 import { PageHeader } from '@/components/common/page-header'
 import { Pagination } from '@/components/common/pagination'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
@@ -288,12 +288,15 @@ function SubmissionsPage() {
     select: (s) => s.location.state?.preset,
   })
   const presetHandled = useRef(false)
-  // eslint-disable-next-line react-hooks/refs
-  if (preset && !presetHandled.current) {
+  useEffect(() => {
+    if (!preset || presetHandled.current) return
     presetHandled.current = true
     setForm(presetToForm(preset))
     setCreateOpen(true)
-  }
+    // 消费完就把 state 清掉：ref 只在本次 mount 内有效，用户后退/前进
+    // 导致重新挂载时 state 还在，会莫名其妙又弹出预填表单。
+    void navigate({ to: '/submissions', state: {}, replace: true })
+  }, [preset, navigate])
 
   const updateSearch = (patch: Partial<SubmissionSearch>) => {
     void navigate({
@@ -312,20 +315,14 @@ function SubmissionsPage() {
     const body: SubmissionCreate = {
       title: form.title,
       type: form.type,
-      authors: form.authors.split(',').map((s) => s.trim()).filter(Boolean),
+      authors: parseListField(form.authors),
       year: Number(form.year),
       discipline: form.discipline,
       abstract: form.abstract,
       preview: form.preview,
-      tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
-      keywords: form.keywords
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-      jel_codes: form.jel_codes
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      tags: parseListField(form.tags),
+      keywords: parseListField(form.keywords),
+      jel_codes: parseListField(form.jel_codes),
       corresponding_author_email: form.corresponding_author_email || undefined,
       venue: form.venue || undefined,
       subdiscipline: form.subdiscipline || undefined,
@@ -497,7 +494,6 @@ function SubmissionsPage() {
                 status={detail.status}
                 submittedAt={new Date(detail.submitted_at)}
                 reviewedAt={detail.reviewed_at ? new Date(detail.reviewed_at) : null}
-                reviewedBy={detail.reviewed_by ?? null}
               />
               <div>
                 <span className="text-muted-foreground">作者：</span>

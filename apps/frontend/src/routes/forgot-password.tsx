@@ -41,8 +41,8 @@ function ForgotPasswordPage() {
           {sent ? (
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>
-                如果该邮箱已注册，重置邮件已发送。请在 30 分钟内完成重置；
-                邮件中的链接形如 <code>/reset-password?token=…</code>。
+                如果该邮箱已注册，重置邮件已发送，请在 30 分钟内点击
+                邮件里的链接完成重置。
               </p>
               <p>
                 <Link to="/login" className="text-primary hover:underline">

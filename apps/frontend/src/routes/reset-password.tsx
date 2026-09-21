@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { AxiosError } from 'axios'
 import { toast } from 'sonner'
 import { useResetPassword } from '@/hooks/api/use-auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { extractError } from '@/lib/utils'
 
 export const Route = createFileRoute('/reset-password')({
   component: ResetPasswordPage,
@@ -43,11 +43,7 @@ function ResetPasswordPage() {
       toast.success('密码已重置，请使用新密码登录')
       void navigate({ to: '/login' })
     } catch (err) {
-      const msg =
-        err instanceof AxiosError
-          ? (err.response?.data as { detail?: string })?.detail ?? '重置失败'
-          : '重置失败'
-      toast.error(msg)
+      toast.error(extractError(err, '重置失败'))
     }
   }
 

@@ -38,9 +38,12 @@ import hmac
 import secrets
 import struct
 import time
-from typing import Final
+from datetime import UTC, datetime, timedelta
+from typing import Any, Final, Literal
 
+import jwt
 from cryptography.fernet import Fernet, InvalidToken
+from jwt import PyJWTError
 
 # RFC 4226 section 4: 160-bit secret, 6-digit code, SHA-1 HMAC.
 _TOTP_DIGITS: Final = 6
@@ -151,12 +154,13 @@ def normalize_backup_code(code: str) -> str:
 def _fernet() -> Fernet:
     """Build a Fernet instance from the active settings.
 
-    Imports ``settings`` lazily so that test conftest can mutate the
-    key before any encryption happens.
+    Reads settings through ``get_settings()`` (not the module-level
+    ``settings`` singleton) so a hot key rotation — ``key_rotation.reload_settings``
+    clearing the LRU cache — reaches every subsequent encryption/decryption.
     """
-    from app.core.config import settings
+    from app.core.config import get_settings
 
-    return Fernet(settings.fernet_key.encode("utf-8"))
+    return Fernet(get_settings().fernet_key.encode("utf-8"))
 
 
 def encrypt_secret(secret_b32: str) -> str:
@@ -196,7 +200,54 @@ def otpauth_uri(secret_b32: str, account: str, issuer: str) -> str:
     return f"otpauth://totp/{label}?{params}"
 
 
+# --- Two-factor pending token (login step 2) --------------------------------
+#
+# When a 2FA-enabled account passes the password check at /auth/login, the
+# server issues a short-lived, type-tagged "2fa_pending" JWT instead of real
+# credentials. The client redeems it plus a TOTP (or recovery) code at
+# /auth/login/2fa. The pending token carries ``token_version`` so a password
+# change / logout-everywhere invalidates it like any other token.
+#
+# These were relocated from the now-deleted ``app.core.twofactor`` module; they
+# bind ``get_settings()`` so hot key rotation reaches verification too.
+
+
+TWO_FACTOR_PENDING_TOKEN_TYPE: Literal["2fa_pending"] = "2fa_pending"
+PENDING_TOKEN_TTL_MINUTES = 5
+
+
+def create_two_factor_pending_token(user_id: int, token_version: int) -> str:
+    """Mint a short-lived 2FA-pending token for ``user_id``."""
+    from app.core.config import get_settings
+
+    s = get_settings()
+    payload: dict[str, Any] = {
+        "sub": str(user_id),
+        "token_version": token_version,
+        "type": TWO_FACTOR_PENDING_TOKEN_TYPE,
+        "exp": datetime.now(UTC) + timedelta(minutes=PENDING_TOKEN_TTL_MINUTES),
+        "jti": secrets.token_urlsafe(16),
+    }
+    return jwt.encode(payload, s.secret_key, algorithm=s.algorithm)
+
+
+def decode_two_factor_pending_token(token: str) -> dict[str, Any] | None:
+    """Decode + type-check a pending token; ``None`` on any failure."""
+    from app.core.config import get_settings
+
+    s = get_settings()
+    try:
+        payload: dict[str, Any] = jwt.decode(token, s.secret_key, algorithms=[s.algorithm])
+    except PyJWTError:
+        return None
+    if payload.get("type") != TWO_FACTOR_PENDING_TOKEN_TYPE:
+        return None
+    return payload
+
+
 __all__ = [
+    "create_two_factor_pending_token",
+    "decode_two_factor_pending_token",
     "decrypt_secret",
     "encrypt_secret",
     "generate_backup_codes",

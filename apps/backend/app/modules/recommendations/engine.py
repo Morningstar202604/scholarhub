@@ -173,7 +173,7 @@ async def _fallback_latest(
                 select(Resource)
                 .where(Resource.tenant_id == tenant_id)
                 .order_by(desc(Resource.created_at), Resource.id.asc())
-                .limit(limit or 10)
+                .limit(limit)
             )
         )
         .scalars()
@@ -252,7 +252,13 @@ async def recommend(
     top_ids = [r[1] for r in ranked[: max(limit, 1)]]
     # Phase 2: hydrate full rows only for the survivors.
     top_resources = (
-        (await db.execute(select(Resource).where(Resource.id.in_(top_ids)))).scalars().all()
+        (
+            await db.execute(
+                select(Resource).where(Resource.id.in_(top_ids), Resource.tenant_id == tenant_id)
+            )
+        )
+        .scalars()
+        .all()
     )
     # SQLAlchemy does not guarantee IN-list ordering, so rebuild by id.
     by_id = {r.id: r for r in top_resources}

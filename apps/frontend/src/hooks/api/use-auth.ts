@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth'
 import { isTwoFactorRequired } from '@/lib/types'
@@ -9,29 +9,15 @@ import type {
   ResetPasswordRequest,
   ResendVerificationRequest,
   TokenResponse,
-  TwoFactorEnableResponse,
   TwoFactorLoginRequest,
-  TwoFactorSetupResponse,
-  TwoFactorStatusResponse,
   UserCreate,
   UserLogin,
-  UserResponse,
   VerifyEmailRequest,
 } from '@/lib/types'
 
 export const AUTH_KEY = ['auth'] as const
-export const TWO_FACTOR_KEY = [...AUTH_KEY, '2fa'] as const
 
 // 登录后拉一次 /auth/me 拿完整 user（含 is_email_verified）
-export function useMe() {
-  return useQuery<UserResponse>({
-    queryKey: [...AUTH_KEY, 'me'],
-    queryFn: async () => (await api.get<UserResponse>('/auth/me')).data,
-    enabled: !!useAuthStore.getState().token,
-    staleTime: 60_000,
-  })
-}
-
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth)
   const qc = useQueryClient()
@@ -67,46 +53,6 @@ export function useTwoFactorLogin() {
         is_admin: data.is_admin,
       })
       void qc.invalidateQueries({ queryKey: [...AUTH_KEY, 'me'] })
-    },
-  })
-}
-
-// --- 2FA 自管理（账号安全页） ---
-export function useTwoFactorStatus() {
-  return useQuery<TwoFactorStatusResponse>({
-    queryKey: [...TWO_FACTOR_KEY, 'status'],
-    queryFn: async () =>
-      (await api.get<TwoFactorStatusResponse>('/users/me/2fa')).data,
-    enabled: !!useAuthStore.getState().token,
-  })
-}
-
-export function useTwoFactorSetup() {
-  return useMutation<TwoFactorSetupResponse, Error, void>({
-    mutationFn: async () =>
-      (await api.post<TwoFactorSetupResponse>('/users/me/2fa/setup')).data,
-  })
-}
-
-export function useTwoFactorEnable() {
-  const qc = useQueryClient()
-  return useMutation<TwoFactorEnableResponse, Error, { code: string }>({
-    mutationFn: async (body) =>
-      (await api.post<TwoFactorEnableResponse>('/users/me/2fa/enable', body)).data,
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: [...TWO_FACTOR_KEY] })
-    },
-  })
-}
-
-export function useTwoFactorDisable() {
-  const qc = useQueryClient()
-  return useMutation<void, Error, { password: string }>({
-    mutationFn: async (body) => {
-      await api.post('/users/me/2fa/disable', body)
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: [...TWO_FACTOR_KEY] })
     },
   })
 }
@@ -167,17 +113,6 @@ export function useResetPassword() {
   return useMutation<MessageResponse, Error, ResetPasswordRequest>({
     mutationFn: async (body) =>
       (await api.post<MessageResponse>('/auth/reset-password', body)).data,
-  })
-}
-
-// 改密 + 改资料（走 /users/me）
-export function useUpdateMe() {
-  const qc = useQueryClient()
-  return useMutation<UserResponse, Error, Partial<UserResponse>>({
-    mutationFn: async (body) => (await api.patch<UserResponse>('/users/me', body)).data,
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: [...AUTH_KEY, 'me'] })
-    },
   })
 }
 

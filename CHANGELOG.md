@@ -5,6 +5,73 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **全库逐行审查（8 路并行 × 约 2.5 万行）后修复的缺陷批次**：
+
+  - **安全**：`app/main.py` 静态回退的路径穿越（`startswith` 前缀匹配会让相邻目录
+    `/srv/app/static-dev` 通过校验，改为 `is_relative_to`）；2FA 设置页不再把含 TOTP
+    密钥的 `otpauth://` URI 发给第三方二维码服务（密钥明文外泄，且离线时开启流程
+    必失败），改由本地 `qrcode.react` 渲染。
+  - **2FA 双轨归一**：删除明文 `two_factor_*` 列组与 `/api/users/me/2fa/*` 端点，
+    统一到加密版 `totp_*` + `/api/auth/2fa/*`;登录闸门与管理员闸门改读同一来源
+    （此前两套列各认一半——走 `/auth/2fa` 报名的用户登录不触发挑战，走
+    `/users/me/2fa` 报名的管理员被 403 锁死）。迁移 `021_unify_two_factor` 搬运
+    存量报名数据后 DROP 废弃列组，并顺带删除从未接线的 `resource_stats` 死表。
+  - **签名密钥热轮换**：`core/tokens.py`、`core/totp.py` 改用 `get_settings()`。
+    此前绑定模块级 settings 单例，`/api/admin/security/reload` 轮换密钥后，邮箱验证 /
+    密码重置 / 2FA 待验证令牌仍用旧密钥签发与校验。
+  - **S3 预签名 URL**：删除在 URL 后追加 `&range=` 的透传——给 SigV4 预签名 URL 加
+    未签名参数会得到 `SignatureDoesNotMatch`，S3 路径上的 PDF 翻页/断点续传全挂。
+    S3 本就原生识别客户端的 `Range` 头，无需转发。
+  - **投稿创建 500**：`download_url` / `external_url` 是 pydantic `AnyHttpUrl`，直接赋给
+    `String` 列会被 asyncpg 拒绝；改为显式 `str()` 后落库（更新路径早已这么做）。
+  - **全文搜索静默退化**：Meilisearch 过滤表达式的 `tenant_id` 补引号（原先只有
+    `type`/`discipline` 走 `_quote`），UUID 租户下解析失败会被吞掉并整体退化成数据库
+    ILIKE。
+  - **审计与通知并入主事务**：submission / review 的 5 处 handler 原先把审计日志写在
+    主 `commit()` 之后的第二个事务里（注释却宣称「并入主事务」），第二个 commit 失败
+    即丢审计；统一改为一次提交。
+  - **前端**：公开端点（登录/注册/重置密码）的 401 不再误触发 `/auth/refresh`，也不
+    再用 refresh 错误覆盖原始错误（登录页此前看到的是通用报错）；`/settings` 补登录
+    守卫；仪表盘两张统计卡改为「我的投稿」（原「我的提交」走的是编辑专属的
+    `/submissions/pending`，非编辑永远 403 显示「—」）与「未读通知」（原显示的是通知
+    总数）；三个列表 hook 的 query key 补上分页参数（此前翻页后 60 秒内显示上一页
+    数据）；重投后失效版本历史；目录页多选随翻页/筛选重置。
+  - **权限与状态码**：编辑可查看单篇投稿（原先能决定却不能 GET）、审稿报告对已分配
+    审稿人开放、指派审稿时校验目标用户持有审稿人角色；catalog 子学科 slug 重复回
+    409 而非 500。
+  - **输入校验**：`ResourceUpdate.authors` 复用 `Authors` 注解（PATCH 原先跳过逐元素
+    校验，可写入空串或超长作者）；`authors_meta` 长度与 `authors` 一致；follows 超长
+    学科名回 422 而非 404。
+  - **导出**：`?ids=1&ids=1` 按输入顺序去重；BibTeX 标题/摘要转义 LaTeX 特殊字符
+    （未转义的花括号会截断整条文献表），DOI/URL 保持原样。
+  - **抓取**：OpenAlex DOI 分支保留路径中的 `/`（原先编码为 `%2F`，上游按未知 ID
+    处理，等于每次 DOI 抓取都 404）。
+  - **部署**：`infra/docker-compose.prod.yml` 四处凭证/密钥插值由弱默认值改为必填
+    `:?`，缺变量硬失败（根 compose 一直是这个口径，生产栈反而放行弱凭据）；
+    `backup.sh`/`restore.sh` 去掉 `pg_dump --format=custom` 之外的多余 gzip 层；根
+    compose 注释纠正为「读取仓库根 .env」;`alembic/env.py` 不再静默吞掉 `load_all()`
+    异常（会让 `alembic check` 真空通过）。
+  - **其他核心**：SMTP `use_tls` 真正生效（原先只存不用，隐式 TLS 端口 465 无法工作）；
+    captcha verifier 加载器支持其文档承诺的两种形式并做缓存；租户 GUC 改用参数化
+    `set_config()`；限流拒绝计数器接上 `.inc()`（此前 Prometheus 上是个假指标）；
+    `close_rate_limiter_store()` 接入 lifespan 收尾（Redis 客户端此前不关闭）。
+
+### Removed
+
+- 死代码清理（均经全仓引用检索确认无消费者）：`core/retention.py` 的两个未调用
+  截止时间函数、`core/captcha.py` 的空依赖、`core/tenant.py` 的未用 uuid 生成器与类型
+  别名、`core/modules.py` 的 `get()`/`__contains__`、`doi/registration.py` 的
+  `DATACITE_BASE_URL`/`_xml_headers`/`get_doi_metadata`（含其 6 条测试）、
+  `submission` 的两处 `_ = ResourceCreate(...)` 死校验与 `ReviewRecommendation` 别名、
+  导出路径的不可达 `except ValueError`、follows/notifications/library 四个未使用的
+  `user` relationship（默认懒加载，async 下误访问即抛 greenlet_spawn）、前端约 120 行
+  无消费者导出、`ResourceStat` 模型与 `resource_stats` 表。
+- 复制粘贴去重：错误提取统一走 `extractError`、目录筛选字段抽 `CatalogFilterFields`、
+  blob 下载抽 `downloadBlob`、列表解析抽 `parseListField`、页码推断抽
+  `inferTotalPagesFromFullPage`、catalog 本体校验抽 `validate_ontology`。
+
 ### Added
 
 - **单端口一体化部署**:`apps/backend/Dockerfile` 多阶段构建把前端 `dist/` 打进后端镜像
@@ -122,6 +189,13 @@
 
 ### Tests
 
+- 全库审查修复的配套测试：新增两条端到端用户旅程（`full-user-journey.spec.ts`——访客首屏
+  → 注册 → 仪表盘统计 → 账号设置 → 目录筛选/多选；作者投稿 → 编辑分配 → 审稿人接单
+  出报告 → 编辑接收 → 读者阅读并记住进度）；新增迁移 021 的存量 2FA 数据搬运回归
+  （`test_migration_021_twofactor_carryover.py`，覆盖"老明文报名必须继续是 2FA 账号"）；
+  新增 BibTeX 特殊字符转义回归；2FA 端到端用例改写到统一后的 `/api/auth/2fa/*`
+  （恢复码 8→10、关闭需密码 + 验证码、关闭后旧会话按设计失效）。
+- 删除 6 条随死代码（`doi.get_doi_metadata`）一起下线的用例。
 - 新增 5 个后端测试文件(共 144 个用例),后端测试数 499 → 643(后续 +1 至 644):
   `test_doi.py`(30)/`test_webauthn.py`(23)/`test_ingest_fetchers.py`(37)/
   `test_ingest_parsers.py`(24)/`test_tenant_middleware.py`(17)/

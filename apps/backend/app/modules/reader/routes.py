@@ -413,6 +413,26 @@ async def create_file_asset(
     )
     db.add(asset)
     try:
+        # 先 flush 拿到 asset.id（审计行要引用它），再和审计行一起提交。
+        # 分成两次 commit 的话，第二次失败就会留下一条没有审计记录的资产
+        # —— sha256 是事后追责的证据，丢了就没法回溯。
+        await db.flush()
+        # Audit: file-asset metadata is durable evidence (sha256 etc.); log
+        # who recorded it so a later dispute can be traced.
+        db.add(
+            AuditLog(
+                tenant_id=current_user.tenant_id,
+                actor_user_id=current_user.id,
+                action="reader.file_asset.create",
+                target_type="file_asset",
+                target_id=str(asset.id),
+                payload={
+                    "filename": asset.filename,
+                    "storage_path": asset.storage_path,
+                    "sha256": asset.sha256,
+                },
+            )
+        )
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
@@ -421,23 +441,6 @@ async def create_file_asset(
             detail="File asset with this sha256 already exists in this tenant",
         ) from exc
     await db.refresh(asset)
-    # Audit: file-asset metadata is durable evidence (sha256 etc.); log
-    # who recorded it so a later dispute can be traced.
-    db.add(
-        AuditLog(
-            tenant_id=current_user.tenant_id,
-            actor_user_id=current_user.id,
-            action="reader.file_asset.create",
-            target_type="file_asset",
-            target_id=str(asset.id),
-            payload={
-                "filename": asset.filename,
-                "storage_path": asset.storage_path,
-                "sha256": asset.sha256,
-            },
-        )
-    )
-    await db.commit()
     return FileAssetResponse.model_validate(asset)
 
 

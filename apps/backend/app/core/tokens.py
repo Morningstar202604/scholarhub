@@ -25,7 +25,7 @@ from typing import Any, Literal
 import jwt
 from jwt import PyJWTError
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 VERIFY_EMAIL_TOKEN_TYPE: Literal["verify_email"] = "verify_email"
 RESET_PASSWORD_TOKEN_TYPE: Literal["reset_password"] = "reset_password"
@@ -47,7 +47,7 @@ def _create_token(
         "exp": datetime.now(UTC) + timedelta(seconds=expires_in_seconds),
         "jti": _random_jti(),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return jwt.encode(payload, get_settings().secret_key, algorithm=get_settings().algorithm)
 
 
 def random_jti() -> str:
@@ -71,7 +71,7 @@ def create_email_verification_token(user_id: int, token_version: int) -> str:
         user_id=user_id,
         token_version=token_version,
         token_type=VERIFY_EMAIL_TOKEN_TYPE,
-        expires_in_seconds=settings.email_verification_expire_hours * 3600,
+        expires_in_seconds=get_settings().email_verification_expire_hours * 3600,
     )
 
 
@@ -80,7 +80,7 @@ def create_password_reset_token(user_id: int, token_version: int) -> str:
         user_id=user_id,
         token_version=token_version,
         token_type=RESET_PASSWORD_TOKEN_TYPE,
-        expires_in_seconds=settings.password_reset_expire_minutes * 60,
+        expires_in_seconds=get_settings().password_reset_expire_minutes * 60,
     )
 
 
@@ -95,7 +95,7 @@ def decode_token(
     """
     try:
         payload: dict[str, Any] = jwt.decode(
-            token, settings.secret_key, algorithms=[settings.algorithm]
+            token, get_settings().secret_key, algorithms=[get_settings().algorithm]
         )
     except PyJWTError:
         return None

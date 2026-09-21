@@ -14,6 +14,7 @@ prevents the "dev uses superuser, prod silently skips RLS" footgun.
 from __future__ import annotations
 
 import asyncio
+import logging
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -30,12 +31,21 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Importing enabled modules registers their tables with Base.metadata.
+logger = logging.getLogger("alembic.env")
+
 try:
     from app.core.modules import load_all
 
     load_all()
-except Exception:
-    pass
+except Exception as exc:
+    # Never silently swallow this: if a module fails to import, metadata
+    # degrades to core-only tables and `alembic check` can pass vacuously,
+    # hiding missing migrations. Log loudly so CI/local logs surface it.
+    logger.warning(
+        "load_all() failed to register module tables — metadata degraded to "
+        "core-only; alembic comparisons may pass vacuously. Cause: %r",
+        exc,
+    )
 
 target_metadata = Base.metadata
 

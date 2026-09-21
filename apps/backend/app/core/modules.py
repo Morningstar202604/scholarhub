@@ -68,9 +68,6 @@ class ModuleRegistry:
         self._modules[manifest.name] = manifest
         logger.info("module_registered", name=manifest.name, version=manifest.version)
 
-    def get(self, name: str) -> ModuleManifest | None:
-        return self._modules.get(name)
-
     def all_routers(self) -> list[tuple[str, APIRouter]]:
         return [(name, m.router) for name, m in self._modules.items() if m.router is not None]
 
@@ -79,9 +76,6 @@ class ModuleRegistry:
             {"name": m.name, "version": m.version, "description": m.description}
             for m in self._modules.values()
         ]
-
-    def __contains__(self, name: object) -> bool:
-        return name in self._modules
 
     def __len__(self) -> int:
         return len(self._modules)

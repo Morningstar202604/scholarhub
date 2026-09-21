@@ -1,6 +1,6 @@
 # ScholarHUB 上线部署指南
 
-> 代码状态：backend 646 tests / coverage 83.49%，frontend 100 tests，ruff/mypy/tsc 全绿（commit 99fbeb5 之后新增单端口部署能力）。
+> 代码状态：backend 644 tests / coverage 84%，frontend 100 tests，ruff/mypy/tsc 全绿（commit 99fbeb5 之后新增单端口部署能力）。
 
 ## 架构总览（推荐方案）
 

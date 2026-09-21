@@ -13,15 +13,13 @@ Design choices:
   ``authors`` list[str] column on ``resources``. Following a string
   name matches that model and avoids forcing a cross-module FK to a
   table that does not exist yet.
-- No rate limiting (consistent with notifications — adding a cross-
-  cuttingting middleware is a separate concern).
-- The notification fan-out (``notify_followers_of_new_resource``)
-  is intentionally not wired back here yet. The follows module ships
-  the follow/subscribe + listing endpoints; the submission review
-  path will call ``notifications.services.create()`` in a follow-up
-  patch to fan out to followers when a new catalog Resource is
-  materialized from an approved submission. This keeps each module
-  self-contained.
+- No rate limiting of its own; the shared RateLimitMiddleware
+  covers these endpoints.
+- Scope: follow / subscribe + listings only. Fanning a *new resource*
+  out to followers is not implemented — submissions notify the editor
+  and reviewers (``notifications.services.create``), not followers.
+  If follower fan-out is wanted later it belongs in the approval path,
+  not this module.
 """
 
 from __future__ import annotations

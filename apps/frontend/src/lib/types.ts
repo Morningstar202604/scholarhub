@@ -29,17 +29,6 @@ export interface TokenResponse {
 }
 
 // --- 2FA ---
-export interface TwoFactorSetupResponse {
-  secret: string
-  otpauth_uri: string
-  backup_codes: string[]
-}
-
-export interface TwoFactorStatusResponse {
-  enabled: boolean
-  backup_codes_remaining: number
-}
-
 export interface UserResponse {
   id: number
   email: string
@@ -59,10 +48,6 @@ export type AssignableRole =
   | 'section_editor'
   | 'author'
   | 'reader'
-
-export interface RoleAssign {
-  role: AssignableRole
-}
 
 export interface UserCreate {
   email: string
@@ -98,23 +83,13 @@ export interface TwoFactorLoginRequest {
 export interface TwoFactorSetupResponse {
   secret: string
   otpauth_uri: string
-}
-
-export interface TwoFactorEnableResponse {
-  enabled: true
-  // 只在启用瞬间返回一次，之后服务端只存哈希
-  recovery_codes: string[]
+  // 10 个一次性恢复码，只在 setup 响应里出现这一次
+  backup_codes: string[]
 }
 
 export interface TwoFactorStatusResponse {
   enabled: boolean
-  recovery_codes_remaining: number
-}
-
-export interface UserUpdate {
-  email?: string
-  username?: string
-  is_active?: boolean
+  backup_codes_remaining: number
 }
 
 export interface VerifyEmailRequest {
@@ -144,11 +119,6 @@ export interface ModuleInfo {
 export interface HealthResponse {
   status: 'ok'
   version: string
-}
-
-export interface HealthReadyResponse {
-  status: 'ok' | 'error'
-  database: 'connected' | 'unavailable'
 }
 
 // --- Catalog ---
@@ -258,12 +228,6 @@ export interface SubmissionCreate {
   external_url?: string | null
   doi?: string | null
   corresponding_author_email?: string | null
-}
-
-export interface SubmissionReview {
-  status: 'approved' | 'rejected'
-  admin_note?: string | null
-  resource_id?: number | null
 }
 
 // 4-元决定（编辑终决）
@@ -521,10 +485,6 @@ export interface UnreadCountResponse {
   unread: number
 }
 
-export interface ReadAllResponse {
-  updated: number
-}
-
 // --- Follows ---
 export interface FollowStatusResponse {
   following: boolean
@@ -662,4 +622,3 @@ export interface JournalSettings {
 }
 
 // --- Export ---
-export type ExportFormat = 'bibtex' | 'ris' | 'csv' | 'json'

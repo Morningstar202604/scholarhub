@@ -1,12 +1,11 @@
 """SQLAlchemy models for the catalog module.
 
-Two tables, both tenant-scoped with RLS:
+All tables are tenant-scoped with RLS:
 
 - ``resources`` — core bibliographic record (title, authors, year, venue,
-  discipline, tags, abstract, DOI, journal metadata). No citation cache
-  and no view/download counters here (those live in ``resource_stats``).
-- ``resource_stats`` — write-heavy counters (views, downloads, citation
-  count) split out to avoid contention on the catalog row.
+  discipline, tags, abstract, DOI, journal metadata). No view/download
+  counters: the promised tracking endpoints were never built, so the
+  half-finished ``resource_stats`` table was dropped in migration 021.
 
 The optional ``Author`` table for ORCID/affiliation enrichment is
 reserved for a future phase; the primary author storage is the JSON
@@ -21,7 +20,6 @@ tenant's PostgreSQL database".
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -97,10 +95,6 @@ class Resource(Base, TenantScopedMixin):
         default=utcnow,
         onupdate=utcnow,
         nullable=False,
-    )
-
-    stats: Mapped[list[ResourceStat]] = relationship(
-        back_populates="resource", cascade="all, delete-orphan", uselist=True
     )
 
     # __table_args__ 放在类体末尾：其中的 created_at.desc() 需要引用
@@ -194,39 +188,4 @@ class Subdiscipline(Base, TenantScopedMixin):
     discipline: Mapped[Discipline] = relationship(back_populates="subdisciplines")
 
 
-class ResourceStat(Base, TenantScopedMixin):
-    """Per-resource counters, split out to avoid write hotspots on the
-    catalog row. Updated by read/download endpoints; read by list/detail.
-
-    One row per resource (created lazily on first stat event). NULL
-    counters mean "no data yet", not "zero".
-    """
-
-    __tablename__ = "resource_stats"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "resource_id", name="uq_resource_stats_tenant_resource"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    resource_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("resources.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # External citation count (e.g. from Semantic Scholar). NULL = not yet fetched.
-    citations: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONBVariant, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-        onupdate=utcnow,
-        nullable=False,
-    )
-
-    resource: Mapped[Resource] = relationship(back_populates="stats")
-
-
-__all__ = ["Discipline", "Resource", "ResourceStat", "Subdiscipline"]
+__all__ = ["Discipline", "Resource", "Subdiscipline"]

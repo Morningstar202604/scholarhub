@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { AxiosError } from 'axios'
 import { MoreHorizontal, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
 import { useAdminUsers, useAssignRole, useRevokeRole, useSetUserActive } from '@/hooks/api/use-modules'
 import { useAuth } from '@/hooks/use-auth'
 import type { AssignableRole, UserResponse } from '@/lib/types'
+import { extractError, inferTotalPagesFromFullPage } from '@/lib/utils'
 import { PageHeader } from '@/components/common/page-header'
 import { Pagination } from '@/components/common/pagination'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
@@ -67,8 +67,8 @@ function AdminUsersPage() {
   const revokeRoleMut = useRevokeRole()
   const { user } = useAuth()
 
-  // 后端返回裸数组无 meta，totalPages 用"当前页是否满页"推断：满页则假定还有下一页
-  const totalPages = data && data.length >= PAGE_SIZE ? page + 1 : page
+  // 后端返回裸数组无 meta，totalPages 用「当前页是否满页」推断（与审计日志页共用）。
+  const totalPages = inferTotalPagesFromFullPage(data ?? [], PAGE_SIZE, page)
 
   // 仅本地过滤当前页，避免与服务端分页耦合
   const filtered = useMemo(() => {
@@ -87,11 +87,7 @@ function AdminUsersPage() {
       await setActiveMut.mutateAsync({ userId: u.id, isActive: !u.is_active })
       toast.success(u.is_active ? '已禁用' : '已启用')
     } catch (err) {
-      const msg =
-        err instanceof AxiosError
-          ? (err.response?.data as { detail?: string })?.detail ?? '操作失败'
-          : '操作失败'
-      toast.error(msg)
+      toast.error(extractError(err, '操作失败'))
     }
   }
 
@@ -107,11 +103,7 @@ function AdminUsersPage() {
         toast.success(`已分配 ${ROLE_LABELS[role]} 角色`)
       }
     } catch (err) {
-      const msg =
-        err instanceof AxiosError
-          ? (err.response?.data as { detail?: string })?.detail ?? '操作失败'
-          : '操作失败'
-      toast.error(msg)
+      toast.error(extractError(err, '操作失败'))
     }
   }
 

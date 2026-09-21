@@ -132,6 +132,11 @@ def observe_request(
     HTTP_REQUEST_DURATION_SECONDS.labels(method=method, path=path).observe(duration_seconds)
 
 
+def inc_rate_limit_rejection(path: str) -> None:
+    """Record one request rejected by the rate limiter, labelled by ``path``."""
+    RATE_LIMIT_REJECTIONS_TOTAL.labels(path=path).inc()
+
+
 def update_db_pool_metrics(engine: Any) -> None:
     """Refresh DB connection-pool gauges. Safe to call from any context.
 
@@ -164,6 +169,7 @@ __all__ = [
     "HTTP_REQUEST_DURATION_SECONDS",
     "RATE_LIMIT_REJECTIONS_TOTAL",
     "REGISTRY",
+    "inc_rate_limit_rejection",
     "observe_request",
     "render_metrics",
     "update_db_pool_metrics",

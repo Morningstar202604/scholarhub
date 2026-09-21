@@ -330,7 +330,7 @@ async def fetch_openalex(doi_or_id: str) -> IngestResource:
     ``W123456789``).
     """
     if "/" in doi_or_id:
-        url = f"{OPENALEX_BASE_URL}/doi:{quote(doi_or_id, safe='')}"
+        url = f"{OPENALEX_BASE_URL}/doi:{quote(doi_or_id, safe='/')}"
     else:
         url = f"{OPENALEX_BASE_URL}/{quote(doi_or_id, safe='')}"
 

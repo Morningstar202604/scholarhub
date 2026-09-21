@@ -17,7 +17,7 @@ import pyotp
 from conftest import auth_headers
 from httpx import AsyncClient
 
-from app.core.twofactor import (
+from app.core.totp import (
     create_two_factor_pending_token,
     decode_two_factor_pending_token,
 )
@@ -29,7 +29,7 @@ def _code(secret: str) -> str:
 
 async def _setup(client: AsyncClient, user: dict) -> str:
     """Run setup and return the pending TOTP secret."""
-    resp = await client.post("/api/users/me/2fa/setup", headers=auth_headers(user))
+    resp = await client.post("/api/auth/2fa/setup", headers=auth_headers(user))
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["otpauth_uri"].startswith("otpauth://totp/")
@@ -38,15 +38,24 @@ async def _setup(client: AsyncClient, user: dict) -> str:
 
 
 async def _enable(client: AsyncClient, user: dict) -> tuple[str, list[str]]:
-    """Full enrolment; returns (secret, recovery_codes)."""
-    secret = await _setup(client, user)
-    resp = await client.post(
-        "/api/users/me/2fa/enable",
+    """Full enrolment; returns (secret, backup_codes).
+
+    恢复码只在 /auth/2fa/setup 的响应里出现一次（verify-setup 不再返回），
+    所以在 setup 阶段取出来。
+    """
+    resp = await client.post("/api/auth/2fa/setup", headers=auth_headers(user))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    secret = body["secret"]
+    codes = body["backup_codes"]
+    assert len(codes) == 10
+    verify = await client.post(
+        "/api/auth/2fa/verify-setup",
         json={"code": _code(secret)},
         headers=auth_headers(user),
     )
-    assert resp.status_code == 200, resp.text
-    return secret, resp.json()["recovery_codes"]
+    assert verify.status_code == 200, verify.text
+    return secret, codes
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +65,7 @@ async def _enable(client: AsyncClient, user: dict) -> tuple[str, list[str]]:
 
 async def test_status_is_disabled_by_default(client: AsyncClient, test_user: dict) -> None:
     """2FA 是 opt-in：新账号默认关闭，且没有恢复码。"""
-    resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
+    resp = await client.get("/api/auth/2fa/status", headers=auth_headers(test_user))
     assert resp.status_code == 200
     assert resp.json() == {"enabled": False, "backup_codes_remaining": 0}
 
@@ -65,7 +74,7 @@ async def test_setup_does_not_activate_two_factor(client: AsyncClient, test_user
     """只跑 setup 不算启用——否则用户扫码失败就把自己锁在门外了。"""
     await _setup(client, test_user)
 
-    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
+    status_resp = await client.get("/api/auth/2fa/status", headers=auth_headers(test_user))
     assert status_resp.json()["enabled"] is False
 
     # 登录仍然直接发 token
@@ -81,18 +90,18 @@ async def test_enable_requires_valid_code(client: AsyncClient, test_user: dict) 
     """错误的验证码不能启用 2FA。"""
     await _setup(client, test_user)
     resp = await client.post(
-        "/api/users/me/2fa/enable",
+        "/api/auth/2fa/verify-setup",
         json={"code": "000000"},
         headers=auth_headers(test_user),
     )
     assert resp.status_code == 400
-    assert "Invalid two-factor code" in resp.json()["detail"]
+    assert "Invalid TOTP code" in resp.json()["detail"]
 
 
 async def test_enable_without_setup_is_rejected(client: AsyncClient, test_user: dict) -> None:
     """没跑 setup 就 enable → 400，而不是 500。"""
     resp = await client.post(
-        "/api/users/me/2fa/enable",
+        "/api/auth/2fa/verify-setup",
         json={"code": "123456"},
         headers=auth_headers(test_user),
     )
@@ -105,18 +114,18 @@ async def test_enable_returns_recovery_codes_and_flips_status(
 ) -> None:
     """启用成功返回一次性恢复码；服务端只存哈希。"""
     _, codes = await _enable(client, test_user)
-    assert len(codes) == 8
+    assert len(codes) == 10
     assert all("-" in c for c in codes)
-    assert len(set(codes)) == 8  # 不重复
+    assert len(set(codes)) == 10  # 不重复
 
-    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
-    assert status_resp.json() == {"enabled": True, "backup_codes_remaining": 8}
+    status_resp = await client.get("/api/auth/2fa/status", headers=auth_headers(test_user))
+    assert status_resp.json() == {"enabled": True, "backup_codes_remaining": 10}
 
 
 async def test_setup_again_after_enabled_is_conflict(client: AsyncClient, test_user: dict) -> None:
     """已启用后再 setup → 409，避免误把现有 secret 冲掉。"""
     await _enable(client, test_user)
-    resp = await client.post("/api/users/me/2fa/setup", headers=auth_headers(test_user))
+    resp = await client.post("/api/auth/2fa/setup", headers=auth_headers(test_user))
     assert resp.status_code == 409
 
 
@@ -265,8 +274,8 @@ async def test_recovery_code_works_once(client: AsyncClient, test_user: dict) ->
     # 第二次同一个码必须失败
     assert await _login_with(recovery) == 401
 
-    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
-    assert status_resp.json()["backup_codes_remaining"] == 7
+    status_resp = await client.get("/api/auth/2fa/status", headers=auth_headers(test_user))
+    assert status_resp.json()["backup_codes_remaining"] == 9
 
 
 async def test_recovery_code_is_case_insensitive(client: AsyncClient, test_user: dict) -> None:
@@ -295,13 +304,13 @@ async def test_disable_requires_password(client: AsyncClient, test_user: dict) -
     """被劫持的会话不能光凭 cookie 就把第二因子摘掉。"""
     await _enable(client, test_user)
     resp = await client.post(
-        "/api/users/me/2fa/disable",
+        "/api/auth/2fa/disable",
         json={"password": "wrong-password"},
         headers=auth_headers(test_user),
     )
     assert resp.status_code == 401
 
-    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
+    status_resp = await client.get("/api/auth/2fa/status", headers=auth_headers(test_user))
     assert status_resp.json()["enabled"] is True
 
 
@@ -309,27 +318,32 @@ async def test_disable_with_password_restores_plain_login(
     client: AsyncClient, test_user: dict
 ) -> None:
     """关闭 2FA 后登录回到一步式，且恢复码被清空。"""
-    await _enable(client, test_user)
+    secret, _ = await _enable(client, test_user)
     resp = await client.post(
-        "/api/users/me/2fa/disable",
-        json={"password": test_user["password"]},
+        "/api/auth/2fa/disable",
+        json={"password": test_user["password"], "code": _code(secret)},
         headers=auth_headers(test_user),
     )
-    assert resp.status_code == 204
+    assert resp.status_code == 200
 
-    status_resp = await client.get("/api/users/me/2fa", headers=auth_headers(test_user))
-    assert status_resp.json() == {"enabled": False, "backup_codes_remaining": 0}
-
+    # 关闭 2FA 会吊销既有会话（token_version 提升），所以先重新登录：
+    # 关掉之后登录回到一步式，直接发 access_token。
     login = await client.post(
         "/api/auth/login",
         json={"username": test_user["username"], "password": test_user["password"]},
     )
     assert "access_token" in login.json()
 
+    status_resp = await client.get(
+        "/api/auth/2fa/status",
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+    assert status_resp.json() == {"enabled": False, "backup_codes_remaining": 0}
+
 
 async def test_disable_when_not_enabled_is_400(client: AsyncClient, test_user: dict) -> None:
     resp = await client.post(
-        "/api/users/me/2fa/disable",
+        "/api/auth/2fa/disable",
         json={"password": test_user["password"]},
         headers=auth_headers(test_user),
     )
@@ -339,10 +353,10 @@ async def test_disable_when_not_enabled_is_400(client: AsyncClient, test_user: d
 async def test_two_factor_endpoints_require_auth(client: AsyncClient) -> None:
     """未登录不能碰任何 2FA 自管理端点。"""
     for method, path, body in (
-        ("get", "/api/users/me/2fa", None),
-        ("post", "/api/users/me/2fa/setup", None),
-        ("post", "/api/users/me/2fa/enable", {"code": "123456"}),
-        ("post", "/api/users/me/2fa/disable", {"password": "whatever"}),
+        ("get", "/api/auth/2fa/status", None),
+        ("post", "/api/auth/2fa/setup", None),
+        ("post", "/api/auth/2fa/verify-setup", {"code": "123456"}),
+        ("post", "/api/auth/2fa/disable", {"password": "whatever"}),
     ):
         resp = (
             await getattr(client, method)(path, json=body)

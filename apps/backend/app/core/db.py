@@ -39,11 +39,11 @@ def _reissue_tenant_guc(session: Session, transaction: Any, connection: Any) -> 
     tenant_id = TENANT_CONTEXT_VAR.get()
     if tenant_id is None or settings.database_url.startswith("sqlite"):
         return
-    # Interpolate directly — SET LOCAL does not accept parameterised
-    # placeholders with asyncpg. Use set_config() which handles the
-    # type cast correctly.
+    # set_config() accepts a bound parameter, so we avoid interpolating
+    # tenant_id into the SQL string (no SQL-injection surface, asyncpg-safe).
     connection.execute(
-        text(f"SELECT set_config('app.current_tenant_id', '{tenant_id}', true)"),
+        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+        {"tid": str(tenant_id)},
     )
 
 

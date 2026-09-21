@@ -17,8 +17,6 @@ Retention policy (mirrors ``/api/privacy``):
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-
 # 30-day window between soft delete and hard delete of the user row.
 # Match the value advertised in /api/privacy.
 USER_DELETION_GRACE_DAYS: int = 30
@@ -29,22 +27,7 @@ USER_DELETION_GRACE_DAYS: int = 30
 AUDIT_LOG_RETENTION_DAYS: int = 365
 
 
-def audit_log_cutoff(now: datetime | None = None) -> datetime:
-    """Return the timestamp at or below which audit log rows are
-    eligible for hard-deletion."""
-    moment = now if now is not None else datetime.now(UTC)
-    return moment - timedelta(days=AUDIT_LOG_RETENTION_DAYS)
-
-
-def user_hard_delete_cutoff(deleted_at: datetime, now: datetime | None = None) -> datetime:
-    """Return the timestamp at or below which a soft-deleted user row
-    is eligible for hard-deletion (i.e. ``deleted_at`` + grace)."""
-    return deleted_at + timedelta(days=USER_DELETION_GRACE_DAYS)
-
-
 __all__ = [
     "AUDIT_LOG_RETENTION_DAYS",
     "USER_DELETION_GRACE_DAYS",
-    "audit_log_cutoff",
-    "user_hard_delete_cutoff",
 ]

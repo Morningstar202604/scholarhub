@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_tenant_id, get_current_user
+from app.api.deps import get_current_user, require_tenant_id
 from app.core.db import get_db, paginate
 from app.models import User
 from app.modules.notifications.models import Notification
@@ -47,16 +47,10 @@ MAX_PAGE_SIZE = 100
 def _tenant_filter(user: User) -> tuple[UUID, int]:
     """Resolve (tenant_id, user_id) for scoping queries.
 
-    tenant_id is required because the notifications table is RLS-scoped;
-    a missing tenant context means the request is malformed.
+    tenant_id 是 RLS 作用域的必需条件；缺上下文即请求非法（400），
+    语义与 require_tenant_id() 一致，直接复用而不是各写一遍。
     """
-    tenant_id = get_current_tenant_id()
-    if tenant_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tenant context not resolved",
-        )
-    return tenant_id, user.id
+    return require_tenant_id(), user.id
 
 
 @router.get("", response_model=NotificationListResponse)

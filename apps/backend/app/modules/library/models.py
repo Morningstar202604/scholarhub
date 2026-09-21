@@ -38,7 +38,6 @@ from app.core.time import utcnow
 from app.models import Base, TenantScopedMixin
 
 if TYPE_CHECKING:
-    from app.models import User
     from app.modules.catalog.models import Resource
 
 
@@ -69,7 +68,6 @@ class ReadingList(Base, TenantScopedMixin):
         nullable=False,
     )
 
-    user: Mapped[User] = relationship("User", foreign_keys="ReadingList.user_id")
     items: Mapped[list[ReadingListItem]] = relationship(
         back_populates="reading_list",
         cascade="all, delete-orphan",

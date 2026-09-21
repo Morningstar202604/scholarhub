@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { AxiosError } from 'axios'
 import { AlertCircle, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAuthState } from '@/lib/auth'
@@ -20,6 +19,7 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { extractError } from '@/lib/utils'
 
 export const Route = createFileRoute('/ingest/')({
   beforeLoad: () => {
@@ -96,11 +96,7 @@ function IngestPage() {
       const res = await parseMut.mutateAsync({ format, content })
       toast.success(`解析完成，成功 ${res.count} 条`)
     } catch (err) {
-      const msg =
-        err instanceof AxiosError
-          ? (err.response?.data as { detail?: string })?.detail ?? '解析失败'
-          : '解析失败'
-      toast.error(msg)
+      toast.error(extractError(err, '解析失败'))
     }
   }
 
@@ -109,11 +105,7 @@ function IngestPage() {
     try {
       await fetchMut.mutateAsync({ source, id })
     } catch (err) {
-      const msg =
-        err instanceof AxiosError
-          ? (err.response?.data as { detail?: string })?.detail ?? '查询失败'
-          : '查询失败'
-      toast.error(msg)
+      toast.error(extractError(err, '查询失败'))
     }
   }
 

@@ -34,7 +34,6 @@ with the new env vars, which is intentional.
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterable
 from typing import Any
 
 import jwt
@@ -104,6 +103,13 @@ def _build_decode_kwargs() -> dict[str, object]:
     return {"algorithms": [get_settings().algorithm]}
 
 
+def _kid_for_key(key: str) -> str:
+    """Opaque, deterministic key id: SHA-256 prefix of the key."""
+    import hashlib
+
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+
+
 def encode_jwt(claims: dict[str, object]) -> str:
     """Encode ``claims`` with the **current** signing key + algorithm.
 
@@ -113,14 +119,20 @@ def encode_jwt(claims: dict[str, object]) -> str:
     deterministic across processes (good enough for our purposes —
     a full JWKS endpoint is out of scope for M3).
     """
-    import hashlib
-
     key = _signing_key()
     headers: dict[str, str] = {}
     if key:
-        kid = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
-        headers["kid"] = kid
+        headers["kid"] = _kid_for_key(key)
     return jwt.encode(claims, key, algorithm=get_settings().algorithm, headers=headers or None)
+
+
+def _kid_to_key() -> dict[str, str]:
+    """Map of ``kid`` → signing key for every active (current + previous) key."""
+    out: dict[str, str] = {}
+    for key in _active_secret_keys():
+        if key:
+            out[_kid_for_key(key)] = key
+    return out
 
 
 def decode_jwt(token: str, expected_type: str | None = None) -> dict[str, object] | None:
@@ -132,15 +144,35 @@ def decode_jwt(token: str, expected_type: str | None = None) -> dict[str, object
     claims (``sub``, ``exp``, ``type``, ``token_version``, ``rtv``)
     plus any custom fields the issuer added.
 
+    Key selection uses the ``kid`` header when present: the pinned key
+    is tried first (fast path during steady-state rotation), then the
+    full rotation chain is walked as a fallback so tokens minted before
+    a rotation — or tokens whose ``kid`` we don't recognise — still
+    verify (zero-downtime rotation).
+
     Why a loop instead of relying on a single ``key=`` parameter:
     PyJWT does not support a list of acceptable keys directly, so we
     walk the rotation chain ourselves. This is the same trick
     libraries like ``authlib`` use internally for their ``keys=``
     parameter.
     """
-    keys: Iterable[str] = _active_secret_keys()
     kwargs: dict[str, Any] = _build_decode_kwargs()
-    for key in keys:
+
+    # Build the candidate key order: kid-pinned key first, then the rest.
+    kid_map = _kid_to_key()
+    ordered_keys: list[str] = []
+    try:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+    except PyJWTError:
+        kid = None
+    if kid is not None and kid in kid_map:
+        ordered_keys.append(kid_map[kid])
+    for key in _active_secret_keys():
+        if key and key not in ordered_keys:
+            ordered_keys.append(key)
+
+    for key in ordered_keys:
         try:
             decoded = jwt.decode(token, key, **kwargs)
         except PyJWTError:

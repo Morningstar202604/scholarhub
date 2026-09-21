@@ -7,13 +7,12 @@ with these deliberate design choices:
 - ``resource_id`` is an integer FK to ``catalog.resources.id``; the
   catalog module uses int PKs everywhere.
 - The approval path always creates a catalog ``Resource`` from the
-  submission payload. The catalog module exposes a clean admin POST
-  endpoint that we call here, so the conversion logic lives where
-  Resource creation belongs (catalog) — submission only orchestrates
-  the flow.
-- Notification + follower fan-out is intentionally dropped here.
-  Notifications are a separate module (roadmap step 5); wiring it
-  now would leak concerns across module boundaries.
+  submission payload (``_materialize_resource_from_submission`` builds
+  the ORM object and commits it in the same transaction as the status
+  change — it does not go through an HTTP call to the catalog module).
+- Notifications ARE wired: assignment / decision handlers call
+  ``notifications.services.create()`` in the same transaction. Follower
+  fan-out (notifying the *author's* followers) is not implemented.
 """
 
 from __future__ import annotations

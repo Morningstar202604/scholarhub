@@ -34,6 +34,7 @@ from app.core.security import (
     verify_password,
 )
 from app.core.totp import (
+    decode_two_factor_pending_token,
     decrypt_secret,
     encrypt_secret,
     generate_backup_codes,
@@ -42,9 +43,6 @@ from app.core.totp import (
     normalize_backup_code,
     otpauth_uri,
     verify_totp,
-)
-from app.core.twofactor import (
-    decode_two_factor_pending_token,
 )
 from app.models import User
 from app.schemas import (

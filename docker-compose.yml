@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: scholarhub
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in apps/backend/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in repo-root .env}
       POSTGRES_DB: scholarhub
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -38,11 +38,11 @@ services:
       SCHOLARHUB_ENVIRONMENT: production
       # 容器网络内直连 db 服务； Neon 等外部库时替换此值即可。
       SCHOLARHUB_DATABASE_URL: postgresql+asyncpg://scholarhub:${POSTGRES_PASSWORD}@db:5432/scholarhub
-      SCHOLARHUB_SECRET_KEY: ${SCHOLARHUB_SECRET_KEY:?set in apps/backend/.env}
-      SCHOLARHUB_FERNET_KEY: ${SCHOLARHUB_FERNET_KEY:?set in apps/backend/.env}
+      SCHOLARHUB_SECRET_KEY: ${SCHOLARHUB_SECRET_KEY:?set in repo-root .env}
+      SCHOLARHUB_FERNET_KEY: ${SCHOLARHUB_FERNET_KEY:?set in repo-root .env}
       SCHOLARHUB_ADMIN_EMAIL: ${SCHOLARHUB_ADMIN_EMAIL:-admin@scholarhub.local}
       SCHOLARHUB_ADMIN_USERNAME: ${SCHOLARHUB_ADMIN_USERNAME:-admin}
-      SCHOLARHUB_ADMIN_PASSWORD: ${SCHOLARHUB_ADMIN_PASSWORD:?set in apps/backend/.env}
+      SCHOLARHUB_ADMIN_PASSWORD: ${SCHOLARHUB_ADMIN_PASSWORD:?set in repo-root .env}
       SCHOLARHUB_ALLOWED_HOSTS: ${SITE_DOMAIN},localhost
       SCHOLARHUB_CORS_ORIGINS: https://${SITE_DOMAIN}
       SCHOLARHUB_STORAGE_BACKEND: local

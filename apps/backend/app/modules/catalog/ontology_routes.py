@@ -6,9 +6,9 @@ build a directory page. Write endpoints (``POST`` / ``PATCH`` /
 ``DELETE``) require admin because they shape the controlled
 vocabulary that all new resources are validated against.
 
-Public endpoint response shape: ``{"disciplines": [...], "meta": {...}}``
-including the subdisciplines inline. Cached client-side for the
-duration of a typical browse session.
+Public endpoint returns a bare ``list[DisciplineResponse]`` with
+subdisciplines inline. Cached client-side for the duration of a
+typical browse session.
 """
 
 from __future__ import annotations
@@ -187,7 +187,16 @@ async def create_discipline(
                 name=s.name,
             )
         )
-    await db.commit()
+    try:
+        # 子学科 slug 重复的唯一约束在 commit 触发（不是在 flush），
+        # try 必须包住 commit，否则 500 而不是 409。
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Discipline or subdiscipline slug already exists",
+        ) from exc
     # Re-fetch with eager loading so subdisciplines are available
     # for the response without triggering lazy-load on a session
     # whose state has just been cleared by ``commit()``.

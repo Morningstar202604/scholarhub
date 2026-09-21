@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { nextTestUser, loginViaUi, registerAndVerifyViaUi } from './helpers'
 
 /**
@@ -8,6 +8,9 @@ import { nextTestUser, loginViaUi, registerAndVerifyViaUi } from './helpers'
  *
  * TOTP 码在 Node 侧用 crypto 直接算（RFC 6238 / SHA-1 / 30s 步长），
  * 与后端 pyotp 的默认参数完全一致，无需引入额外依赖。
+ *
+ * 2FA 已归一为单一实现（/api/auth/2fa/* + totp_* 加密列）：账号安全页与
+ * 设置页渲染的是同一个 TwoFactorSection 组件，选择器按该组件为准。
  */
 
 function base32Decode(input: string): Buffer {
@@ -42,6 +45,25 @@ function totp(secret: string, timestamp = Date.now()): string {
   return String(code % 1_000_000).padStart(6, '0')
 }
 
+/**
+ * 后端对 TOTP 有重放保护：每个 30s 窗口的码只能用一次（counter <= 已用过的
+ * 直接拒绝）。同一个用例里连续用两次码时，必须等进下一个窗口，否则会偶发
+ * 拿到"验证码错误"。
+ */
+async function totpInFreshWindow(secret: string): Promise<string> {
+  const remaining = 30 - (Math.floor(Date.now() / 1000) % 30)
+  if (remaining < 5) {
+    await new Promise((r) => setTimeout(r, remaining * 1000 + 500))
+  }
+  return totp(secret)
+}
+
+async function logoutByClearingStorage(page: Page): Promise<void> {
+  // 直接清 storage 模拟登出，避免依赖 UI 菜单路径
+  await page.evaluate(() => localStorage.clear())
+  await page.goto('/login')
+}
+
 test.describe('two-factor authentication', () => {
   test('enable 2FA → two-step login → disable restores plain login', async ({
     browser,
@@ -55,26 +77,34 @@ test.describe('two-factor authentication', () => {
     // --- 1) 账号安全页开启 2FA ---
     await page.goto('/account/security')
     await page.getByTestId('start-2fa-setup').click()
-    // secret 以等宽文本展示在 QR 下方
-    const secretEl = page.locator('p.font-mono')
+    // secret 与恢复码都只在 setup 响应里出现一次
+    const secretEl = page.getByTestId('2fa-secret')
     await expect(secretEl).toBeVisible({ timeout: 5_000 })
     const secret = (await secretEl.textContent())!.trim()
     expect(secret.length).toBeGreaterThanOrEqual(16)
 
-    await page.getByLabel('验证码').fill(totp(secret))
-    await page.getByTestId('confirm-enable-2fa').click()
-    // 不断言 toast 文本：「两步验证已开启」与卡片标题+徽章的拼接文本
-    // （"两步验证" + "已开启"）在 strict mode 下撞车。恢复码出现 = 启用成功。
     const codes = page.getByTestId('recovery-codes')
-    await expect(codes).toBeVisible({ timeout: 5_000 })
-    await expect(codes.locator('span')).toHaveCount(8)
-    await page.getByRole('button', { name: '我已保存' }).click()
+    await expect(codes).toBeVisible()
+    const items = codes.locator('li')
+    await expect(items).toHaveCount(10)
+    const backupCodes = (await items.allTextContents()).map((t) => t.trim())
+    expect(new Set(backupCodes).size).toBe(10)
+
+    await page.getByTestId('2fa-code-input').fill(await totpInFreshWindow(secret))
+    await page.getByTestId('confirm-enable-2fa').click()
+    // 启用成功 → 进入 enabled 面板（"关闭两步验证"按钮出现即在位）
+    await expect(page.getByTestId('open-disable-2fa')).toBeVisible({
+      timeout: 10_000,
+    })
+
+    // 刷新页面确认服务端状态真的落库（而不是只改了本地 state）
+    await page.reload()
+    await expect(page.getByTestId('open-disable-2fa')).toBeVisible({
+      timeout: 10_000,
+    })
 
     // --- 2) 登出 → 重新登录进入两步验证 ---
-    await page.goto('/login')
-    // 直接清 storage 模拟登出（避免依赖 UI 菜单路径）
-    await page.evaluate(() => localStorage.clear())
-    await page.goto('/login')
+    await logoutByClearingStorage(page)
     await page.getByLabel('用户名或邮箱').fill(user.username)
     await page.getByLabel('密码', { exact: true }).fill(user.password)
     await page.getByRole('button', { name: '登录', exact: true }).click()
@@ -92,25 +122,30 @@ test.describe('two-factor authentication', () => {
       timeout: 5_000,
     })
 
-    // 正确 TOTP 完成登录
-    await page.getByLabel('验证码').fill(totp(secret))
+    // 正确 TOTP 完成登录（换到新窗口，避开重放保护）
+    await page.getByLabel('验证码').fill(await totpInFreshWindow(secret))
     await page.getByTestId('confirm-2fa').click()
     await expect(page.getByText('登录成功')).toBeVisible({ timeout: 5_000 })
     await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 })
 
-    // --- 3) 关闭 2FA（需密码）→ 登录恢复一步式 ---
+    // --- 3) 关闭 2FA（密码 + 一次性码）→ 登录恢复一步式 ---
     await page.goto('/account/security')
     await page.getByTestId('open-disable-2fa').click()
-    await page.getByLabel('账号密码').fill(user.password)
+    // 用 id 而不是 label 文本：账号安全页上「当前密码」同时是改密码卡片的
+    // 标签，getByLabel 会 strict mode 命中两个输入框。
+    await page.locator('#disable-password').fill(user.password)
+    // 用备用码而不是 TOTP：省掉等新窗口，也顺带验证恢复码真的可用
+    await page.getByTestId('disable-backup').fill(backupCodes[0])
     await page.getByTestId('confirm-disable-2fa').click()
     await expect(page.getByText('两步验证已关闭')).toBeVisible({ timeout: 5_000 })
 
-    await page.evaluate(() => localStorage.clear())
-    await page.goto('/login')
+    // 关闭会吊销既有会话（token_version 提升），重新登录应跳过第二步
+    await logoutByClearingStorage(page)
     await page.getByLabel('用户名或邮箱').fill(user.username)
     await page.getByLabel('密码', { exact: true }).fill(user.password)
     await page.getByRole('button', { name: '登录', exact: true }).click()
     await expect(page.getByText('登录成功')).toBeVisible({ timeout: 5_000 })
+    await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 })
 
     await ctx.close()
   })

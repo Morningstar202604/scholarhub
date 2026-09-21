@@ -8,15 +8,17 @@ verifier via the ``captcha_verifier`` setting (a dotted path to a
 callable). When unset the hook is a no-op so the registration flow
 keeps working in dev / CI without external dependencies.
 
-The hook is invoked by ``require_captcha_for_registration`` below,
-which is consumed by the registration endpoint when
-``settings.captcha_required_for_registration`` is True.
+The hook is invoked directly by the registration endpoint via
+``verify_captcha_token`` when ``settings.captcha_required_for_registration``
+is True.
 """
 
 from __future__ import annotations
 
 import importlib
-from typing import Protocol, runtime_checkable
+import inspect
+from collections.abc import Awaitable, Callable
+from typing import Protocol, cast, runtime_checkable
 
 from fastapi import HTTPException, Request, status
 
@@ -49,11 +51,34 @@ class _AlwaysPassVerifier:
         return True
 
 
-def _load_verifier() -> CaptchaVerifier:
-    """Resolve the configured verifier or return the passthrough default."""
-    dotted = settings.captcha_verifier
-    if not dotted:
-        return _AlwaysPassVerifier()
+def _is_verifier(obj: object) -> bool:
+    """Return True if ``obj`` satisfies the ``CaptchaVerifier`` protocol."""
+    verify = getattr(obj, "verify", None)
+    return callable(verify) and inspect.iscoroutinefunction(verify)
+
+
+class _FunctionVerifier:
+    """Adapt a bare ``async def verify(token, *, remote_ip)`` function to the
+    ``CaptchaVerifier`` protocol so callers can use it uniformly."""
+
+    def __init__(self, fn: Callable[..., Awaitable[bool]]) -> None:
+        self._fn = fn
+
+    async def verify(self, token: str, *, remote_ip: str | None) -> bool:
+        return bool(await self._fn(token, remote_ip=remote_ip))
+
+
+def _resolve_verifier(dotted: str) -> CaptchaVerifier:
+    """Resolve a dotted ``captcha_verifier`` path to a ``CaptchaVerifier``.
+
+    Resolution order (covers every shape the docstring promises):
+
+    1. A verifier **instance** — an object with an ``async def verify(...)``
+       method. Used as-is.
+    2. A bare ``async def verify(token, *, remote_ip)`` module-level function.
+       Wrapped into a protocol object automatically.
+    3. A **factory** (function or class) returning a verifier instance.
+    """
     module_name, _, attr = dotted.rpartition(".")
     if not module_name:
         raise RuntimeError(f"Invalid captcha_verifier path: {dotted!r}")
@@ -64,19 +89,42 @@ def _load_verifier() -> CaptchaVerifier:
     obj = getattr(module, attr, None)
     if obj is None:
         raise RuntimeError(f"captcha_verifier {dotted!r} does not resolve to an attribute")
-    if not callable(obj):
-        raise RuntimeError(
-            f"captcha_verifier {dotted!r} is not callable; expected a "
-            "verifier instance or factory returning one"
-        )
-    # Allow either an instance (callable with __call__) or a factory.
-    if isinstance(obj, type):
-        return obj()  # type: ignore[no-any-return]
+
+    # 1) Already a verifier instance.
+    if _is_verifier(obj):
+        return cast("CaptchaVerifier", obj)
+    # 2) A bare async verify() function.
+    if inspect.iscoroutinefunction(obj):
+        return _FunctionVerifier(obj)
+    # 3) A factory / class producing a verifier.
     if callable(obj):
-        result = obj()
-        if isinstance(result, CaptchaVerifier):
-            return result
-    raise RuntimeError(f"captcha_verifier {dotted!r} must return a CaptchaVerifier")
+        produced = obj()
+        if _is_verifier(produced):
+            return cast("CaptchaVerifier", produced)
+    raise RuntimeError(
+        f"captcha_verifier {dotted!r} must be a CaptchaVerifier instance, "
+        "a bare async verify() function, or a factory returning one"
+    )
+
+
+# Cache the configured verifier so registration requests do not re-import /
+# re-instantiate it on every call. Populated on first resolution of a
+# non-empty ``captcha_verifier``; the dev/CI passthrough is intentionally
+# NOT cached so toggling the setting mid-process is reflected immediately.
+_verifier_cache: CaptchaVerifier | None = None
+
+
+def _load_verifier() -> CaptchaVerifier:
+    """Resolve the configured verifier or return the passthrough default."""
+    dotted = settings.captcha_verifier
+    if not dotted:
+        # No verifier configured: dev/CI passthrough.
+        return _AlwaysPassVerifier()
+    global _verifier_cache
+    if _verifier_cache is not None:
+        return _verifier_cache
+    _verifier_cache = _resolve_verifier(dotted)
+    return _verifier_cache
 
 
 async def verify_captcha_token(request: Request, token: str | None) -> None:
@@ -104,12 +152,3 @@ async def verify_captcha_token(request: Request, token: str | None) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="CAPTCHA verification failed",
         )
-
-
-# Backwards-compatible alias kept so existing call sites / tests do
-# not have to change. Resolves a real dependency by declaring no
-# FastAPI-injected parameters (so the framework won't try to
-# deserialize anything else from the request).
-async def require_captcha_for_registration() -> None:
-    """No-op dependency. The real check happens via verify_captcha_token."""
-    return None

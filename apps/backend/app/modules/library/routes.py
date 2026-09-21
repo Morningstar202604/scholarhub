@@ -206,15 +206,16 @@ async def add_item(
     # Verify the resource exists before linking (FK would catch this
     # with a 500, but a 404 is friendlier). Scope by tenant too — a
     # resource_id from another tenant must 404.
-    resource = (
+    # 只查 id 列（F5 列剪枝），存在性判断不需要整行。
+    exists = (
         await db.execute(
-            select(Resource).where(
+            select(Resource.id).where(
                 Resource.id == payload.resource_id,
                 Resource.tenant_id == current_user.tenant_id,
             )
         )
     ).scalar_one_or_none()
-    if resource is None:
+    if exists is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Resource not found",

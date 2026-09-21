@@ -269,56 +269,6 @@ async def test_mint_doi_request_error_degrades_to_failed(monkeypatch: pytest.Mon
 
 
 # ---------------------------------------------------------------------------
-# registration: get_doi_metadata
-# ---------------------------------------------------------------------------
-
-
-async def test_get_doi_metadata_none_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "datacite_api_url", "")
-    monkeypatch.setattr(settings, "datacite_prefix", "")
-    patch_http(monkeypatch, [])
-
-    assert await registration.get_doi_metadata("10.5072/1") is None
-
-
-async def test_get_doi_metadata_returns_payload(monkeypatch: pytest.MonkeyPatch) -> None:
-    enable_datacite(monkeypatch)
-    payload = {"data": {"id": "10.5072/1"}}
-    clients = patch_http(monkeypatch, [FakeResponse(200, payload)])
-
-    assert await registration.get_doi_metadata("10.5072/1") == payload
-    assert clients[0].calls[0] == ("GET", f"{registration.DATACITE_API_URL}/dois/10.5072/1")
-
-
-async def test_get_doi_metadata_404_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    enable_datacite(monkeypatch)
-    patch_http(monkeypatch, [FakeResponse(404)])
-
-    assert await registration.get_doi_metadata("10.5072/missing") is None
-
-
-async def test_get_doi_metadata_server_error_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    enable_datacite(monkeypatch)
-    patch_http(monkeypatch, [FakeResponse(500, text="boom")])
-
-    assert await registration.get_doi_metadata("10.5072/1") is None
-
-
-async def test_get_doi_metadata_timeout_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    enable_datacite(monkeypatch)
-    patch_http(monkeypatch, [httpx.TimeoutException("too slow")])
-
-    assert await registration.get_doi_metadata("10.5072/1") is None
-
-
-async def test_get_doi_metadata_request_error_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    enable_datacite(monkeypatch)
-    patch_http(monkeypatch, [httpx.ConnectError("dns")])
-
-    assert await registration.get_doi_metadata("10.5072/1") is None
-
-
-# ---------------------------------------------------------------------------
 # routes
 # ---------------------------------------------------------------------------
 

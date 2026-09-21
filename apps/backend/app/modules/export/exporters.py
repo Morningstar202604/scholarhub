@@ -133,6 +133,29 @@ def _citation_key(resource: Exportable, index: int) -> str:
 # --- BibTeX ---
 
 
+# LaTeX 特殊字符 → 转义序列。花括号尤其关键：它是 BibTeX 字段的定界符，
+# 标题里多一个未转义的 ``}`` 会把整个条目截断（ibliography 直接报错）。
+_BIBTEX_ESCAPES = {
+    "\\": r"\textbackslash{}",
+    "{": r"\{",
+    "}": r"\}",
+    "&": r"\&",
+    "%": r"\%",
+    "$": r"\$",
+    "#": r"\#",
+    "_": r"\_",
+}
+
+
+def _escape_bibtex(value: str) -> str:
+    """Escape LaTeX specials in free-text fields (title / abstract / venue).
+
+    只用于自由文本：DOI、URL、页码这类结构化字段保持原样 —— 给 DOI 里的
+    ``_`` 加反斜杠反而会让引用的 DOI 变成乱码。
+    """
+    return "".join(_BIBTEX_ESCAPES.get(ch, ch) for ch in value)
+
+
 def to_bibtex(resources: list[Exportable]) -> str:
     """Render resources as a BibTeX bibliography string."""
     used_keys: set[str] = set()
@@ -149,13 +172,13 @@ def to_bibtex(resources: list[Exportable]) -> str:
 def _resource_to_bibtex(resource: Exportable, key: str) -> str:
     entry_type = _BIBTEX_TYPE_MAP.get(resource.type, "misc")
     authors = _author_list(resource)
-    fields: list[str] = [f"  title = {{{resource.title}}}"]
+    fields: list[str] = [f"  title = {{{_escape_bibtex(resource.title)}}}"]
     if authors:
         fields.append(f"  author = {{{' and '.join(authors)}}}")
     fields.append(f"  year = {{{resource.year}}}")
     if resource.venue:
         venue_field = "journal" if resource.type == "paper" else "booktitle"
-        fields.append(f"  {venue_field} = {{{resource.venue}}}")
+        fields.append(f"  {venue_field} = {{{_escape_bibtex(resource.venue)}}}")
     if resource.volume:
         fields.append(f"  volume = {{{resource.volume}}}")
     if resource.issue:
@@ -172,7 +195,7 @@ def _resource_to_bibtex(resource: Exportable, key: str) -> str:
         fields.append(f"  url = {{{url}}}")
     if resource.abstract:
         abstract = re.sub(r"\s+", " ", resource.abstract).strip()
-        fields.append(f"  abstract = {{{abstract}}}")
+        fields.append(f"  abstract = {{{_escape_bibtex(abstract)}}}")
     return f"@{entry_type}{{{key},\n" + ",\n".join(fields) + "\n}"
 
 

@@ -28,13 +28,13 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.time import utcnow
 from app.models import Base, TenantScopedMixin
 
 if TYPE_CHECKING:
-    from app.models import User
+    pass
 
 
 class Notification(Base, TenantScopedMixin):
@@ -78,8 +78,6 @@ class Notification(Base, TenantScopedMixin):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
-
-    user: Mapped[User] = relationship("User", foreign_keys="Notification.user_id")
 
 
 __all__ = ["Notification"]
