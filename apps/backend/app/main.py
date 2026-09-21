@@ -7,13 +7,16 @@ core routers → module routers.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from tenacity import (
     before_sleep_log,
     retry,
@@ -245,6 +248,50 @@ app.include_router(oidc_router, prefix="/api")
 for name, module_router in registry.all_routers():
     app.include_router(module_router, prefix="/api")
     logger.info("module_router_mounted", module=name, prefix=f"/api/{name}")
+
+
+# --- 单端口部署模式（SCHOLARHUB_STATIC_DIR） ---
+# 设置该环境变量后，FastAPI 直接托管前端构建产物（vite dist/），
+# SPA 深链接（如 /resources/1）回退到 index.html。这让整个应用
+# 以单端口 HTTP 服务部署到 Render/Railway/Fly/CF Tunnel 等平台，
+# 无需为前端单独开静态托管。未设置时行为与原来完全一致（纯 API）。
+# 注意：catch-all 必须注册在 root() 之前（否则 / 被 root 抢走）、
+# 在所有 API/docs/health 路由之后（具体路由按注册顺序优先匹配）。
+_static_dir_env = os.environ.get("SCHOLARHUB_STATIC_DIR", "").strip()
+if _static_dir_env:
+    _static_root = Path(_static_dir_env).resolve()
+    if _static_root.is_dir():
+        _assets_dir = _static_root / "assets"
+        if _assets_dir.is_dir():
+            app.mount(
+                "/assets",
+                StaticFiles(directory=str(_assets_dir)),
+                name="static-assets",
+            )
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def spa_static_fallback(full_path: str) -> FileResponse:
+            # API 未匹配到的路径保持 404 JSON，避免前端把错误页当数据处理。
+            if full_path.startswith("api/") or full_path == "api":
+                raise HTTPException(status_code=404, detail="Not Found")
+            candidate = (_static_root / full_path).resolve()
+            # 防目录穿越：candidate 必须仍在静态根内。
+            if (
+                full_path
+                and candidate.is_file()
+                and str(candidate).startswith(str(_static_root))
+            ):
+                return FileResponse(str(candidate))
+            index_file = _static_root / "index.html"
+            if index_file.is_file():
+                return FileResponse(str(index_file))
+            raise HTTPException(status_code=404, detail="Frontend build not found")
+
+        logger.info("static_serving_enabled", static_dir=str(_static_root))
+    else:
+        logger.warning(
+            "static_dir_not_found", static_dir=_static_dir_env
+        )
 
 
 @app.get("/")
