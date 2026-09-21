@@ -60,11 +60,11 @@ _TENANT_COLUMN_RE = re.compile(r'sa\.Column\(\s*"tenant_id"')
 # _enable_rls("x") / _enable_audit_rls("y")
 _ENABLE_RLS_CALL_RE = re.compile(r'_enable_(?:audit_)?rls\(\s*"([a-z_0-9]+)"')
 # _XXX_TABLES = ["a", "b"] list definitions
-_TABLE_LIST_RE = re.compile(r'(_[A-Z_0-9]+_TABLES)\s*=\s*\[([^\]]*)\]')
+_TABLE_LIST_RE = re.compile(r"(_[A-Z_0-9]+_TABLES)\s*=\s*\[([^\]]*)\]")
 # for table in _XXX_TABLES:
-_FOR_TABLE_LOOP_RE = re.compile(r'for\s+\w+\s+in\s+([A-Z_0-9_]+)\s*:')
+_FOR_TABLE_LOOP_RE = re.compile(r"for\s+\w+\s+in\s+([A-Z_0-9_]+)\s*:")
 # ALTER TABLE x ENABLE ROW LEVEL SECURITY
-_ALTER_ENABLE_RLS_RE = re.compile(r'ALTER TABLE ([a-z_0-9]+) ENABLE ROW LEVEL SECURITY')
+_ALTER_ENABLE_RLS_RE = re.compile(r"ALTER TABLE ([a-z_0-9]+) ENABLE ROW LEVEL SECURITY")
 
 
 def _rls_enabled_tables(source: str) -> set[str]:
@@ -102,7 +102,7 @@ def _create_tables_with_tenant_id(source: str) -> set[str]:
     tables: set[str] = set()
     for m in _CREATE_TABLE_RE.finditer(source):
         name = m.group(1)
-        window = source[m.end(): m.end() + 6000]
+        window = source[m.end() : m.end() + 6000]
         if _TENANT_COLUMN_RE.search(window):
             tables.add(name)
     return tables

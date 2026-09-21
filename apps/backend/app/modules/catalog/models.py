@@ -27,6 +27,7 @@ from sqlalchemy import (
     JSON,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -48,7 +49,6 @@ class Resource(Base, TenantScopedMixin):
     """
 
     __tablename__ = "resources"
-    __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_resources_tenant_slug"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     # Optional stable URL slug. Unique per tenant; null allowed for records
@@ -101,6 +101,42 @@ class Resource(Base, TenantScopedMixin):
 
     stats: Mapped[list[ResourceStat]] = relationship(
         back_populates="resource", cascade="all, delete-orphan", uselist=True
+    )
+
+    # __table_args__ 放在类体末尾：其中的 created_at.desc() 需要引用
+    # 上面已定义的 created_at 列对象（类体自上而下求值）。
+    #
+    # ↓ 以下 4 个索引与 020_performance_indexes 迁移一一对应。
+    # 该迁移用 raw DDL 建索引，DB 里有而 ORM metadata 没有，alembic
+    # check 会判 "Detected removed index"（CI migrations job 因此挂）。
+    # 在模型侧声明同名同形的索引让 metadata 与迁移后 schema 一致。
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "slug", name="uq_resources_tenant_slug"),
+        Index(
+            "ix_resources_tenant_created",
+            "tenant_id",
+            created_at.desc(),
+        ),
+        Index(
+            "ix_resources_tenant_type_created",
+            "tenant_id",
+            "type",
+            created_at.desc(),
+        ),
+        # GIN trigram（pg_trgm）索引：PG 专属，SQLite 下 create_all 忽略
+        # using/ops 参数，仅退化为普通索引（无害）。
+        Index(
+            "ix_resources_title_trgm",
+            "title",
+            postgresql_using="gin",
+            postgresql_ops={"title": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_resources_abstract_trgm",
+            "abstract",
+            postgresql_using="gin",
+            postgresql_ops={"abstract": "gin_trgm_ops"},
+        ),
     )
 
 

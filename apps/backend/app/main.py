@@ -276,11 +276,7 @@ if _static_dir_env:
                 raise HTTPException(status_code=404, detail="Not Found")
             candidate = (_static_root / full_path).resolve()
             # 防目录穿越：candidate 必须仍在静态根内。
-            if (
-                full_path
-                and candidate.is_file()
-                and str(candidate).startswith(str(_static_root))
-            ):
+            if full_path and candidate.is_file() and str(candidate).startswith(str(_static_root)):
                 return FileResponse(str(candidate))
             index_file = _static_root / "index.html"
             if index_file.is_file():
@@ -289,9 +285,7 @@ if _static_dir_env:
 
         logger.info("static_serving_enabled", static_dir=str(_static_root))
     else:
-        logger.warning(
-            "static_dir_not_found", static_dir=_static_dir_env
-        )
+        logger.warning("static_dir_not_found", static_dir=_static_dir_env)
 
 
 @app.get("/")

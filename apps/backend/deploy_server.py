@@ -62,7 +62,11 @@ os.environ.setdefault("SCHOLARHUB_LOG_LEVEL", "WARNING")
 os.environ.setdefault("SCHOLARHUB_JSON_LOGS", "false")
 
 _static = os.environ.setdefault(
-    "SCHOLARHUB_STATIC_DIR", str(BACKEND_DIR.parent / "frontend" / "dist")
+    "SCHOLARHUB_STATIC_DIR",
+    # 优先同目录 static/（容器/沙箱发布布局），回退 monorepo 的 frontend/dist。
+    str(BACKEND_DIR / "static")
+    if (BACKEND_DIR / "static" / "index.html").is_file()
+    else str(BACKEND_DIR.parent / "frontend" / "dist"),
 )
 
 PORT = int(os.environ.get("PORT", "8000"))

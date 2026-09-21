@@ -1280,7 +1280,7 @@ async def download_submission_file(
     # 退回 200 全量流式。
     range_header = request.headers.get("Range")
     if range_header and range_header.startswith("bytes="):
-        spec = range_header[len("bytes="):]
+        spec = range_header[len("bytes=") :]
         try:
             if "-" in spec:
                 start_s, end_s = spec.split("-", 1)

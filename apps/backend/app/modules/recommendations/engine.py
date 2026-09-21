@@ -221,7 +221,8 @@ async def recommend(
                 Resource.tags,
                 Resource.discipline,
                 Resource.subdiscipline,
-            ).where(
+            )
+            .where(
                 ~Resource.id.in_(read_ids),
                 Resource.tenant_id == tenant_id,
             )
@@ -251,10 +252,8 @@ async def recommend(
     top_ids = [r[1] for r in ranked[: max(limit, 1)]]
     # Phase 2: hydrate full rows only for the survivors.
     top_resources = (
-        await db.execute(
-            select(Resource).where(Resource.id.in_(top_ids))
-        )
-    ).scalars().all()
+        (await db.execute(select(Resource).where(Resource.id.in_(top_ids)))).scalars().all()
+    )
     # SQLAlchemy does not guarantee IN-list ordering, so rebuild by id.
     by_id = {r.id: r for r in top_resources}
     result: list[ScoredResource] = []

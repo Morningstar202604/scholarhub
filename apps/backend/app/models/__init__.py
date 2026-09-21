@@ -69,7 +69,6 @@ class TenantScopedMixin:
     )
 
 
-
 class Tenant(Base):
     """A tenant = one journal/press/server/etc. on the platform.
 
