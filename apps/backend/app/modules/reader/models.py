@@ -23,7 +23,6 @@ database").
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
@@ -35,14 +34,13 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
-from app.models import Base, User
+from app.models import Base, TenantScopedMixin, User
 
 
-class FileAsset(Base):
+class FileAsset(Base, TenantScopedMixin):
     """Metadata for a stored PDF (or other readable asset).
 
     The actual file bytes live in a storage backend (local FS, S3, etc.).
@@ -65,12 +63,6 @@ class FileAsset(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     # Storage-side filename (e.g. "abc123.pdf"), unique per tenant via
     # (tenant_id, filename) to keep listings predictable.
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -96,7 +88,7 @@ class FileAsset(Base):
     uploader: Mapped[User | None] = relationship("User", foreign_keys="FileAsset.uploaded_by")
 
 
-class ReadingHistory(Base):
+class ReadingHistory(Base, TenantScopedMixin):
     """One row per (tenant, user, resource) — the user's reading record.
 
     Combines two earlier concepts into one table because they share the
@@ -122,12 +114,6 @@ class ReadingHistory(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),

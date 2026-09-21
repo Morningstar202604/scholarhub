@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from sqlalchemy import (
     DateTime,
@@ -29,11 +28,10 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
-from app.models import Base, JSONBVariant, User
+from app.models import Base, JSONBVariant, TenantScopedMixin, User
 
 if TYPE_CHECKING:
     # Resource lives in the catalog module; import lazily under
@@ -43,7 +41,7 @@ if TYPE_CHECKING:
     from app.modules.catalog.models import Resource
 
 
-class Submission(Base):
+class Submission(Base, TenantScopedMixin):
     """An author-submitted record awaiting editor review.
 
     Status lifecycle: ``pending`` → ``approved`` | ``rejected``
@@ -55,12 +53,6 @@ class Submission(Base):
     __tablename__ = "submissions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     # Author / submitter. CASCADE so deleting a user removes their
     # submissions (consistent with how catalog handles ownership).
     submitted_by: Mapped[int] = mapped_column(
@@ -135,7 +127,7 @@ class Submission(Base):
     resource: Mapped[Resource | None] = relationship("Resource")
 
 
-class SubmissionVersion(Base):
+class SubmissionVersion(Base, TenantScopedMixin):
     """Immutable snapshot of a submission's bibliographic payload.
 
     版本产生时机（追加式，绝不回写）：
@@ -161,12 +153,6 @@ class SubmissionVersion(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     submission_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("submissions.id", ondelete="CASCADE"),

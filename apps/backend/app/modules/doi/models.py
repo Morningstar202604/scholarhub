@@ -12,28 +12,20 @@ local audit trail + status tracker.
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.time import utcnow
-from app.models import Base
+from app.models import Base, TenantScopedMixin
 
 
-class DOIRegistration(Base):
+class DOIRegistration(Base, TenantScopedMixin):
     """Audit record for a DOI mint/update event."""
 
     __tablename__ = "doi_registrations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     # The resource this DOI was registered for.
     resource_id: Mapped[int] = mapped_column(
         Integer,

@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from sqlalchemy import (
     DateTime,
@@ -33,18 +32,17 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
-from app.models import Base
+from app.models import Base, TenantScopedMixin
 
 if TYPE_CHECKING:
     from app.models import User
     from app.modules.catalog.models import Resource
 
 
-class ReadingList(Base):
+class ReadingList(Base, TenantScopedMixin):
     """A user's named collection of catalog resources."""
 
     __tablename__ = "reading_lists"
@@ -53,12 +51,6 @@ class ReadingList(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -86,7 +78,7 @@ class ReadingList(Base):
     )
 
 
-class ReadingListItem(Base):
+class ReadingListItem(Base, TenantScopedMixin):
     """An item in a reading list — a reference to a catalog Resource."""
 
     __tablename__ = "reading_list_items"
@@ -97,12 +89,6 @@ class ReadingListItem(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     # Denormalized from reading_lists so RLS can protect this table directly
     # and direct queries without RLS still scope to a single tenant.
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     reading_list_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("reading_lists.id", ondelete="CASCADE"),

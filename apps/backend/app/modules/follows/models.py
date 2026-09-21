@@ -31,7 +31,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from sqlalchemy import (
     DateTime,
@@ -40,17 +39,16 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
-from app.models import Base
+from app.models import Base, TenantScopedMixin
 
 if TYPE_CHECKING:
     from app.models import User
 
 
-class AuthorFollow(Base):
+class AuthorFollow(Base, TenantScopedMixin):
     """A user's follow relationship with one author (by name).
 
     The author is identified by name string (not a structured entity),
@@ -65,12 +63,6 @@ class AuthorFollow(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -90,7 +82,7 @@ class AuthorFollow(Base):
     user: Mapped[User] = relationship("User", foreign_keys="AuthorFollow.user_id")
 
 
-class DisciplineSubscription(Base):
+class DisciplineSubscription(Base, TenantScopedMixin):
     """A user's subscription to a discipline slug.
 
     The slug is a free-form string (e.g. ``physics``); the catalog
@@ -109,12 +101,6 @@ class DisciplineSubscription(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),

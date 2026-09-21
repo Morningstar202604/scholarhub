@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
 from sqlalchemy import (
     DateTime,
@@ -30,14 +29,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
-from app.models import Base, JSONBVariant
+from app.models import Base, JSONBVariant, TenantScopedMixin
 
 
-class ReviewAssignment(Base):
+class ReviewAssignment(Base, TenantScopedMixin):
     """Editor→reviewer task assignment for a submission.
 
     Lifecycle: ``pending`` (invited) → ``accepted``|``declined`` →
@@ -53,12 +51,6 @@ class ReviewAssignment(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     submission_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("submissions.id", ondelete="CASCADE"),
@@ -96,7 +88,7 @@ class ReviewAssignment(Base):
     )
 
 
-class ReviewReport(Base):
+class ReviewReport(Base, TenantScopedMixin):
     """Review report submitted by a reviewer (one per assignment).
 
     ``recommendation``: accept / minor_revision / major_revision / reject.
@@ -111,12 +103,6 @@ class ReviewReport(Base):
     __table_args__ = (UniqueConstraint("assignment_id", name="uq_review_report_assignment"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     assignment_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("review_assignments.id", ondelete="CASCADE"),

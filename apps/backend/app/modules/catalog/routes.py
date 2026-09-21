@@ -172,11 +172,16 @@ async def get_facets(
     years = [FacetBucket(value=str(y), count=c) for y, c in year_rows.all() if y is not None]
 
     # Tags are JSON; aggregate in Python (small N).
-    rows = (
-        (await db.execute(select(Resource.tags).where(Resource.tenant_id == tenant_id)))
-        .scalars()
-        .all()
-    )
+    # F2 服务端优化：限定在过滤范围内拉取（type/discipline 命中后行数已收敛），
+    # 并对拉取行数做上限保护（10k 行足够 facet 50 个 top tag），避免匿名浏览
+    # 全表 tags 物化的 O(N×M) 开销。若未来 data > 10k 需引入 SQL 端 JSON 展开。
+    stmt_tags = select(Resource.tags).where(Resource.tenant_id == tenant_id)
+    if type is not None:
+        stmt_tags = stmt_tags.where(Resource.type == type)
+    if discipline is not None:
+        stmt_tags = stmt_tags.where(Resource.discipline == discipline)
+    stmt_tags = stmt_tags.limit(10000)
+    rows = (await db.execute(stmt_tags)).scalars().all()
     tag_counts: dict[str, int] = {}
     for tags in rows:
         for tag in tags or []:

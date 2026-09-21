@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
@@ -29,17 +28,16 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
-from app.models import Base
+from app.models import Base, TenantScopedMixin
 
 if TYPE_CHECKING:
     from app.models import User
 
 
-class Notification(Base):
+class Notification(Base, TenantScopedMixin):
     """An in-app notification addressed to one user.
 
     ``type`` is a short stable slug (e.g. ``submission_approved``,
@@ -57,12 +55,6 @@ class Notification(Base):
     __table_args__ = (Index("ix_notifications_user_id_created_at", "user_id", "created_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     # Recipient. CASCADE so deleting a user removes their notifications
     # (consistent with how the rest of the schema handles ownership).
     user_id: Mapped[int] = mapped_column(

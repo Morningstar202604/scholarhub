@@ -33,6 +33,7 @@ from fastapi import (
     File,
     HTTPException,
     Query,
+    Request,
     Response,
     UploadFile,
     status,
@@ -1198,6 +1199,7 @@ async def upload_submission_file(
 @router.get("/{submission_id}/files")
 async def download_submission_file(
     submission_id: int,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
@@ -1255,6 +1257,11 @@ async def download_submission_file(
     storage = get_storage()
     url = storage.presigned_url(entry.file_path)
     if url:
+        # S3 预签名 URL 直接重定向到对象存储，对象存储自身支持 Range 头。
+        # 将客户端 Range 透传给 S3（由 S3 处理 206）。
+        range_header = request.headers.get("Range")
+        if range_header:
+            url = f"{url}&range={range_header}"
         return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
 
     try:
@@ -1267,8 +1274,46 @@ async def download_submission_file(
 
     filename = entry.file_path.rsplit("/", 1)[-1]
     media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    # F9: HTTP Range 支持（本地后端）。解析 Range: bytes=start-end，
+    # 返回 206 Partial Content + Content-Range 头。若 Range 非法或缺失，
+    # 退回 200 全量流式。
+    range_header = request.headers.get("Range")
+    if range_header and range_header.startswith("bytes="):
+        spec = range_header[len("bytes="):]
+        try:
+            if "-" in spec:
+                start_s, end_s = spec.split("-", 1)
+                start = int(start_s) if start_s else 0
+                end = int(end_s) if end_s else len(data) - 1
+            else:
+                start = int(spec)
+                end = len(data) - 1
+            start = max(start, 0)
+            end = min(end, len(data) - 1)
+            if start > end or start >= len(data):
+                raise ValueError("invalid range")
+            chunk = data[start : end + 1]
+            return Response(
+                content=chunk,
+                status_code=status.HTTP_206_PARTIAL_CONTENT,
+                media_type=media_type,
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{len(data)}",
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(len(chunk)),
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                },
+            )
+        except (ValueError, IndexError):
+            # 非法 Range → 退回全量 200（不报错）
+            pass
+
     return StreamingResponse(
         iter((data,)),
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Accept-Ranges": "bytes",
+        },
     )

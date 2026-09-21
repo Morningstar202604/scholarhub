@@ -45,6 +45,31 @@ class Base(DeclarativeBase):
     pass
 
 
+class TenantScopedMixin:
+    """Q-4 统一 tenant_id 列声明。
+
+    所有多租户表共享的 ``tenant_id`` 列定义：UUID + FK→tenants.id +
+    non-null + indexed。各模块模型通过混入此 Mixin 获得该列，避免
+    22 处重复声明（旧代码里每个模型都手写一遍 5 行 mapped_column）。
+
+    Mixin 不声明 ``__tablename__``，不声明主键——只做"列注入"。
+    使用方::
+
+        class MyModel(Base, TenantScopedMixin):
+            __tablename__ = "my_table"
+            id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+            ...
+    """
+
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+
+
 class Tenant(Base):
     """A tenant = one journal/press/server/etc. on the platform.
 
@@ -82,7 +107,7 @@ class Tenant(Base):
     )
 
 
-class TenantHost(Base):
+class TenantHost(Base, TenantScopedMixin):
     """Maps a host-header domain name to a tenant.
 
     Used in multi-tenant mode to resolve which tenant a request belongs to
@@ -93,12 +118,6 @@ class TenantHost(Base):
     __tablename__ = "tenant_hosts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     host: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -108,7 +127,7 @@ class TenantHost(Base):
     tenant: Mapped[Tenant] = relationship(back_populates="hosts")
 
 
-class User(Base):
+class User(Base, TenantScopedMixin):
     """A platform user. Belongs to one tenant; role assignments are M:N.
 
     ``token_version`` is bumped on logout/password change to
@@ -133,12 +152,6 @@ class User(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -197,7 +210,7 @@ class User(Base):
     )
 
 
-class Role(Base):
+class Role(Base, TenantScopedMixin):
     """Pre-defined role labels per tenant. Roles are NOT user-defined yet —
     a fixed enum is enough for the base spine.
 
@@ -209,12 +222,6 @@ class Role(Base):
     __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     name: Mapped[str] = mapped_column(String(32), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -226,7 +233,7 @@ class Role(Base):
     )
 
 
-class UserRole(Base):
+class UserRole(Base, TenantScopedMixin):
     """M:N between User and Role, scoped per tenant.
 
     Both User and Role already carry tenant_id; this junction table
@@ -239,12 +246,6 @@ class UserRole(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -265,7 +266,7 @@ class UserRole(Base):
     role: Mapped[Role] = relationship(back_populates="assignments")
 
 
-class ModuleState(Base):
+class ModuleState(Base, TenantScopedMixin):
     """Tracks per-tenant module enable/disable state.
 
     The Python ``ENABLED_MODULES`` list controls which modules are
@@ -280,12 +281,6 @@ class ModuleState(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     module_name: Mapped[str] = mapped_column(String(64), nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     settings: Mapped[dict[str, Any] | None] = mapped_column(JSONBVariant, nullable=True)
@@ -358,6 +353,7 @@ __all__ = [
     "Role",
     "Tenant",
     "TenantHost",
+    "TenantScopedMixin",
     "User",
     "UserRole",
 ]

@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
 from sqlalchemy import (
     JSON,
@@ -33,14 +32,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
-from app.models import Base, JSONBVariant
+from app.models import Base, JSONBVariant, TenantScopedMixin
 
 
-class Resource(Base):
+class Resource(Base, TenantScopedMixin):
     """A catalog record (paper / book / dataset / tutorial / ...).
 
     The ``slug`` is an optional stable URL identifier. When absent, the
@@ -53,12 +51,6 @@ class Resource(Base):
     __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_resources_tenant_slug"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     # Optional stable URL slug. Unique per tenant; null allowed for records
     # imported without a slug (frontend falls back to int id).
     slug: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -112,7 +104,7 @@ class Resource(Base):
     )
 
 
-class Discipline(Base):
+class Discipline(Base, TenantScopedMixin):
     """学科本体表。供分类一致性校验和统计聚合使用。
 
     A controlled vocabulary of academic disciplines. Resources
@@ -129,12 +121,6 @@ class Discipline(Base):
     __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_disciplines_tenant_slug"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     # URL slug (lower-case, hyphenated). Unique per tenant.
     slug: Mapped[str] = mapped_column(String(100), nullable=False)
     # Display name (e.g. "Computer Science").
@@ -150,7 +136,7 @@ class Discipline(Base):
     )
 
 
-class Subdiscipline(Base):
+class Subdiscipline(Base, TenantScopedMixin):
     """学科下的子领域。Resource.subdiscipline 是字符串，但需校验
     该字符串存在于此表中（按学科过滤）。"""
 
@@ -160,12 +146,6 @@ class Subdiscipline(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     discipline_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("disciplines.id", ondelete="CASCADE"),
@@ -178,7 +158,7 @@ class Subdiscipline(Base):
     discipline: Mapped[Discipline] = relationship(back_populates="subdisciplines")
 
 
-class ResourceStat(Base):
+class ResourceStat(Base, TenantScopedMixin):
     """Per-resource counters, split out to avoid write hotspots on the
     catalog row. Updated by read/download endpoints; read by list/detail.
 
@@ -192,12 +172,6 @@ class ResourceStat(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     resource_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("resources.id", ondelete="CASCADE"),
