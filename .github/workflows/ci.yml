@@ -101,6 +101,10 @@ jobs:
           cache-dependency-path: apps/frontend/package-lock.json
       - name: Install
         run: npm ci
+      - name: Dependency vulnerability audit (npm audit)
+        # 对 npm 依赖做漏洞审计（与 backend 的 pip-audit 对称）。--audit 仅
+        # 检查已锁定的依赖，不触发 install，速度可控。命中高危漏洞时 exit 1。
+        run: npm audit --audit-level=high
       - name: Lint
         run: npm run lint
       - name: Typecheck

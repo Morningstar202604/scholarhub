@@ -4,6 +4,12 @@ import type { Page, Request } from '@playwright/test'
 // sessionStorage 持久化（zustand persist 的 partialize 只存 token，
 // Playwright 的 storageState 不会自动捕获 sessionStorage）。
 
+// F7：per-worker DB 分片后，各 worker 可指向不同后端的 dev-only 端点。
+// 默认 :8000（单 lane 兼容）；多 lane 时由 playwright.config.ts 按 worker
+// index 注入 E2E_BACKEND_URL 覆盖。
+const E2E_BACKEND_URL =
+  process.env.E2E_BACKEND_URL ?? 'http://localhost:8000'
+
 // 注意：example.org / example.com 是 RFC 2606 保留域名，但 email-validator
 // 默认允许；.test / .example / .invalid / .localhost 会被它拒绝。
 const E2E_DOMAIN = 'example.org'
@@ -74,7 +80,7 @@ interface OutboxEmail {
 // 该接口返回最近 N 封内存邮件（不持久化、不污染 production）。
 export async function fetchEmailOutbox(limit = 5): Promise<OutboxEmail[]> {
   const res = await fetch(
-    `http://localhost:8000/api/dev/email-outbox?limit=${limit}`,
+    `${E2E_BACKEND_URL}/api/dev/email-outbox?limit=${limit}`,
   )
   if (!res.ok) throw new Error(`outbox fetch failed: ${res.status}`)
   const json = (await res.json()) as { emails: OutboxEmail[] }
@@ -82,7 +88,7 @@ export async function fetchEmailOutbox(limit = 5): Promise<OutboxEmail[]> {
 }
 
 export async function resetEmailOutbox(): Promise<void> {
-  await fetch('http://localhost:8000/api/dev/email-outbox/reset', {
+  await fetch(`${E2E_BACKEND_URL}/api/dev/email-outbox/reset`, {
     method: 'POST',
   }).catch(() => {})
 }
@@ -97,7 +103,7 @@ export function extractVerifyToken(body: string): string | null {
 // 用于"绕过邮件链接点击"的场景：比如我们只想测登录后的体验，
 // 不必每次都走完整的"注册→邮件→点链接"流程。
 export async function forceVerifyEmail(email: string): Promise<void> {
-  await fetch('http://localhost:8000/api/dev/verify-email-by-email', {
+  await fetch(`${E2E_BACKEND_URL}/api/dev/verify-email-by-email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),

@@ -668,7 +668,8 @@ async def assign_reviewer(
         related_type="review_assignment",
         related_id=str(assignment.id),
     )
-    await db.commit()
+    # S-3：审计写入并入主事务（commit 前 add），避免 commit 后二次 add
+    # 跨事务导致审计行在回滚时丢失。
     db.add(
         AuditLog(
             tenant_id=current_user.tenant_id,
@@ -784,7 +785,7 @@ async def cancel_assignment(
             detail="Cannot cancel a completed assignment (review report exists)",
         )
     a.status = "cancelled"
-    await db.commit()
+    # S-3：审计写入并入主事务（commit 前 add）。
     db.add(
         AuditLog(
             tenant_id=current_user.tenant_id,
@@ -990,8 +991,7 @@ async def editor_decision(
         related_type="resource" if accepted else "submission",
         related_id=str(entry.resource_id) if accepted else str(entry.id),
     )
-    await db.commit()
-
+    # S-3：审计写入并入主事务（commit 前 add）。
     db.add(
         AuditLog(
             tenant_id=current_user.tenant_id,

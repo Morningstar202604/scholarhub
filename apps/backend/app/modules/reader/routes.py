@@ -121,15 +121,16 @@ async def record_view(
     # must not be viewable.
     user_id = current_user.id
     tenant_id = current_user.tenant_id
-    resource = (
+    # 存在性校验：只投影 Resource.id，避免全行物料化（F5 列剪枝）。
+    resource_exists = (
         await db.execute(
-            select(Resource).where(
+            select(Resource.id).where(
                 Resource.id == resource_id,
                 Resource.tenant_id == tenant_id,
             )
         )
     ).scalar_one_or_none()
-    if resource is None:
+    if resource_exists is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
     now = utcnow()
@@ -265,15 +266,16 @@ async def update_progress(
     # create an orphaned history row pointing at a missing resource.
     user_id = current_user.id
     tenant_id = current_user.tenant_id
-    resource = (
+    # 存在性校验：只投影 Resource.id，避免全行物料化（F5 列剪枝）。
+    resource_exists = (
         await db.execute(
-            select(Resource).where(
+            select(Resource.id).where(
                 Resource.id == resource_id,
                 Resource.tenant_id == tenant_id,
             )
         )
     ).scalar_one_or_none()
-    if resource is None:
+    if resource_exists is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
     now = utcnow()

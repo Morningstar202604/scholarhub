@@ -32,6 +32,22 @@ down_revision = "014_orcid_enrichment"
 branch_labels = None
 depends_on = None
 
+_DISCIPLINE_TABLES = ["disciplines", "subdisciplines"]
+
+
+def _enable_rls(table: str) -> None:
+    """Enable + force RLS, then attach the tenant_isolation policy."""
+    op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;")
+    op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY;")
+    op.execute(
+        f"""
+        CREATE POLICY tenant_isolation ON {table}
+        FOR ALL
+        USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+        WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+        """
+    )
+
 
 def upgrade() -> None:
     op.create_table(
@@ -83,8 +99,22 @@ def upgrade() -> None:
         unique=False,
     )
 
+    # Per-tenant tables need the second isolation layer. RLS context is
+    # re-issued on every BEGIN by app.core.db, so scoping these tables is
+    # safe (queries always carry app.current_tenant_id).
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        for table in _DISCIPLINE_TABLES:
+            _enable_rls(table)
+
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        for table in _DISCIPLINE_TABLES:
+            op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table};")
+            op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY;")
+            op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;")
     op.drop_index("ix_subdisciplines_discipline_id", table_name="subdisciplines")
     op.drop_index("ix_subdisciplines_tenant_id", table_name="subdisciplines")
     op.drop_table("subdisciplines")

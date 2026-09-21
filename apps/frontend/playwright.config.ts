@@ -6,12 +6,20 @@ import { defineConfig, devices } from '@playwright/test'
 const FRONTEND_URL = process.env.E2E_FRONTEND_URL ?? 'http://localhost:5173'
 const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:8000'
 
+// F7：per-worker DB 分片。E2E_DB_PATH / E2E_PORT 让每个 CI lane 或每个
+// worker 持有独立 SQLite 文件与端口，避免共享单库在并发写时的锁竞争。
+// 默认保持 workers=1 + 串行（共享单库场景最稳）；需要多 worker 时由 CI
+// 显式设置 E2E_WORKERS 并配套 E2E_DB_PATH/E2E_PORT 实现分片。
+const E2E_WORKERS = process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1
+
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: false, // 共享 SQLite 单库，串行更稳
+  // 共享 SQLite 单库场景下串行更稳；多 worker（E2E_WORKERS>1）需要每个
+  // worker 持独立 DB 分片，由 CI 通过 E2E_DB_PATH 配套实现。
+  fullyParallel: E2E_WORKERS > 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  workers: E2E_WORKERS,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   timeout: 60_000,
   expect: { timeout: 10_000 },

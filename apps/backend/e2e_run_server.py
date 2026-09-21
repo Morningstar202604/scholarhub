@@ -25,7 +25,10 @@ import secrets
 # 新用户登录，几分钟内必然超 10 次，会触发 429 让 loginViaUi 的 waitForURL(/dashboard)
 # 超时。test 模式还让 email_backend 默认走 console（覆盖在 _mem_sender 之前）。
 os.environ["SCHOLARHUB_ENVIRONMENT"] = "test"
-os.environ["SCHOLARHUB_DATABASE_URL"] = "sqlite+aiosqlite:///./e2e_test.db"
+# F7：per-worker DB 分片。E2E_DB_PATH 让 CI 多 lane / 多 worker 各自持有独立
+# SQLite 文件，避免共享单库在并发写时锁竞争；默认路径保持原样（兼容单 lane）。
+_db_path = os.environ.get("E2E_DB_PATH", "./e2e_test.db")
+os.environ["SCHOLARHUB_DATABASE_URL"] = f"sqlite+aiosqlite:///{_db_path}"
 # Use a strong random key (per-run) — required because development mode rejects weak keys.
 os.environ["SCHOLARHUB_SECRET_KEY"] = secrets.token_hex(32)
 os.environ["SCHOLARHUB_ADMIN_PASSWORD"] = "e2e_admin_pw_12345678"
@@ -88,7 +91,7 @@ async def _prepare_db() -> None:
     load_all()
 
     engine = create_async_engine(
-        "sqlite+aiosqlite:///./e2e_test.db",
+        f"sqlite+aiosqlite:///{_db_path}",
         connect_args={"check_same_thread": False},
     )
     async with engine.begin() as conn:
@@ -187,8 +190,8 @@ if __name__ == "__main__":
     if os.environ.get("E2E_KEEP_DB") == "1":
         print("[e2e] E2E_KEEP_DB=1 — 保留现有数据库")
     else:
-        if os.path.exists("./e2e_test.db"):
-            os.remove("./e2e_test.db")
+        if os.path.exists(_db_path):
+            os.remove(_db_path)
         asyncio.run(_prepare_db())
     # test 模式下 lifespan 的 run_bootstrap() 会直接 return（见
     # app/core/bootstrap.py:103 的 `if settings.is_test: return`）。
@@ -196,12 +199,13 @@ if __name__ == "__main__":
     # user + reviewer/editor roles 都被创建。
     asyncio.run(_run_bootstrap_manual())
     _install_dev_routes()
+    port = int(os.environ.get("E2E_PORT", "8000"))
     print(f"[e2e] admin password: {os.environ['SCHOLARHUB_ADMIN_PASSWORD']}")
-    print("[e2e] Starting uvicorn on http://localhost:8000")
+    print(f"[e2e] Starting uvicorn on http://localhost:{port} (DB: {_db_path})")
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         log_level="warning",
         access_log=False,
     )

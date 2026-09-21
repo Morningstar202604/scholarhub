@@ -334,6 +334,22 @@ class AuditLog(Base):
         index=True,
     )
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # S-3 租户隔离收口：audit 表 tenant_id 允许 None（ondelete=SET NULL），
+        # 但所有 15+ 写点都应绑定租户。001 的 RLS policy
+        # `WITH CHECK (tenant_id IS NULL OR ...)` 还放行 NULL 写入，这是
+        # 多租户下"审计行漂移到无主租户"的潜在泄漏面。这里在模型层兜底：
+        # 任何无租户上下文（如系统级 cleanup）的写点必须显式传入
+        # `audit_tenant_exempt=True` kwarg 才能写 None，否则直接抛错，
+        # 把"分散 15 处都要查 tenant 非空"的风险收敛到这一处模型级断言。
+        tenant_id = kwargs.get("tenant_id", getattr(self, "tenant_id", None))
+        if tenant_id is None and not kwargs.pop("audit_tenant_exempt", False):
+            raise ValueError(
+                "AuditLog.tenant_id must be non-null in tenant context; "
+                "pass audit_tenant_exempt=True for system-level (no-tenant) writes"
+            )
+
 
 __all__ = [
     "AuditLog",

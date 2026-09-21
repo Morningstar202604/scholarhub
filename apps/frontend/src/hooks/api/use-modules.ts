@@ -140,6 +140,7 @@ export function useResources(params: ResourceListParams = {}) {
     queryKey: keys.catalog.list(params),
     queryFn: async () => (await api.get<ResourceListResponse>('/catalog', { params })).data,
     placeholderData: (prev) => prev,
+    staleTime: 5 * 60_000,
   })
 }
 
