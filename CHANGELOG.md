@@ -195,6 +195,7 @@
   （`test_migration_021_twofactor_carryover.py`，覆盖"老明文报名必须继续是 2FA 账号"）；
   新增 BibTeX 特殊字符转义回归；2FA 端到端用例改写到统一后的 `/api/auth/2fa/*`
   （恢复码 8→10、关闭需密码 + 验证码、关闭后旧会话按设计失效）。
+- 已知遗留：`docs/assets/screenshots-overview.png` 顶部数据条里的 E2E 计数仍是 66（测试 644 / 覆盖率 84% 两项与当前一致）。`contact_sheet.py` 里的数字已改为 68，但重新生成图片需要带 Noto CJK 字体的环境（本轮开发机无该字体，未动二进制）。
 - 删除 6 条随死代码（`doi.get_doi_metadata`）一起下线的用例。
 - 新增 5 个后端测试文件(共 144 个用例),后端测试数 499 → 643(后续 +1 至 644):
   `test_doi.py`(30)/`test_webauthn.py`(23)/`test_ingest_fetchers.py`(37)/
