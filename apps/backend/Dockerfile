@@ -34,5 +34,7 @@ VOLUME ["/data/uploads"]
 EXPOSE 8080
 
 # 生产必须显式注入：SCHOLARHUB_DATABASE_URL / SECRET_KEY / FERNET_KEY /
-# ADMIN_PASSWORD / ALLOWED_HOSTS（PG 部署先跑 alembic upgrade head，见 DEPLOY.md）。
-CMD ["uv", "run", "--no-sync", "python", "deploy_server.py"]
+# ADMIN_PASSWORD / ALLOWED_HOSTS（见 DEPLOY.md）。
+# 启动前自动 alembic upgrade head：RLS 策略只存在于迁移里，create_all
+# 不会生成；PaaS（Render 等）没有交互 shell，必须在镜像内自动完成。
+CMD ["sh", "-c", "uv run --no-sync alembic upgrade head && uv run --no-sync python deploy_server.py"]
