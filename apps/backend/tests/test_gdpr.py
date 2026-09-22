@@ -166,11 +166,8 @@ async def test_delete_invalidates_tokens(auth_client):
 
 
 async def test_restore_brings_account_back(auth_client, db_session):
-    from app.core.security import create_access_token
-
     client = auth_client["client"]
     headers = auth_client["headers"]
-    user = auth_client["user"]
     resp = await client.request(
         "DELETE",
         "/api/users/me",
@@ -182,11 +179,14 @@ async def test_restore_brings_account_back(auth_client, db_session):
     )
     assert resp.status_code == 202
 
-    await db_session.refresh(user)
-    # Original token is invalidated by the bump; mint a fresh one for
-    # the (anonymised) user so we can test the restore path.
-    fresh = create_access_token({"sub": str(user.id), "token_version": user.token_version})
-    fresh_headers = {"Authorization": f"Bearer {fresh}"}
+    # Regression for T2 finding H-3: the pre-deletion bearer token is the
+    # ONLY credential a real deleted user has (the password was anonymised
+    # at deletion, so no fresh login is possible), even though deletion
+    # bumped token_version. The grace-window exemption in
+    # get_soft_delete_aware_user must accept it — minting a fresh
+    # version-matched token here would mask the bug (no real user could
+    # ever mint one).
+    fresh_headers = headers
 
     resp = await client.post(
         "/api/users/me/restore",

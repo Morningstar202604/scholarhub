@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_tenant_id, get_current_user
 from app.core.db import get_db
 from app.core.logging import get_logger
 from app.core.security import (
@@ -174,8 +174,9 @@ async def verify_setup(
 
     Idempotent: a second call with a stale code returns 200 with the
     current status rather than 400, because the user might double-tap
-    the submit button. The setup secret is wiped from the DB on
-    success so the user cannot re-issue codes from a captured secret.
+    the submit button. The verified secret stays in the DB (it is
+    needed to verify codes at every login) but the just-used counter is
+    recorded so the enrollment code cannot be replayed at login.
     """
     if current_user.totp_enabled_at is not None:
         return {"enabled": True}
@@ -200,6 +201,9 @@ async def verify_setup(
     from app.core.time import utcnow
 
     current_user.totp_enabled_at = utcnow()
+    # Seed the replay guard: the enrollment code's counter is consumed here,
+    # so it cannot be replayed on the login paths afterwards.
+    current_user.totp_last_used_counter = counter
     await db.commit()
     logger.info("two_factor_enabled", user_id=current_user.id)
     return {"enabled": True}
@@ -242,7 +246,14 @@ async def authenticate_2fa(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Exactly one of 'code' or 'backup_code' is required",
         )
-    result = await db.execute(select(User).where(User.id == user_id))
+    # Tenant scoping: align with /auth/login/2fa (auth.py), which has always
+    # scoped the user lookup. Without this, on SQLite / no-RLS deployments a
+    # pending token minted in tenant A could complete 2FA against tenant B.
+    tenant_id = get_current_tenant_id()
+    stmt = select(User).where(User.id == user_id)
+    if tenant_id is not None:
+        stmt = stmt.where(User.tenant_id == tenant_id)
+    result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     if user is None or user.totp_enabled_at is None:
         raise HTTPException(
@@ -264,8 +275,15 @@ async def authenticate_2fa(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="2FA secret cannot be decrypted",
             ) from exc
-        counter = verify_totp(secret, payload.code)
+        # Replay protection: reject any counter at or below the highest one
+        # already consumed for this user (T2 finding H-1 — the hook existed
+        # in verify_totp but was never wired up).
+        counter = verify_totp(
+            secret, payload.code, last_counter=user.totp_last_used_counter or -1
+        )
         ok = counter is not None
+        if counter is not None:
+            user.totp_last_used_counter = counter
     else:
         # Explicit check (not `assert`): assertions are stripped under
         # `python -O`, and this is an authentication path.

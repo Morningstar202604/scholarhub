@@ -124,10 +124,23 @@ async def get_soft_delete_aware_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    if not token_version_matches(payload, user.token_version):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked"
-        )
+    # Soft-deleted grace-window exemption (T2 finding H-3): deletion bumps
+    # token_version, so the strict check below would 401 every pre-deletion
+    # token and permanently brick the restore endpoint — the documented
+    # 30-day recovery promise was unreachable. During the window the
+    # deleted-state user has no other credential (password was anonymised
+    # at deletion), so the pre-deletion bearer token IS the intended
+    # restore credential. Threat model: a stolen pre-deletion token could
+    # re-activate the account and set a new password; mitigated because
+    # (a) the same token was equally usable while the account was alive,
+    # (b) restore stamps a fresh token_version, invalidating every
+    # outstanding token including the attacker's, and (c) restore only
+    # works while deleted_at is set and inside the grace window.
+    if not (_is_soft_deleted(user) and _within_grace_window(user)):
+        if not token_version_matches(payload, user.token_version):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked"
+            )
     # Note: is_active / is_email_verified deliberately NOT checked
     # here. The GDPR restore path is the only legitimate reason for
     # a soft-deleted user to be talking to the API at all.

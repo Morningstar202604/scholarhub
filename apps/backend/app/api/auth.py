@@ -270,7 +270,16 @@ async def login_two_factor(
             ) from exc
         # A TOTP code is exactly 6 digits; recovery codes are XXXXX-XXXXX.
         if payload.code.isdigit() and len(payload.code) == 6:
-            ok = verify_totp(secret, payload.code) is not None
+            # Replay protection (T2 finding H-1): reject counters already
+            # consumed, and persist the accepted one so the same window's
+            # code cannot be reused on either 2FA completion path.
+            counter = verify_totp(
+                secret, payload.code, last_counter=user.totp_last_used_counter or -1
+            )
+            if counter is not None:
+                user.totp_last_used_counter = counter
+                await db.commit()
+                ok = True
         if not ok:
             # Try the provided value as a single-use recovery code.
             candidate_hash = hash_backup_code(normalize_backup_code(payload.code))

@@ -172,6 +172,10 @@ class User(Base, TenantScopedMixin):
     totp_backup_codes_hashed: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     # Timestamp when 2FA was enabled (used for the privacy audit log).
     totp_enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Highest TOTP counter (30s window index) ever accepted for this user.
+    # Replay protection: verify_totp rejects any counter <= this value, so a
+    # captured code cannot be reused within its window. See migration 022.
+    totp_last_used_counter: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # --- WebAuthn / Passkeys ---
     # JSON array of registered credential dicts:
     #   [{"id": "...", "public_key": "...", "sign_count": 0, "name": "...", "created_at": "..."}]

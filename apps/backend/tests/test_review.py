@@ -319,7 +319,8 @@ async def test_reviewer_submit_report_full(
         },
         headers=auth_headers(admin_user),
     )
-    assert resp.status_code == 200
+    # 201: the report is a newly created resource (was 200, fixed per T2 L-1).
+    assert resp.status_code == 201
     body = resp.json()
     assert body["recommendation"] == "minor_revision"
     assert body["comments_to_editor"] == "Need minor revisions to methodology."
@@ -352,7 +353,7 @@ async def test_reviewer_cannot_submit_twice(
         json=body,
         headers=auth_headers(admin_user),
     )
-    assert first.status_code == 200
+    assert first.status_code == 201
     second = await client.post(
         f"/api/review/assignments/{assignment_id}/submit",
         json=body,

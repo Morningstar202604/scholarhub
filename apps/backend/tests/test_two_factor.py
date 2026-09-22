@@ -13,7 +13,10 @@ Covers the full enrolment + login chain and the ways it can be abused:
 
 from __future__ import annotations
 
+import time
+
 import pyotp
+import pytest
 from conftest import auth_headers
 from httpx import AsyncClient
 
@@ -163,9 +166,19 @@ async def test_wrong_password_still_401_when_2fa_enabled(
     assert resp.status_code == 401
 
 
-async def test_full_two_factor_login_chain(client: AsyncClient, test_user: dict) -> None:
-    """完整链路：密码 → pending token → TOTP → 真正的 access token。"""
+async def test_full_two_factor_login_chain(
+    client: AsyncClient, test_user: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """完整链路：密码 → pending token → TOTP → 真正的 access token。
+
+    verify-setup 会消耗当前窗口的码（TOTP 重放防线，H-1 修复），而
+    verify_totp 只接受 T / T-1 两个窗口（明确拒绝 T+1），所以登录必须
+    发生在下一个窗口：把服务器时钟前移 35s，提交 +30s（下一窗口 N+1）
+    生成的码。服务器 current ∈ {N+1, N+2} 时 N+1 恒在候选集内，且恒
+    大于已消耗的 N——对 30s 窗口边界完全确定，无闪挂。
+    """
     secret, _ = await _enable(client, test_user)
+    real_time = time.time()
 
     login = await client.post(
         "/api/auth/login",
@@ -173,9 +186,13 @@ async def test_full_two_factor_login_chain(client: AsyncClient, test_user: dict)
     )
     pending = login.json()["pending_token"]
 
+    monkeypatch.setattr(time, "time", lambda: real_time + 35)
     resp = await client.post(
         "/api/auth/login/2fa",
-        json={"pending_token": pending, "code": _code(secret)},
+        json={
+            "pending_token": pending,
+            "code": pyotp.TOTP(secret).at(real_time + 30),
+        },
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()

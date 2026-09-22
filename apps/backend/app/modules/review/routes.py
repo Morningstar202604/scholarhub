@@ -274,6 +274,8 @@ async def decline_assignment(
 @router.post(
     "/assignments/{assignment_id}/submit",
     response_model=ReviewReportResponse,
+    # 201: the report is a newly created resource (T2 finding L-1 — was 200).
+    status_code=status.HTTP_201_CREATED,
 )
 async def submit_review_report(
     assignment_id: int,
