@@ -1,6 +1,8 @@
 # ScholarHUB 上线部署指南
 
-> 代码状态：backend 644 tests / coverage 84%，frontend 100 tests，ruff/mypy/tsc 全绿（commit 99fbeb5 之后新增单端口部署能力）。
+> 代码状态：backend 644 tests / coverage 84%，frontend 100 tests，ruff/mypy/tsc 全绿；
+> CI 7 jobs（backend / migrations / frontend / e2e / precommit / security / docker-build 镜像门禁）。
+> 安全加固（TOTP 重放防线、GDPR 恢复可达性、2FA 租户过滤）见 CHANGELOG，commit `114f8d1`。
 
 ## 架构总览（推荐方案）
 
@@ -97,7 +99,7 @@ Dockerfile），一个服务搞定，前端走同源 `/api`，**无需 CORS**：
 
 ### 2. 首次迁移
 
-RLS 策略只存在于 Alembic 迁移里（最新版本 021），`create_all` 不会生成。可在本地预热一次
+RLS 策略只存在于 Alembic 迁移里（最新版本 022），`create_all` 不会生成。可在本地预热一次
 （也可跳过——Blueprint 的 preDeployCommand 每次部署都会自动执行）：
 
 ```bash

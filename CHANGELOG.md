@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### Security
+
+- **TOTP 重放防线接线**（T2 白盒探测发现）：`verify_totp` 的 `last_counter` 参数此前
+  从未被传入、`totp_last_used_counter` 只存在于文档字符串——同一 30s 窗口内的验证码
+  可被重复使用。新增 `users.totp_last_used_counter` 列（迁移
+  `022_user_totp_last_used_counter`），verify-setup 落记首用计数器，`/auth/login/2fa`
+  与 `/auth/2fa/authenticate` 两条完成路径接入重放校验并持久化。
+- **GDPR 宽限期恢复不可达**：删除会 bump `token_version`，restore 端点对删除前 token
+  必然 401——文档承诺的 30 天恢复对所有真实用户结构性失效。restore 现在对
+  「软删 + 宽限窗口内」豁免版本校验（删除时密码已匿名化，删除前 token 是唯一凭证；
+  restore 会重打 token_version，使包括攻击者持有的在内的所有旧 token 失效）。
+- **`/auth/2fa/authenticate` 补租户过滤**：用户查询此前不带 tenant 条件（兄弟路径
+  `/auth/login/2fa` 一直有），SQLite/无 RLS 部署下 A 租户铸造的 pending token 可在
+  B 租户完成 2FA。生产 PG+RLS 不受影响，本次对齐防御纵深。
+- **审稿报告创建状态码 200 → 201**（REST 语义）。
+
+  回归：backend 644 passed / 1 skipped；生产冒烟 smoke.sh 8/8；T2 白盒探针
+  62 用例 0 FINDING（真实进程实测）。
+
 ### Fixed
 
 - **全库逐行审查（8 路并行 × 约 2.5 万行）后修复的缺陷批次**：
