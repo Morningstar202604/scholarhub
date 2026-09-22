@@ -103,6 +103,44 @@ ScholarHUB 是一套**开箱即用、自带电池**的学术出版基座——�
 </tr>
 </table>
 
+### 入口与审计
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/01-home.png" alt="首页" width="100%" /><br /><sub><b>首页</b> — 精选作品落地页</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/04-dashboard.png" alt="工作台" width="100%" /><br /><sub><b>工作台</b> — 你的动态一目了然</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/09-admin-audit.png" alt="审计日志" width="100%" /><br /><sub><b>审计</b> — 管理端审计日志</sub></td>
+</tr>
+</table>
+
+### 工具、安全与社交
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/10-ingest.png" alt="导入" width="100%" /><br /><sub><b>导入</b> — 纳入外部来源</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/13-notifications.png" alt="通知" width="100%" /><br /><sub><b>通知</b> — 掌握动态更新</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/16-follows.png" alt="关注" width="100%" /><br /><sub><b>关注</b> — 关注作者与期刊</sub></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/14-admin-journal.png" alt="期刊管理" width="100%" /><br /><sub><b>期刊</b> — 管理端期刊维护</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/15-account-security.png" alt="账号安全" width="100%" /><br /><sub><b>安全</b> — 两步验证与账号设置</sub></td>
+</tr>
+</table>
+
+### 移动端 — 390×844 实拍
+
+<div align="center">
+<table>
+<tr>
+<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-catalog.png" alt="手机目录" width="100%" /><br /><sub><b>目录</b></sub></td>
+<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-detail.png" alt="手机详情" width="100%" /><br /><sub><b>资源详情</b></sub></td>
+</tr>
+</table>
+</div>
+
 ## 核心能力
 
 | 能力 | 亮点 |

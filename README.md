@@ -99,6 +99,44 @@ Most teams rebuild the same journal scaffold from scratch — submission forms, 
 </tr>
 </table>
 
+### Entry points &amp; audit trail
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/01-home.png" alt="Home" width="100%" /><br /><sub><b>Home</b> — landing with featured work</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/04-dashboard.png" alt="Dashboard" width="100%" /><br /><sub><b>Dashboard</b> — your at-a-glance activity</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/09-admin-audit.png" alt="Audit log" width="100%" /><br /><sub><b>Audit</b> — admin audit log</sub></td>
+</tr>
+</table>
+
+### Tools, safety &amp; social
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/10-ingest.png" alt="Ingest" width="100%" /><br /><sub><b>Ingest</b> — bring external sources in</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/13-notifications.png" alt="Notifications" width="100%" /><br /><sub><b>Notifications</b> — stay on top of updates</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/16-follows.png" alt="Follows" width="100%" /><br /><sub><b>Follows</b> — follow authors &amp; journals</sub></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/14-admin-journal.png" alt="Journals" width="100%" /><br /><sub><b>Journals</b> — admin journal management</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/15-account-security.png" alt="Account security" width="100%" /><br /><sub><b>Security</b> — 2FA &amp; account settings</sub></td>
+</tr>
+</table>
+
+### Mobile — 390×844 captures
+
+<div align="center">
+<table>
+<tr>
+<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-catalog.png" alt="Mobile catalog" width="100%" /><br /><sub><b>Catalog</b></sub></td>
+<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-detail.png" alt="Mobile detail" width="100%" /><br /><sub><b>Resource detail</b></sub></td>
+</tr>
+</table>
+</div>
+
 ## What's inside
 
 | Capability | Highlights |

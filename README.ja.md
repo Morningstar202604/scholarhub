@@ -116,6 +116,44 @@ ScholarHUB の全機能はこの三つのユーザーを中心に設計されて
 </tr>
 </table>
 
+#### エントリーポイントと監査
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/01-home.png" alt="ホーム" width="100%" /><br /><sub><b>ホーム</b> — 注目作品のランディング</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/04-dashboard.png" alt="ダッシュボード" width="100%" /><br /><sub><b>ダッシュボード</b> — 活動が一目で</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/09-admin-audit.png" alt="監査ログ" width="100%" /><br /><sub><b>監査</b> — 管理者監査ログ</sub></td>
+</tr>
+</table>
+
+#### ツール・セキュリティ・ソーシャル
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/10-ingest.png" alt="取り込み" width="100%" /><br /><sub><b>取り込み</b> — 外部ソースの登録</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/13-notifications.png" alt="通知" width="100%" /><br /><sub><b>通知</b> — 更新を逃さず</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/16-follows.png" alt="フォロー" width="100%" /><br /><sub><b>フォロー</b> — 著者・ジャーナルを追う</sub></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/14-admin-journal.png" alt="ジャーナル管理" width="100%" /><br /><sub><b>ジャーナル</b> — 管理者ジャーナル管理</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/15-account-security.png" alt="アカウントセキュリティ" width="100%" /><br /><sub><b>セキュリティ</b> — 二段階認証・アカウント設定</sub></td>
+</tr>
+</table>
+
+#### モバイル — 390×844 キャプチャ
+
+<div align="center">
+<table>
+<tr>
+<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-catalog.png" alt="モバイルカタログ" width="100%" /><br /><sub><b>カタログ</b></sub></td>
+<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-detail.png" alt="モバイル詳細" width="100%" /><br /><sub><b>リソース詳細</b></sub></td>
+</tr>
+</table>
+</div>
+
 1. 著者が完全なメタデータを入力して原稿を投稿
 2. 編集者が査読者を割り当て、査読者は承諾または辞退
 3. 査読者が報告書を提出、著者は返答して改訂版をアップロード
