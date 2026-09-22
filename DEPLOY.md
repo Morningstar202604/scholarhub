@@ -150,6 +150,10 @@ Dockerfile 路径 `apps/backend/Dockerfile`、构建上下文 `.`（仓库根）
 curl https://<service>.onrender.com/api/health        # 期望 {"status":"ok"}
 ```
 
+- 一键冒烟门禁（推荐）：`./scripts/smoke.sh https://<service>.onrender.com`——
+  exit 0 才算过；SKIP 项（验证码/关注册/2FA 策略所致）须人工核对后放行；
+  生产 login 限流 10/min，重跑间隔 ≥1 分钟。管理员凭据用
+  `SMOKE_ADMIN_USER` / `SMOKE_ADMIN_PASSWORD` 环境变量注入。
 - Render 部署日志应出现 `alembic upgrade head` 执行记录（pre-deploy 步骤）。
 - 浏览器打开 `https://<service>.onrender.com` 应看到前端 SPA，登录 admin 账户成功。
 
