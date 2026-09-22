@@ -191,3 +191,38 @@ jobs:
         run: |
           uv export --format requirements-txt --no-dev --no-emit-project -o /tmp/req-audit.txt
           uv run --no-project --with pip-audit pip-audit --disable-pip -r /tmp/req-audit.txt
+
+  # Docker 镜像可构建门禁。render.yaml 用 runtime: docker + autoDeployTrigger:
+  # checksPass（CI 全绿才自动部署），意味着 Render 会在 CI 全绿后才第一次构建
+  # 镜像——若 Dockerfile 或构建上下文坏了，问题只会在 Render 部署阶段才暴露。
+  # 这个 job 用与 Blueprint 完全一致的参数（context=仓库根、file=apps/backend/
+  # Dockerfile）在 CI 内提前构建一次，把镜像构建失败左移到 PR。
+  docker-build:
+    runs-on: ubuntu-latest
+    # 依据：冷构建（npm ci + vite build + uv sync，无缓存）预估 5-12 分钟，
+    # 20 分钟 ≈ 冷构建上限的 1.7 倍，能吸收 npm registry 抖动；命中缓存后
+    # 通常 2-4 分钟。不设 workflow 级 concurrency：与现有 6 个 job 保持一致
+    # 的文件风格，且不为新 job 单独改变整个 CI 的取消语义。
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      # render.yaml 语法兜底校验。Render CLI 的 `render blueprints validate`
+      # 能做深度结构校验，但 CLI 在自动化环境需要 RENDER_API_KEY 认证——CI
+      # 约束不新增 secret，故退化为本地 YAML 语法校验（PyYAML 是 ubuntu
+      # runner 预装包）。结构性错误仍依赖 Render 首次部署时的 Blueprint 解析。
+      - name: Validate render.yaml syntax
+        run: python3 -c "import yaml; yaml.safe_load(open('render.yaml', encoding='utf-8'))"
+      - name: Build image (same args as Render Blueprint)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./apps/backend/Dockerfile
+          push: false
+          # gha 缓存后端：走 GitHub Cache 服务 API，无需 registry 或 secret。
+          # 必须显式 mode=max：默认 min 只导出最终 stage 的层，本镜像多阶段
+          # （frontend-build 的 npm ci/vite build 层）不会被缓存，冷构建会
+          # 每次全量重来。已知限制：gha 缓存按分支作用域隔离，fork PR 读不到
+          # main 分支的缓存，会退化为冷构建（可接受，正确性不受影响）。
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

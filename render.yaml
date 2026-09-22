@@ -1,0 +1,75 @@
+# Render Blueprint — ScholarHUB 方案 D（Render + Neon）
+#
+# 规范依据（现行官方 spec）: https://docs.render.com/blueprint-spec
+#   - runtime: docker 字段 dockerfilePath / dockerContext（相对 repo 根）
+#   - preDeployCommand：仅在付费套餐可用（free 不可用），构建后、启动前运行，
+#     在独立的容器实例中执行，适合跑数据库迁移
+#     （https://render.com/docs/deploys#pre-deploy-command）
+#   - dockerCommand：覆盖 Dockerfile 的 CMD
+#   - healthCheckPath / disk / envVars（value | generateValue | sync:false）
+#
+# 连接串分工（Neon direct vs pooled，见 DEPLOY.md 方案 D）：
+#   迁移（preDeployCommand）用 SCHOLARHUB_DATABASE_URL_DIRECT（直连），
+#   运行时用 SCHOLARHUB_DATABASE_URL（pooled + prepared_statement_cache_size=0）。
+#   free 套餐变体（无 preDeployCommand / disk）：删除本文件的 preDeployCommand
+#   与 disk 字段，并删除 dockerCommand 让镜像 CMD 自带迁移，改用 direct 连接串
+#   ——详见 DEPLOY.md「方案 D → 免费套餐变体」。
+services:
+  - type: web
+    runtime: docker
+    name: scholarhub
+    plan: 0.5c-512mb # 现行默认规格（0.5 CPU / 512 MB）；free 套餐不支持 persistent disk 与 preDeployCommand
+    region: oregon
+    # 单端口镜像：构建前端 dist 并内置 SCHOLARHUB_STATIC_DIR，构建上下文必须是仓库根
+    dockerfilePath: ./apps/backend/Dockerfile
+    dockerContext: .
+    # 每次部署自动执行迁移（RLS 策略只存在于迁移里）。
+    # 在 pre-deploy 实例里临时把 DATABASE_URL 换成 Neon direct 连接串：
+    # alembic 必须对 direct 连接执行（asyncpg 预编译语句与 PgBouncer 事务池冲突）。
+    preDeployCommand: "sh -c 'SCHOLARHUB_DATABASE_URL=\"$SCHOLARHUB_DATABASE_URL_DIRECT\" uv run --no-sync alembic upgrade head'"
+    # 覆盖镜像 CMD（CMD 里附带迁移，改由 preDeployCommand 负责），只启动服务
+    dockerCommand: sh -c "uv run --no-sync python deploy_server.py"
+    healthCheckPath: /api/health
+    # CI 全绿才自动部署（与仓库现有 6-job CI 门禁联动）；如需每次 commit 部署改为 commit
+    autoDeployTrigger: checksPass
+    maxShutdownDelaySeconds: 60
+    # 本地盘持久化（PDF 上传等）；免费档无磁盘，必须改用 R2/S3
+    disk:
+      name: uploads
+      mountPath: /data/uploads
+      sizeGB: 1
+    envVars:
+      - key: SCHOLARHUB_ENVIRONMENT
+        value: production
+      # --- 数据库：两个连接串都在首次创建 Blueprint 时按提示填入（sync:false）---
+      # 运行时：Neon pooled（host 带 -pooler），追加禁用预编译语句缓存参数
+      - key: SCHOLARHUB_DATABASE_URL
+        sync: false
+      # 迁移用：Neon direct（host 不带 -pooler）
+      - key: SCHOLARHUB_DATABASE_URL_DIRECT
+        sync: false
+      # --- 密钥：generateValue 生成 base64 256-bit（44 字符，满足 ≥32 校验）---
+      - key: SCHOLARHUB_SECRET_KEY
+        generateValue: true
+      # 必须是合法 Fernet key（url-safe base64），不能交给 generateValue 生成：
+      # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      - key: SCHOLARHUB_FERNET_KEY
+        sync: false
+      - key: SCHOLARHUB_ADMIN_PASSWORD
+        sync: false # ≥12 位强密码，非弱口令黑名单值
+      - key: SCHOLARHUB_ALLOWED_HOSTS
+        sync: false # 如 scholarhub-xxxx.onrender.com,你的域名；production 禁止留空或 *
+      - key: SCHOLARHUB_CORS_ORIGINS
+        sync: false # 单端口同源部署填 https://<服务域名>；production 禁止 *
+      # --- 推荐项 ---
+      - key: SCHOLARHUB_TRUSTED_PROXIES_COUNT
+        value: "1" # Render 反代一层，限流按 X-Forwarded-For 还原真实客户端 IP
+      - key: SCHOLARHUB_JSON_LOGS
+        value: "true" # 结构化日志，便于 Render Log Drain 接入
+      # --- 可选：搜索（留空 = 内置 DB ILIKE 回退，无需 Meilisearch）---
+      - key: SCHOLARHUB_MEILISEARCH_URL
+        value: ""
+      - key: SCHOLARHUB_MEILISEARCH_API_KEY
+        value: ""
+      # --- 可选：对象存储（默认 local + 上面的持久盘；切 R2 见 DEPLOY.md）---
+      # SCHOLARHUB_STORAGE_BACKEND=s3 及 SCHOLARHUB_S3_* 按需在 Dashboard 手动添加

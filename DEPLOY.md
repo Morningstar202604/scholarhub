@@ -24,8 +24,8 @@
    `postgresql+asyncpg://user:pass@host/db`。
 2. **跑迁移**（必须，RLS 策略在迁移里）：
    `cd apps/backend && SCHOLARHUB_DATABASE_URL=<连接串> uv run alembic upgrade head`
-3. **后端**：Railway/Render 新建服务，用仓库根 Dockerfile
-   （`docker build -f apps/backend/Dockerfile .`），环境变量：
+3. **后端**：Railway/Render 新建服务，用后端 Dockerfile
+   （`docker build -f apps/backend/Dockerfile .`，构建上下文为仓库根），环境变量：
 
    | 变量 | 值 |
    |---|---|
@@ -69,12 +69,114 @@ Dockerfile），一个服务搞定，前端走同源 `/api`，**无需 CORS**：
 
 成本参考：Hetzner CX22 / 腾讯云轻量 2C2G ≈ $4–5/月。可选：前面再套一层 Cloudflare 免费 CDN（只需把 NS 指到 CF）。
 
+## 方案 D：Render + Neon（一键 Blueprint）
+
+仓库根的 `render.yaml` 是 Render Blueprint（规范：<https://docs.render.com/blueprint-spec>），
+定义一个 Docker runtime Web Service（单端口镜像 + 持久盘 + preDeploy 自动迁移），
+数据库用 Neon 免费档。适合「不想管 VPS、要 Git push 即部署」的场景。
+
+### 1. Neon 建库
+
+1. [neon.tech](https://neon.tech) 注册 → New Project（region 选离 Render `oregon` 近的 AWS us-east-2）。
+2. Dashboard 的 Connection Details 里能拿到**两种连接串**（这是 Neon 的关键细节）：
+   - **direct**（直连）：`postgresql://user:pass@ep-xxx-123456.us-east-2.aws.neon.tech/neondb`
+   - **pooled**（PgBouncer 连接池，host 多一段 `-pooler`）：`postgresql://user:pass@ep-xxx-123456-pooler.us-east-2.aws.neon.tech/neondb`
+3. 把两者改写成 SQLAlchemy asyncpg 格式：
+   - direct（**只用于迁移**）：
+     `postgresql+asyncpg://user:pass@ep-xxx-123456.us-east-2.aws.neon.tech/neondb`
+   - pooled（**只用于运行时**）：
+     `postgresql+asyncpg://user:pass@ep-xxx-123456-pooler.us-east-2.aws.neon.tech/neondb?prepared_statement_cache_size=0`
+
+> ⚠️ 为什么 pooled 串必须加 `?prepared_statement_cache_size=0`：asyncpg 默认使用
+> 服务端预编译语句（prepared statements），而 Neon pooled 走 PgBouncer **事务池模式**，
+> 同一事务结束后连接可能被换走，导致 `prepared statement "xxx" does not exist` 报错。
+> 该参数是 SQLAlchemy asyncpg 方言的官方解法——禁用语句缓存（规范出处：
+> <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#disabling-the-postgresql-prepared-statement-cache>；
+> Neon 官方连接池说明：<https://neon.com/docs/connect/connection-pooling>）。
+> 由此形成分工铁律：**迁移（alembic）必须走 direct，运行时走 pooled**。
+
+### 2. 首次迁移
+
+RLS 策略只存在于 Alembic 迁移里（最新版本 021），`create_all` 不会生成。可在本地预热一次
+（也可跳过——Blueprint 的 preDeployCommand 每次部署都会自动执行）：
+
+```bash
+cd apps/backend
+SCHOLARHUB_DATABASE_URL=<direct 连接串> uv run alembic upgrade head
+```
+
+迁移 020 会执行 `CREATE EXTENSION IF NOT EXISTS pg_trgm`（性能索引）；Neon 支持 pg_trgm
+扩展，库 owner 即可创建，无需额外操作（Neon 扩展列表：<https://neon.com/docs/extensions>）。
+
+### 3. Render 创建服务
+
+**方式一：Blueprint 一键（推荐）。** Render Dashboard → New → Blueprint → 选本仓库 →
+Render 自动读取 `render.yaml`，只要求填入其中 `sync: false` 标记的 6 个变量
+（两个 Neon 连接串、FERNET_KEY、ADMIN_PASSWORD、ALLOWED_HOSTS、CORS_ORIGINS，
+取值见下表）→ Apply。之后每次 push（CI 通过后）自动构建部署。
+
+**方式二：手动。** New → Web Service → 连仓库 → Runtime 选 Docker，
+Dockerfile 路径 `apps/backend/Dockerfile`、构建上下文 `.`（仓库根），按 render.yaml
+逐项补齐（Pre-Deploy Command 用 direct 串跑迁移、Docker Command 只启动服务）。
+
+### 4. 环境变量（Render 后端服务）
+
+| 变量 | 必填 | 取值 |
+|---|---|---|
+| `SCHOLARHUB_DATABASE_URL` | ✅ | Neon **pooled** 串改写 + `?prepared_statement_cache_size=0`（见步骤 1） |
+| `SCHOLARHUB_DATABASE_URL_DIRECT` | ✅ | Neon **direct** 串改写，仅 preDeployCommand 迁移时使用 |
+| `SCHOLARHUB_ENVIRONMENT` | ✅ | `production`（render.yaml 已内置） |
+| `SCHOLARHUB_SECRET_KEY` | ✅ | render.yaml `generateValue` 自动生成（base64 256-bit） |
+| `SCHOLARHUB_FERNET_KEY` | ✅ | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`（必须是合法 Fernet key，generateValue 不保证 url-safe） |
+| `SCHOLARHUB_ADMIN_PASSWORD` | ✅ | ≥12 位强密码（首次登录后立即改掉 + 开 TOTP） |
+| `SCHOLARHUB_ALLOWED_HOSTS` | ✅ | `<service>.onrender.com`（多个用逗号，含自定义域名）；production 禁止留空/`*` |
+| `SCHOLARHUB_CORS_ORIGINS` | 建议 | 单端口同源部署填 `https://<service>.onrender.com`；production 禁止 `*` |
+| `SCHOLARHUB_TRUSTED_PROXIES_COUNT` | 建议 | `1`（Render 反代一层，限流按 X-Forwarded-For 还原真实 IP；render.yaml 已内置） |
+| `SCHOLARHUB_JSON_LOGS` | 建议 | `true`（结构化日志；render.yaml 已内置） |
+| `SCHOLARHUB_STORAGE_BACKEND` | 可选 | 默认 `local` + 挂载持久盘 `/data/uploads`；生产建议切 `s3`（R2），另加 `SCHOLARHUB_S3_*` 5 项 |
+| `SCHOLARHUB_MEILISEARCH_URL` / `_API_KEY` | 可选 | 留空 = 不启用，搜索回退内置 DB ILIKE（**无需为方案 D 再开 Meilisearch**） |
+
+> 端口无需配置：镜像里 `PORT=8080` 只是缺省值，Render 运行时注入的 `PORT` 会覆盖它，
+> `deploy_server.py` 按注入值监听。
+>
+> **搜索后端说明**：`meilisearch_url` 留空时应用 fail-open 回退 DB ILIKE 搜索，方案 D 默认
+> 不再额外开 Meilisearch 服务（省钱且零维护）。确需全文检索时最省钱的挂法是在同一
+> Blueprint 加一个最小规格 pserv 拉起 `getmeili/meilisearch` 镜像 + 持久盘（约 $1–2/月级别），
+> 或直接用 Meilisearch Cloud 免费档，然后把 URL/KEY 填入上表。
+
+### 5. 验证
+
+```bash
+curl https://<service>.onrender.com/api/health        # 期望 {"status":"ok"}
+```
+
+- Render 部署日志应出现 `alembic upgrade head` 执行记录（pre-deploy 步骤）。
+- 浏览器打开 `https://<service>.onrender.com` 应看到前端 SPA，登录 admin 账户成功。
+
+### 6. 回滚要点
+
+- **应用回滚**：Render Dashboard → 服务 → Deploys → 选上一个成功部署 → Rollback，
+  镜像级秒级切换，无需重建（Render 原生保留部署历史）。
+- **数据库回滚**：Alembic 迁移**不会**随应用回滚自动降级。回滚前确认旧版本代码与当前
+  schema 兼容（本项目迁移只增不删、向后兼容设计）；若必须降级，先在 Neon 备份/分支上
+  演练 `alembic downgrade`，切勿直接对生产库执行未经演练的降级。
+- **误升级保险**：Neon 免费档自带 point-in-time restore 分支，重大迁移前建一个分支快照。
+
+### 免费套餐变体（`plan: free`）
+
+Render free 实例**不支持** preDeployCommand 与 persistent disk
+（<https://render.com/docs/deploys#pre-deploy-command>、<https://render.com/docs/disks>）。
+如用 free 套餐：① 删除 render.yaml 里的 `preDeployCommand` 与 `disk` 字段、删除
+`dockerCommand`（让镜像自带 CMD 在启动时对 `SCHOLARHUB_DATABASE_URL` 执行迁移）；②
+`SCHOLARHUB_DATABASE_URL` 直接填 **direct** 连接串（单实例小流量，无需 pooled）；③
+文件存储必须切 `SCHOLARHUB_STORAGE_BACKEND=s3`（R2），free 实例本地盘重启即丢。
+
 ## 上线前 checklist
 
 - [ ] `alembic upgrade head` 已在目标库执行（RLS 就位，`test_rls_coverage` 保证所有租户表都有策略）
 - [ ] `SCHOLARHUB_ENVIRONMENT=production`（触发强密钥/ALLOWED_HOSTS 校验）
 - [ ] SECRET_KEY / FERNET_KEY / ADMIN_PASSWORD 均为强随机值且**持久化**（重启不变）
 - [ ] `SCHOLARHUB_ALLOWED_HOSTS` / `SCHOLARHUB_CORS_ORIGINS` 收紧到真实域名
-- [ ] 首次登录后立即改 admin 密码 + 开启 TOTP（`/api/two_factor`）
+- [ ] 首次登录后立即改 admin 密码 + 开启 TOTP（`/api/auth/2fa`）
 - [ ] 健康检查：`GET /api/health` → `{"status":"ok"}`
 - [ ] 文件存储用 R2/S3（容器本地盘会随重启丢文件）
