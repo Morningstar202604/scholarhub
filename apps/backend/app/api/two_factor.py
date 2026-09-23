@@ -278,9 +278,7 @@ async def authenticate_2fa(
         # Replay protection: reject any counter at or below the highest one
         # already consumed for this user (T2 finding H-1 — the hook existed
         # in verify_totp but was never wired up).
-        counter = verify_totp(
-            secret, payload.code, last_counter=user.totp_last_used_counter or -1
-        )
+        counter = verify_totp(secret, payload.code, last_counter=user.totp_last_used_counter or -1)
         ok = counter is not None
         if counter is not None:
             user.totp_last_used_counter = counter

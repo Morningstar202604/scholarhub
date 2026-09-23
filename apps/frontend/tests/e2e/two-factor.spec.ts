@@ -50,10 +50,32 @@ function totp(secret: string, timestamp = Date.now()): string {
  * 直接拒绝）。同一个用例里连续用两次码时，必须等进下一个窗口，否则会偶发
  * 拿到"验证码错误"。
  */
-async function totpInFreshWindow(secret: string): Promise<string> {
-  const remaining = 30 - (Math.floor(Date.now() / 1000) % 30)
+/** 当前 TOTP 窗口序号（30s 步长，与后端一致），用于跨调用对比。 */
+function totpWindowNow(): number {
+  return Math.floor(Date.now() / 1000 / 30)
+}
+
+/**
+ * 取一个"严格晚于" `afterWindow` 的 TOTP 窗口的码。
+ * - 省略 `afterWindow`：保留原行为——等 5s 安全垫后取当前窗口码。
+ * - 传入 `afterWindow`：若刚进入的窗口仍 ≤ 该值，再等到下一个窗口。
+ *
+ * 用于根治 H-1 TOTP 重放保护竞态：启用 2FA 时消费的窗口 N 已落在
+ * `totp_last_used_counter` 上，两步登录若取到同一/更旧窗口会被
+ * `candidate <= last_counter` 拒掉 → 前端弹"验证码错误"。调用方记录
+ * 启用时的 `totpWindowNow()`，登录前传入即可保证登录窗口必 > N。
+ */
+async function totpInFreshWindow(
+  secret: string,
+  afterWindow?: number,
+): Promise<string> {
+  let remaining = 30 - (Math.floor(Date.now() / 1000) % 30)
   if (remaining < 5) {
     await new Promise((r) => setTimeout(r, remaining * 1000 + 500))
+    remaining = 30 - (Math.floor(Date.now() / 1000) % 30)
+  }
+  if (afterWindow !== undefined && totpWindowNow() <= afterWindow) {
+    await new Promise((r) => setTimeout(r, (30 - remaining) * 1000 + 500))
   }
   return totp(secret)
 }
@@ -96,6 +118,9 @@ test.describe('two-factor authentication', () => {
     await expect(page.getByTestId('open-disable-2fa')).toBeVisible({
       timeout: 10_000,
     })
+    // 记录本次"启用 2FA"消费的 TOTP 窗口 N。重放保护已把它落到
+    // totp_last_used_counter 上，后续两步登录必须取到比 N 更新的窗口。
+    const enableWindow = totpWindowNow()
 
     // 刷新页面确认服务端状态真的落库（而不是只改了本地 state）
     await page.reload()
@@ -122,8 +147,8 @@ test.describe('two-factor authentication', () => {
       timeout: 5_000,
     })
 
-    // 正确 TOTP 完成登录（换到新窗口，避开重放保护）
-    await page.getByLabel('验证码').fill(await totpInFreshWindow(secret))
+    // 正确 TOTP 完成登录（换到比"启用"更新的窗口，避开重放保护）
+    await page.getByLabel('验证码').fill(await totpInFreshWindow(secret, enableWindow))
     await page.getByTestId('confirm-2fa').click()
     await expect(page.getByText('登录成功')).toBeVisible({ timeout: 5_000 })
     await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 })
