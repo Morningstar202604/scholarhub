@@ -56,26 +56,31 @@ function totpWindowNow(): number {
 }
 
 /**
- * 取一个"严格晚于" `afterWindow` 的 TOTP 窗口的码。
- * - 省略 `afterWindow`：保留原行为——等 5s 安全垫后取当前窗口码。
- * - 传入 `afterWindow`：若刚进入的窗口仍 ≤ 该值，再等到下一个窗口。
+ * 取一个"严格晚于" `afterWindow` 的 TOTP 窗口的码，且取在**该窗口中段**。
  *
- * 用于根治 H-1 TOTP 重放保护竞态：启用 2FA 时消费的窗口 N 已落在
- * `totp_last_used_counter` 上，两步登录若取到同一/更旧窗口会被
- * `candidate <= last_counter` 拒掉 → 前端弹"验证码错误"。调用方记录
- * 启用时的 `totpWindowNow()`，登录前传入即可保证登录窗口必 > N。
+ * 为什么必须取中段（而不只是"换新窗口"）：填码（fill）是瞬间完成，但真正
+ * 提交要再等 confirm-2fa.click() + 网络往返。若提交时刻漂到下一个 30s
+ * 窗口 W+1，后端接受窗口变 [W, W+1]，而 W 可能已被"启用 2FA"消费
+ * （last_counter = W）→ 所填的 W 码被重放保护拒掉 → 前端弹"验证码错误"。
+ * 取在中段（窗口开始后 ~10s 处）给前后各留 ~10s 余量，提交几乎不会漂出
+ * 所填窗口，对重放保护竞态免疫。
+ *
+ * - 省略 `afterWindow`：保留原行为——安全垫后取当前窗口码（窗口边界前 5s 内才额外等）。
+ * - 传入 `afterWindow`：若当前窗口仍 ≤ 该值，等到下一个窗口的中段。
  */
 async function totpInFreshWindow(
   secret: string,
   afterWindow?: number,
 ): Promise<string> {
-  let remaining = 30 - (Math.floor(Date.now() / 1000) % 30)
-  if (remaining < 5) {
-    await new Promise((r) => setTimeout(r, remaining * 1000 + 500))
-    remaining = 30 - (Math.floor(Date.now() / 1000) % 30)
-  }
+  // 等到当前 30s 窗口开始后 ~10s（中段），保证提交大概率仍在同窗口内。
+  const secondsInWindow = Math.floor(Date.now() / 1000) % 30
+  let target = 10
   if (afterWindow !== undefined && totpWindowNow() <= afterWindow) {
-    await new Promise((r) => setTimeout(r, (30 - remaining) * 1000 + 500))
+    // 当前窗口被重放保护占据，目标挪到下一窗口的中段（即 30 + 10 = 40s 处的码）。
+    target = 40
+  }
+  if (secondsInWindow < target) {
+    await new Promise((r) => setTimeout(r, (target - secondsInWindow) * 1000 + 200))
   }
   return totp(secret)
 }
