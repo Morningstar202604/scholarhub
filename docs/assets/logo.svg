@@ -1,40 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ScholarHUB logo —— 「S · 书页流转」标志。
+  ScholarHUB 主标志 —— 「学术徽章」（Seal）
 
-  设计意图（唯美简约）：
-    - 一条连续曲线构成字母 S，一笔成型，无任何多余元素。
-    - 这条 S 同时是"翻动的书页边缘"：上下两个弧线开口，像书页被风掀起的瞬间。
-    - 大面积留白，笔画粗细均匀，缩小到 24px 仍是一条清晰的 S。
-    - 单一意象，不堆叠"书 + 引号 + 圆环"。
+  设计语言：
+    - 双环徽章：外环深学术蓝粗线、内环出版金细线 —— 学术机构 / 期刊印章惯例；
+    - 环带字标：上 SCHOLARHUB、下 OPEN SCHOLARLY PUBLISHING，衬线体（Georgia / Times 系），
+      延续学术出版的字形传统；
+    - 中央图形：「书页之 S」—— 深学术蓝 S 主笔画 + 金色翻页角（翻起一页，呼应投稿→审稿→发表），
+      与 logo-mark.svg（图形标）共享同一图形基因；
+    - 底部金色四角星：引用星 / DOI 意象，学术出版的星标惯例。
 
-  几何校准：
-    - S 的竖直跨度 y=62…178，中心 y=120；水平跨度 x=84…156，中心 x=120 ——
-      严格居中，四周留白均衡（上下各约 62/62，左右各约 84/84）。
-
-  规范：
-    - 主色 #4F46E5 → #7C3AED 渐变，与 React 19 / Tailwind v4 生态协调。
-    - 纯矢量、无损缩放。
+  配色规范：主色 #16324F（深学术蓝）、点缀 #C7A24B（出版金）、辅助灰蓝 #5A6B7C。
+  使用规范：期刊封面 / 官网 Hero / 正式传播用本徽章；小尺寸（<48px）与 favicon 用 logo-mark.svg。
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="ScholarHUB logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="ScholarHUB">
   <defs>
-    <linearGradient id="sh-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#4F46E5"/>
-      <stop offset="100%" stop-color="#7C3AED"/>
+    <linearGradient id="sh-seal-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#D8B76A"/>
+      <stop offset="100%" stop-color="#B8933F"/>
     </linearGradient>
+    <linearGradient id="sh-seal-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1B3A5C"/>
+      <stop offset="100%" stop-color="#122A44"/>
+    </linearGradient>
+    <path id="sh-arc-top" d="M 46 120 A 74 74 0 0 1 194 120"/>
+    <path id="sh-arc-bottom" d="M 194 120 A 74 74 0 0 1 46 120"/>
   </defs>
 
-  <!-- 背景圆角方块 -->
-  <rect x="0" y="0" width="240" height="240" rx="52" ry="52" fill="url(#sh-bg)"/>
+  <!-- 外环 / 内环 -->
+  <circle cx="120" cy="120" r="108" fill="none" stroke="#16324F" stroke-width="8"/>
+  <circle cx="120" cy="120" r="91" fill="none" stroke="url(#sh-seal-gold)" stroke-width="2.8"/>
 
-  <!-- S 形连续曲线，垂直 / 水平均居中于 (120,120) -->
-  <path d="M 154 86
-           C 154 68 139 62 120 62
-           C 99 62 86 73 86 90
-           C 86 106 99 114 120 120
-           C 141 126 154 134 154 150
-           C 154 167 141 178 120 178
-           C 101 178 86 172 86 154"
-        fill="none" stroke="#FFFFFF" stroke-width="17"
+  <!-- 环带文字 -->
+  <text font-family="Georgia,'Times New Roman',serif" font-size="21"
+        font-weight="700" letter-spacing="4.4" fill="#16324F">
+    <textPath href="#sh-arc-top" startOffset="50%" text-anchor="middle">SCHOLARHUB</textPath>
+  </text>
+  <text font-family="Georgia,'Times New Roman',serif" font-size="11.2"
+        letter-spacing="2.3" fill="#5A6B7C">
+    <textPath href="#sh-arc-bottom" startOffset="50%" text-anchor="middle">OPEN SCHOLARLY PUBLISHING</textPath>
+  </text>
+
+  <!-- 中央「书页之 S」（与 logo-mark.svg 同几何 ×2） -->
+  <path d="M 176 72
+           C 176 54 158 44 120 44
+           C 84 44 64 58 64 80
+           C 64 100 80 110 106 116
+           C 134 122 176 134 176 164
+           C 176 188 156 196 120 196
+           C 86 196 64 184 64 168"
+        fill="none" stroke="url(#sh-seal-blue)" stroke-width="25"
         stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 金色翻页角 -->
+  <path d="M 132 184
+           C 152 176 168 160 172 140
+           C 164 164 148 176 124 180
+           Z"
+        fill="url(#sh-seal-gold)"/>
+
+  <!-- 底部金色引用星（DOI 意象） -->
+  <path d="M 120 215 L 122.6 220.6 L 128.2 223.2 L 122.6 225.8 L 120 231.4 L 117.4 225.8 L 111.8 223.2 L 117.4 220.6 Z"
+        fill="#C7A24B"/>
 </svg>

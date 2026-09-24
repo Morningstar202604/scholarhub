@@ -1,22 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ScholarHUB logo mark —— 「S」纯字形版（favicon / 头像 / 单色场景）。
+  ScholarHUB 图形标 —— 「书页之 S」
 
-  与 logo.svg 的区别：
-    - 去掉了圆角背景块，只保留 S 曲线，便于叠加在任意底色上或作单色使用。
-    - 笔画使用 currentColor：放进 <span style="color:#4F46E5"> 或遮罩场景时自动跟随。
-    - 需要带背景时用 logo.svg；需要透明/单色时用本文件。
+  与 logo.svg（学术徽章）中央图形同几何：
+    - 深学术蓝 S 主笔画（#16324F 系渐变），圆头收笔，严格居中；
+    - 金色翻页角叠于右下弧内（#C7A24B）—— 翻起一页，呼应投稿→审稿→发表；
+    - 透明底、任意底色可用；小尺寸（favicon / 头像 / 导航小图）使用本文件；
+    - 单色场景可把金色卷角替换为主色，或使用内联组件（brand-mark.tsx）跟随 currentColor。
 
-  几何与 logo.svg 完全一致，保证两者并排时不出现形变差异。
+  配色规范：主色 #16324F（深学术蓝）、点缀 #C7A24B（出版金）。
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="ScholarHUB mark">
-  <path d="M 154 86
-           C 154 68 139 62 120 62
-           C 99 62 86 73 86 90
-           C 86 106 99 114 120 120
-           C 141 126 154 134 154 150
-           C 154 167 141 178 120 178
-           C 101 178 86 172 86 154"
-        fill="none" stroke="#4F46E5" stroke-width="17"
+  <defs>
+    <linearGradient id="sh-mark-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1B3A5C"/>
+      <stop offset="100%" stop-color="#122A44"/>
+    </linearGradient>
+    <linearGradient id="sh-mark-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#D8B76A"/>
+      <stop offset="100%" stop-color="#B8933F"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M 176 72
+           C 176 54 158 44 120 44
+           C 84 44 64 58 64 80
+           C 64 100 80 110 106 116
+           C 134 122 176 134 176 164
+           C 176 188 156 196 120 196
+           C 86 196 64 184 64 168"
+        fill="none" stroke="url(#sh-mark-blue)" stroke-width="25"
         stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M 132 184
+           C 152 176 168 160 172 140
+           C 164 164 148 176 124 180
+           Z"
+        fill="url(#sh-mark-gold)"/>
 </svg>
