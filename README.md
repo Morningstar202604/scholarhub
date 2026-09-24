@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="ScholarHUB" width="110" height="110" />
+<img src="docs/assets/logo-horizontal.svg" alt="ScholarHUB" width="320" />
 
 # ScholarHUB
 

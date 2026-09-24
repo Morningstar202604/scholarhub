@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ScholarHUB 横版组合（Lockup）—— 图形标 + 衬线字标
+  用途：README / 文档页头 / 页眉等横向空间；
+  深色背景用 logo-horizontal-white.svg。
+  字标采用 Georgia / Times 系衬线，延续学术出版传统。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 150" width="560" height="150" role="img" aria-label="ScholarHUB">
+  <!-- 书页之 S（mark，与 logo-mark.svg 同几何） -->
+  <g transform="translate(10,15) scale(0.5)">
+    <path d="M 176 72 C 176 54 158 44 120 44 C 84 44 64 58 64 80 C 64 100 80 110 106 116 C 134 122 176 134 176 164 C 176 188 156 196 120 196 C 86 196 64 184 64 168"
+          fill="none" stroke="#16324F" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 132 184 C 152 176 168 160 172 140 C 164 164 148 176 124 180 Z" fill="#C7A24B"/>
+  </g>
+
+  <!-- 字标 -->
+  <text x="148" y="88" font-family="Georgia,'Times New Roman',serif" font-size="58"
+        font-weight="700" letter-spacing="1" fill="#16324F">ScholarHUB</text>
+  <text x="152" y="118" font-family="Georgia,'Times New Roman',serif" font-size="14"
+        letter-spacing="6.5" fill="#5A6B7C">OPEN SCHOLARLY PUBLISHING</text>
+</svg>

@@ -20,17 +20,17 @@
       <stop offset="100%" stop-color="#F5F3FF"/>
     </linearGradient>
     <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366F1"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#16324F"/>
     </marker>
     <style>
       .h1    { font: 700 19px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1E1B4B; }
       .sub   { font: 400 12px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #64748B; }
       .h2    { font: 700 13.5px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #312E81; }
-      .tech  { font: 400 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6366F1; }
+      .tech  { font: 400 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #16324F; }
       .mod   { font: 600 12px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #1E1B4B; }
       .modd  { font: 400 10.5px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #64748B; }
       .chip  { font: 600 11px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #FFFFFF; }
-      .edge  { font: 500 10.5px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #6366F1; }
+      .edge  { font: 500 10.5px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: #16324F; }
     </style>
   </defs>
 
@@ -62,7 +62,7 @@
   </g>
 
   <!-- 连接：前端 → 后端 -->
-  <line x1="480" y1="178" x2="480" y2="210" stroke="#6366F1" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="480" y1="178" x2="480" y2="210" stroke="#16324F" stroke-width="1.5" marker-end="url(#ar)"/>
   <text x="494" y="199" class="edge">HTTP + httpOnly Cookie</text>
 
   <!-- ============ 后端层 ============ -->
@@ -130,7 +130,7 @@
   </g>
 
   <!-- 连接：后端 → 数据层 -->
-  <line x1="480" y1="470" x2="480" y2="508" stroke="#6366F1" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="480" y1="470" x2="480" y2="508" stroke="#16324F" stroke-width="1.5" marker-end="url(#ar)"/>
   <text x="494" y="494" class="edge">SQLAlchemy 2 async</text>
 
   <!-- ============ 数据层 ============ -->
