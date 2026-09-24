@@ -32,16 +32,20 @@ test.describe('全流程用户旅程', () => {
   test('Journey 1: 访客第一眼 → 注册 → 仪表盘 → 设置 → 目录浏览', async ({
     browser,
   }) => {
-    // --- 1) 访客第一眼：根路径弹登录，公开目录无需登录 ---
+    // --- 1) 访客第一眼：根路径是公开门面页（不弹登录），公开目录无需登录 ---
     const guestCtx = await browser.newContext()
     const guest = await guestCtx.newPage()
     await primeCookieConsent(guest)
 
     await guest.goto('/')
-    await expect(guest).toHaveURL(/login/, { timeout: 10_000 })
-    await expect(guest.getByRole('button', { name: '登录' })).toBeVisible()
-    // 登录页有两处「注册」（顶部横幅按钮 + 卡片文案里的内联链接），
-    // 严格模式下要限定到 banner，否则命中两个元素。
+    await expect(guest).toHaveURL(/\/$/, { timeout: 10_000 })
+    await expect(
+      guest.getByRole('heading', { name: /开放学术出版/ }),
+    ).toBeVisible()
+    // 首页有两处「登录」（横幅 + 门面区），限定到横幅避免 strict 歧义
+    await expect(
+      guest.getByRole('banner').getByRole('link', { name: '登录' }),
+    ).toBeVisible()
     await expect(
       guest.getByRole('banner').getByRole('link', { name: '注册' }),
     ).toBeVisible()

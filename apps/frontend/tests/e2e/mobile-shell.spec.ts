@@ -55,9 +55,9 @@ test.describe('mobile shell · 访客', () => {
     await page.goto('/catalog')
     await expect(page).toHaveURL(/\/catalog$/)
 
-    // 移动底部 Tab 栏存在
+    // 移动底部 Tab 栏存在（首页/目录/通知/我的；概览移入"更多"抽屉）
     await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '概览' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '首页' })).toBeVisible()
     await expect(page.getByRole('button', { name: '目录' })).toBeVisible()
     await expect(page.getByRole('button', { name: '通知' })).toBeVisible()
     await expect(page.getByRole('button', { name: '我的' })).toBeVisible()

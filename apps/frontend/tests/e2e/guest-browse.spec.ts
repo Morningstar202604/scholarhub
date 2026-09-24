@@ -3,16 +3,24 @@ import { ADMIN } from './helpers'
 
 // 未登录访客的浏览体验。
 // 校验:
-// - 根路径 / 未登录时跳 /login
+// - 根路径 / 未登录时展示公开门面页（不重定向，访客可先逛再看）
 // - /catalog 与 /catalog/$resourceId 未登录可访问（公开目录 + 公开详情）
 // - 详情页对访客隐藏鉴权能力（阅读进度/关注），显示"登录后阅读全文"引导
 // - /reader/* 未登录会被守卫挡回 /login
 // - 顶部菜单对未登录用户显示「登录」「注册」按钮
 
 test.describe('guest browse', () => {
-  test('root redirects to /login when not authenticated', async ({ page }) => {
+  test('root shows public landing page without login', async ({ page }) => {
     await page.goto('/')
-    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveURL(/\/$/)
+    await expect(
+      page.getByRole('heading', { name: /开放学术出版/ }),
+    ).toBeVisible()
+    // 首页有两处「登录」（顶部横幅 + 门面区快捷入口），限定到横幅避免歧义
+    await expect(page.getByRole('banner').getByRole('link', { name: '登录' })).toBeVisible()
+    await expect(
+      page.getByRole('banner').getByRole('link', { name: '注册' }),
+    ).toBeVisible()
   })
 
   test('catalog is publicly visible without login', async ({ page }) => {

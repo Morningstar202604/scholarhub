@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 COPY apps/frontend/package.json apps/frontend/package-lock.json ./
-RUN npm ci
+RUN npm ci --registry=https://registry.npmjs.org
 COPY apps/frontend/ ./
 RUN npm run build
 

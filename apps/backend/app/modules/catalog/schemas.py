@@ -9,16 +9,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import (
-    AnyHttpUrl,
     BaseModel,
     ConfigDict,
     Field,
     field_validator,
     model_validator,
 )
-from urllib.parse import urlparse
 
 from app.core.schemas import Authors, PaginationMeta
 

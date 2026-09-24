@@ -29,10 +29,10 @@ the lookup table every other policy references) — so it is whitelisted.
 
 from __future__ import annotations
 
-import pytest
-
 import re
 from pathlib import Path
+
+import pytest
 
 _MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / "alembic" / "versions"
 
@@ -181,15 +181,11 @@ def test_rls_coverage_is_nonempty() -> None:
     """
     rls_tables = _collect_rls_enables()
     if not rls_tables:
-        pytest.skip(
-            "单租户部署模式：迁移中无 RLS 语句，检测器自检跳过。"
-        )
+        pytest.skip("单租户部署模式：迁移中无 RLS 语句，检测器自检跳过。")
 
     tenant_tables: set[str] = set()
     for mf in _collect_migration_files():
-        tenant_tables |= _create_tables_with_tenant_id(
-            mf.read_text(encoding="utf-8")
-        )
+        tenant_tables |= _create_tables_with_tenant_id(mf.read_text(encoding="utf-8"))
 
     # Must detect a meaningful number of RLS-enabled tables.
     assert len(rls_tables) >= 10, (
