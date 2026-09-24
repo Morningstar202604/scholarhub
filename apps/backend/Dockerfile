@@ -1,7 +1,7 @@
 # ScholarHUB 后端单容器镜像（含前端静态托管，单端口）。
 # 构建上下文必须是仓库根目录：
 #   docker build -f apps/backend/Dockerfile -t scholarhub .
-FROM python:3.13-slim AS frontend-build
+FROM python:3.12-slim AS frontend-build
 
 # --- 前端构建层 ---
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
@@ -14,7 +14,7 @@ RUN npm ci --registry=https://registry.npmjs.org
 COPY apps/frontend/ ./
 RUN npm run build
 
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend
 
 WORKDIR /app
 # 先拷依赖清单利用层缓存
