@@ -116,6 +116,9 @@ async def _materialize_resource_from_submission(
     rather than re-routing through the HTTP layer to keep it
     transactional with the review commit.
     """
+    # 本地稿件文件：投稿上传的 PDF 通过 /uploads 静态路由对外提供。
+    # 作者未填外部下载链接时，用本地托管地址兜底，保证稿件接受后立即能读。
+    local_file_url = f"/uploads/{submission.file_path}" if submission.file_path else None
     resource = Resource(
         tenant_id=submission.tenant_id,
         type=submission.type,
@@ -128,7 +131,7 @@ async def _materialize_resource_from_submission(
         tags=submission.tags,
         abstract=submission.abstract,
         preview=submission.preview,
-        download_url=submission.download_url,
+        download_url=submission.download_url or local_file_url,
         external_url=submission.external_url,
         doi=submission.doi,
         # 物化时把 submission 的 keywords 带过去，与 catalog.Resource 对齐。

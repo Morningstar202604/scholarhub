@@ -239,9 +239,9 @@ export function useRemoveFromHistory() {
 // --- Submission ---
 export function useCreateSubmission() {
   const qc = useQueryClient()
-  return useMutation<MessageResponse, Error, SubmissionCreate>({
+  return useMutation<SubmissionResponse, Error, SubmissionCreate>({
     mutationFn: async (body) =>
-      (await api.post<MessageResponse>('/submissions', body)).data,
+      (await api.post<SubmissionResponse>('/submissions', body)).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['submissions'] })
     },

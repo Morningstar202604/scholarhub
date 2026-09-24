@@ -32,8 +32,9 @@ export interface MobileMoreItem {
 }
 
 // 底部 Tab 栏：4 个固定入口。中心 FAB 由外壳单独渲染，不在此列表。
+// 人的逻辑：第一个 Tab 是公开首页（不登录也能逛），登录后的概览移入"更多"抽屉。
 export const MOBILE_TABS: MobileTab[] = [
-  { to: '/dashboard', label: '概览', icon: Home },
+  { to: '/', label: '首页', icon: Home },
   { to: '/catalog', label: '目录', icon: BookOpen },
   { to: '/notifications', label: '通知', icon: Bell },
   { to: '/__more', label: '我的', icon: User, openSheet: true },
@@ -41,6 +42,7 @@ export const MOBILE_TABS: MobileTab[] = [
 
 // "更多"底部抽屉的次级导航（按 isAdmin 过滤）。
 export const MOBILE_MORE: MobileMoreItem[] = [
+  { to: '/dashboard', label: '概览', icon: Home },
   { to: '/submissions', label: '我的提交', icon: ScrollText },
   { to: '/follows', label: '关注与订阅', icon: Heart },
   { to: '/recommendations', label: '推荐', icon: Lightbulb },

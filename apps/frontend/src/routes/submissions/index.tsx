@@ -128,6 +128,8 @@ interface FormState {
   doi: string
   download_url: string
   external_url: string
+  // 新建投稿时可选带上的稿件文件（先传文件，再填元数据）
+  file: File | null
 }
 
 const EMPTY_FORM: FormState = {
@@ -147,6 +149,7 @@ const EMPTY_FORM: FormState = {
   doi: '',
   download_url: '',
   external_url: '',
+  file: null,
 }
 
 // 详情 → 表单：作者点「修改稿件」时把现有内容回填进同一套表单
@@ -171,6 +174,7 @@ function submissionToForm(s: SubmissionResponse): FormState {
     doi: s.doi ?? '',
     download_url: s.download_url ?? '',
     external_url: s.external_url ?? '',
+    file: null,
   }
 }
 
@@ -187,7 +191,17 @@ function presetToForm(p: IngestResource): FormState {
     ...EMPTY_FORM,
     title: p.title,
     type,
-    authors: p.authors.join(', '),
+    // BibTeX/RIS 常给出 "Last, First" 形式：直接 join(', ') 会被
+    // parseListField 按逗号拆成多个作者，先规范成 "First Last"。
+    authors: p.authors
+      .map((a) => {
+        const parts = a
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+        return parts.length >= 2 ? `${parts.slice(1).join(' ')} ${parts[0]}` : a
+      })
+      .join(', '),
     year: p.year ? String(p.year) : EMPTY_FORM.year,
     discipline: p.discipline,
     abstract: p.abstract,
@@ -196,6 +210,7 @@ function presetToForm(p: IngestResource): FormState {
     subdiscipline: p.subdiscipline ?? '',
     tags: p.tags.join(', '),
     doi: p.doi ?? '',
+    file: null,
   }
 }
 
@@ -337,8 +352,14 @@ function SubmissionsPage() {
         setDetail(updated)
         toast.success('稿件已更新')
       } else {
-        await createMut.mutateAsync(body)
-        toast.success('提交成功，等待审核')
+        const created = await createMut.mutateAsync(body)
+        // 新建时若已选好稿件文件，直接一并上传，作者不必再进详情页补传
+        if (form.file) {
+          await uploadMut.mutateAsync({ id: created.id, file: form.file })
+          toast.success('提交成功，稿件文件已上传')
+        } else {
+          toast.success('提交成功，等待审核')
+        }
       }
       setCreateOpen(false)
       setEditingId(null)
@@ -753,6 +774,47 @@ function SubmissionsPage() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={onCreate} className="space-y-4">
+            {/* 稿件文件：投稿的核心是先交论文，放在表单最前面（可选，提交后也可在详情里补传） */}
+            <div className="space-y-2 rounded-md border border-dashed p-3">
+              <Label>稿件文件（可选，优先传 PDF）</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm hover:bg-muted/70">
+                  <Upload className="h-4 w-4" />
+                  {form.file ? '替换文件' : '选择文件'}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.docx,.doc,.txt,.zip,.ps"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) set('file', f)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                {form.file ? (
+                  <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <FileText className="h-4 w-4" />
+                    <span className="max-w-[16rem] truncate">
+                      {form.file.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-1 text-destructive"
+                      onClick={() => set('file', null)}
+                    >
+                      移除
+                    </Button>
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    未选择文件（可先提交，稍后在详情里补传）
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="type">类型</Label>

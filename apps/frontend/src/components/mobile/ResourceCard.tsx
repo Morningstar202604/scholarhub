@@ -1,14 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { Badge } from '@/components/ui/badge'
+import { formatAuthors } from '@/lib/utils'
 import type { ResourceResponse } from '@/lib/types'
 
 // 移动端目录卡片：竖向堆叠、大触摸目标、点击整卡进入详情。
 // 与桌面表格是两套完全不同的呈现，不共享勾选/批量逻辑。
 export function ResourceCard({ resource }: { resource: ResourceResponse }) {
-  const authors =
-    resource.authors.length > 2
-      ? `${resource.authors.slice(0, 2).join(', ')} et al.`
-      : resource.authors.join(', ')
+  const authors = formatAuthors(resource.authors)
 
   return (
     <Link

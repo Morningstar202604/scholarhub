@@ -18,13 +18,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
+import PdfViewer from '@/components/pdf-viewer'
 
-// Restrict reader iframe to https: scheme so data:/blob:/javascript:
+// Restrict reader iframe to http(s) scheme so data:/blob:/javascript:
 // URLs cannot execute content inside the PDF viewer frame.
+// http: 放行是为了同源部署（如本地 /uploads 托管的稿件文件）。
 function isSafeDownloadUrl(url: string): boolean {
   try {
-    const u = new URL(url)
-    return u.protocol === 'https:'
+    const u = new URL(url, window.location.origin)
+    return u.protocol === 'https:' || u.protocol === 'http:'
   } catch {
     return false
   }
@@ -212,14 +214,13 @@ function ReaderPage() {
           (isMobile ? ' pb-20' : '')
         }
       >
-        {/* PDF 主体 */}
-        <div className="flex-1 overflow-hidden p-4">
+        {/* PDF 主体：pdf.js 渲染（可精确分页、进度与页码真实同步） */}
+        <div className="flex h-[60vh] flex-col lg:h-full">
           {data.download_url && isSafeDownloadUrl(data.download_url) ? (
-            <iframe
-              src={data.download_url}
-              title={data.title}
-              className="h-[60vh] w-full rounded-md border lg:h-full"
-              sandbox="allow-same-origin allow-popups"
+            <PdfViewer
+              url={data.download_url}
+              initialPage={progress.data?.page ?? 1}
+              onPageChange={(p) => goToPage(p)}
             />
           ) : (
             <EmptyState

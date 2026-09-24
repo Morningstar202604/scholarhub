@@ -65,7 +65,19 @@ function ResourceCard({
         </div>
         {resource.authors.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            {resource.authors.join(', ')}
+            {/* 解析结果常是 "Last, First" 形式：先规范成 "First Last" 再用顿号连接，
+                否则 "Kingma, Diederik P, Ba, Jimmy" 看着像四个作者 */}
+            {resource.authors
+              .map((a) => {
+                const parts = a
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+                return parts.length >= 2
+                  ? `${parts.slice(1).join(' ')} ${parts[0]}`
+                  : a
+              })
+              .join('、')}
           </p>
         )}
         {resource.abstract && (

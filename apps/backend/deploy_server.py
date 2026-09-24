@@ -46,7 +46,7 @@ if not os.environ.get("SCHOLARHUB_FERNET_KEY"):
         os.environ["SCHOLARHUB_FERNET_KEY"] = Fernet.generate_key().decode()
     except ImportError:  # pragma: no cover
         pass
-os.environ.setdefault("SCHOLARHUB_ADMIN_EMAIL", "admin@scholarhub.local")
+os.environ.setdefault("SCHOLARHUB_ADMIN_EMAIL", "admin@example.com")
 os.environ.setdefault("SCHOLARHUB_ADMIN_USERNAME", "admin")
 if not os.environ.get("SCHOLARHUB_ADMIN_PASSWORD"):
     _admin_pw = secrets.token_urlsafe(12)

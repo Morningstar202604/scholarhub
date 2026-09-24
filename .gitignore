@@ -141,3 +141,13 @@ id_dsa.pub
 
 # 原始录屏（体积大、可重新生成；成品在 docs/assets/demo/）
 media/raw/
+
+# Runtime data (never commit)
+apps/backend/uploads/
+apps/backend/_conv_test.db
+apps/backend/_migrate_test.db
+apps/backend/e2e_run_server.db
+
+# Dev audits / backup dirs
+.audit/
+versions_backup*/

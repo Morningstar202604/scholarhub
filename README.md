@@ -1,294 +1,115 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="ScholarHUB logo" width="120" height="120" />
+<img src="docs/assets/logo.svg" alt="ScholarHUB" width="110" height="110" />
 
 # ScholarHUB
 
-[English](README.md) · [中文](README.zh.md) · [日本語](README.ja.md)
+**开放学术出版平台 — Submit · Review · Publish · Read，一个代码库跑完整个出版闭环**
 
-### Stop rebuilding the journal from scratch.
+> 11 个后端模块 · 644 单元测试（84% 覆盖率）· 66 条 E2E 用例 · 全链路严格类型
 
-**An open-source backbone that ships the entire academic publishing loop — submit, review, publish, read — in one codebase.**
-
-> 11 backend modules · 644 tests at 84% coverage · 68 end-to-end specs · strict typing end to end
-
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0-6B7280?style=flat-square)](VERSION)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white&style=flat-square)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white&style=flat-square)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white&style=flat-square)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6.svg?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1.svg?logo=postgresql&logoColor=white&style=flat-square)](https://www.postgresql.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4.svg?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
-[![Docker](https://img.shields.io/badge/Docker--Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
+[![Docker](https://img.shields.io/badge/Docker_Compose-2496ED.svg?logo=docker&logoColor=white&style=flat-square)](https://docs.docker.com/compose/)
+[![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#测试)
+[![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#测试)
+[![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#测试)
 
-[![Modules](https://img.shields.io/badge/modules-11-6366F1?style=flat-square)](docs/ARCHITECTURE.md)
-[![Unit tests](https://img.shields.io/badge/unit_tests-644-10B981?style=flat-square&logo=pytest&logoColor=white)](#testing)
-[![Coverage](https://img.shields.io/badge/coverage-84%25-2C5AA0?style=flat-square)](#testing)
-[![E2E](https://img.shields.io/badge/E2E_specs-66-22C55E?style=flat-square&logo=playwright&logoColor=white)](#testing)
-[![Mypy](https://img.shields.io/badge/mypy-strict-0E7490?style=flat-square&logo=python&logoColor=white)](#testing)
-[![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square)](#status)
+**镜像仓库**：[GitHub](https://github.com/x33834/scholarhub) · [GitHub](https://github.com/Morningstar202604/scholarhub) · [GitCode](https://gitcode.com/badhope/scholarhub) · [Gitee](https://gitee.com/badhope/scholarhub)
 
-[![GitHub](https://img.shields.io/badge/GitHub-x33834-24292F?style=flat-square&logo=github)](https://github.com/x33834/scholarhub)
-[![GitHub](https://img.shields.io/badge/GitHub-Morningstar202604-24292F?style=flat-square&logo=github)](https://github.com/Morningstar202604/scholarhub)
-[![GitCode](https://img.shields.io/badge/GitCode-badhope-3A72BE?style=flat-square&logo=git)](https://gitcode.com/badhope/scholarhub)
-[![Gitee](https://img.shields.io/badge/Gitee-badhope-C71D23?style=flat-square&logo=git)](https://gitee.com/badhope/scholarhub)
-
-**[Why](#why-scholarhub) · [Screenshots](#screenshots) · [What's inside](#whats-inside) · [Architecture](#architecture) · [Quick start](#quick-start) · [Testing](#testing) · [Docs](#docs) · [Contributing](#contributing)**
+**[功能一览](#功能一览) · [界面预览](#界面预览) · [架构](#架构) · [快速开始](#快速开始) · [技术栈](#技术栈) · [测试](#测试) · [文档](#文档)**
 
 </div>
 
 ---
 
-## Why ScholarHUB
+## 功能一览
 
-Most teams rebuild the same journal scaffold from scratch — submission forms, reviewer assignment, a CMS for published papers. ScholarHUB ships that scaffold as a **real, multi-role product** instead of yet another custom CMS:
+| 角色 | 能力 |
+| --- | --- |
+| **作者** | 新建投稿（附 PDF）、多版本修订、跟踪审核状态（待审/大修/小修/录用/拒稿） |
+| **编辑** | 审稿人指派、裁决（含编辑备注）、稿件管理工作台 |
+| **审稿人** | 审稿报告、盲审（单盲/双盲）、决定建议 |
+| **读者** | 公开目录检索、**浏览器内在线阅读（pdf.js）**、跨设备阅读进度、关注作者、订阅通知 |
+| **管理员** | 用户/卷/期/期刊管理、审计日志、批量导入（BibTeX / RIS / CSV / DOI / arXiv） |
 
-- **One platform, four roles.** Authors submit; editors assign and decide; reviewers report; readers browse, read, and follow. No glue code between disconnected systems.
-- **The full loop, not a demo.** Manuscript metadata, single/double-blind review, versioned revisions, DOI registration, catalog, in-browser reading with cross-device progress, subscriptions, and recommendations — all wired together.
-- **Secure by default.** Passkeys (WebAuthn) and TOTP two-factor, JWT with a server-side denylist and key rotation, captcha on signup, and a per-action audit log.
-- **Self-hostable in minutes.** `docker compose up` on a single node; PostgreSQL for production, SQLite for dev and CI.
+**安全默认开启**：WebAuthn 通行密钥 + TOTP 双因素、JWT 服务端吊销与密钥轮换、注册验证码、全操作审计日志、多租户隔离（PostgreSQL RLS）。
 
-### The whole loop in one picture
+**轻量部署**：单机 `docker compose up` 即可；生产用 PostgreSQL，开发/演示用 SQLite + 单端口服务。
 
-<div align="center">
-<img src="docs/assets/workflow.svg" alt="Submit → review → publish → read workflow" width="900" />
-</div>
+## 界面预览
 
-## Screenshots
+| 公开门户 | 资源目录 | 在线阅读 |
+| --- | --- | --- |
+| ![home](docs/assets/screenshots/01-home.png) | ![catalog](docs/assets/screenshots/02-catalog.png) | ![reader](docs/assets/screenshots/17-reader.png) |
 
-> Real captures from the running app — **desktop 1440×900 · mobile 390×844**. Click the hero image for the 60-second tour.
+| 工作台概览 | 我的投稿 | 编辑工作台 |
+| --- | --- | --- |
+| ![dashboard](docs/assets/screenshots/04-dashboard.png) | ![submissions](docs/assets/screenshots/07-my-submissions.png) | ![editor](docs/assets/screenshots/05-editor-workbench.png) |
 
-<div align="center">
+| 移动端目录 | 移动端详情 | 审稿工作台 |
+| --- | --- | --- |
+| ![mobile catalog](docs/assets/screenshots/mobile-catalog.png) | ![mobile detail](docs/assets/screenshots/mobile-detail.png) | ![reviewer](docs/assets/screenshots/06-reviewer-workbench.png) |
 
-<a href="docs/assets/demo/ScholarHUB-promo.webm">
-<img src="docs/assets/screenshots-overview.png" alt="ScholarHUB interface overview — 19 screens across catalog, review, publication, recommendations, library and reader" width="940" />
-</a>
+## 架构
 
-**▶ [Watch the 60-second tour](docs/assets/demo/ScholarHUB-promo.webm)** · [all 19 screenshots](docs/assets/screenshots)
+![architecture](docs/assets/architecture.svg)
 
-</div>
+**核心流程**：投稿 → 分配审稿人 → 盲审 → 编辑裁决 → 收录公开目录 → 在线阅读。
 
-### Read — discover, inspect, read in place
+![workflow](docs/assets/workflow.svg)
 
-<table>
-<tr>
-<td width="33%" align="center"><img src="docs/assets/screenshots/02-catalog.png" alt="Catalog" width="100%" /><br /><sub><b>Catalog</b> — faceted search over published work</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/03-resource-detail.png" alt="Resource detail" width="100%" /><br /><sub><b>Resource detail</b> — metadata, DOI, abstract, files</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/17-reader.png" alt="In-browser reader" width="100%" /><br /><sub><b>Reader</b> — in-browser PDF with synced progress</sub></td>
-</tr>
-</table>
+## 快速开始
 
-### Publish — the author → editor → reviewer loop
-
-<table>
-<tr>
-<td width="33%" align="center"><img src="docs/assets/screenshots/07-my-submissions.png" alt="My submissions" width="100%" /><br /><sub><b>Author</b> — submissions, revisions and status</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/05-editor-workbench.png" alt="Editor workbench" width="100%" /><br /><sub><b>Editor</b> — assign reviewers, decide, publish</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/06-reviewer-workbench.png" alt="Reviewer workbench" width="100%" /><br /><sub><b>Reviewer</b> — read manuscripts, file reports</sub></td>
-</tr>
-</table>
-
-### Discover &amp; operate — personal &amp; admin
-
-<table>
-<tr>
-<td width="33%" align="center"><img src="docs/assets/screenshots/11-recommendations.png" alt="Recommendations" width="100%" /><br /><sub><b>Recommendations</b> — ranked by your reading history</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/12-library.png" alt="Personal library" width="100%" /><br /><sub><b>Library</b> — reading lists, cross-device progress</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/08-admin-users.png" alt="Admin shell" width="100%" /><br /><sub><b>Admin</b> — users, roles and audit log</sub></td>
-</tr>
-</table>
-
-### Entry points &amp; audit trail
-
-<table>
-<tr>
-<td width="33%" align="center"><img src="docs/assets/screenshots/01-home.png" alt="Home" width="100%" /><br /><sub><b>Home</b> — landing with featured work</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/04-dashboard.png" alt="Dashboard" width="100%" /><br /><sub><b>Dashboard</b> — your at-a-glance activity</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/09-admin-audit.png" alt="Audit log" width="100%" /><br /><sub><b>Audit</b> — admin audit log</sub></td>
-</tr>
-</table>
-
-### Tools, safety &amp; social
-
-<table>
-<tr>
-<td width="33%" align="center"><img src="docs/assets/screenshots/10-ingest.png" alt="Ingest" width="100%" /><br /><sub><b>Ingest</b> — bring external sources in</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/13-notifications.png" alt="Notifications" width="100%" /><br /><sub><b>Notifications</b> — stay on top of updates</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/16-follows.png" alt="Follows" width="100%" /><br /><sub><b>Follows</b> — follow authors &amp; journals</sub></td>
-</tr>
-</table>
-
-<table>
-<tr>
-<td width="33%" align="center"><img src="docs/assets/screenshots/14-admin-journal.png" alt="Journals" width="100%" /><br /><sub><b>Journals</b> — admin journal management</sub></td>
-<td width="33%" align="center"><img src="docs/assets/screenshots/15-account-security.png" alt="Account security" width="100%" /><br /><sub><b>Security</b> — 2FA &amp; account settings</sub></td>
-</tr>
-</table>
-
-### Mobile — 390×844 captures
-
-<div align="center">
-<table>
-<tr>
-<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-catalog.png" alt="Mobile catalog" width="100%" /><br /><sub><b>Catalog</b></sub></td>
-<td width="50%" align="center"><img src="docs/assets/screenshots/mobile-detail.png" alt="Mobile detail" width="100%" /><br /><sub><b>Resource detail</b></sub></td>
-</tr>
-</table>
-</div>
-
-## What's inside
-
-| Capability | Highlights |
-|---|---|
-| **Submissions & review** | Full metadata intake, single/double-blind workflows, reviewer assignment, versioned revisions, editor decisions, terminal-state guards |
-| **Publication & catalog** | Volume/issue management, searchable published catalog, DOI registration via DataCite |
-| **Metadata ingest** | Pull authoritative records from Crossref, arXiv, PubMed, OpenAlex, and Semantic Scholar — plus BibTeX / RIS / CSV import |
-| **Reader experience** | In-browser PDF reader, reading-progress sync across devices, personal reading lists, follow authors & subjects |
-| **Auth & security** | WebAuthn passkeys, TOTP 2FA, JWT denylist + key rotation, captcha, RBAC (author / editor / reviewer / reader / admin) |
-| **Multi-tenant** | Host multiple journals on one deployment with host-based tenant resolution and cached routing |
-| **Discovery** | Follow graphs, recommendations, email + in-app notifications, citation export (BibTeX / RIS / CSL) |
-
-Every domain capability is an independent module — disable, replace, or extend it without touching core.
-
-## Architecture
-
-<div align="center">
-<img src="docs/assets/architecture.svg" alt="ScholarHUB architecture" width="820" />
-</div>
-
-- **Backend** — FastAPI (async), SQLAlchemy 2.0 async, PostgreSQL / SQLite, modular `app/modules/*` with strict `mypy` and `ruff`.
-- **Frontend** — React 19 + TanStack Router + TypeScript 5.9 + Tailwind v4 + shadcn/ui, type-safe end to end.
-- **Tests** — `pytest` (parallel, 84% line coverage, `--cov-fail-under=80`), `vitest` for the frontend, Playwright for the full submit → review → publish → read journey.
-
-### Two defenses worth knowing
-
-- **Two-layer tenant isolation.** Every domain table carries a `tenant_id`. The app appends the filter on every query, and PostgreSQL Row-Level Security rejects cross-tenant rows even if the app forgets — defense in depth, not a hope.
-- **Module registry.** `app.core.modules.load_all()` loads modules in dependency order, registers their ORM tables, mounts their routes, and adds health checks. New capability = one entry, zero core changes.
-
-## Quick start
-
-### Option 1 — Docker Compose (recommended)
+### 方式一：Docker Compose（推荐，一条命令）
 
 ```bash
-# 1. Generate strong secrets
-echo "SCHOLARHUB_SECRET_KEY=$(openssl rand -hex 32)" > .env
-echo "SCHOLARHUB_ADMIN_PASSWORD=$(openssl rand -base64 18)" >> .env
-
-# 2. Start the dev stack (Postgres + backend + frontend)
-docker compose -f infra/docker-compose.yml up --build
-
-# 3. Open the API docs and the SPA
-xdg-open http://localhost:8000/docs
-xdg-open http://localhost:5173
+docker compose up -d
+# 打开 http://localhost:8000
 ```
 
-### Option 2 — Local bare metal (development)
-
-Requires Python 3.12+, Node 20+, and a PostgreSQL 17 instance.
+### 方式二：单端口开发/演示服务（无需容器）
 
 ```bash
-# Backend
-cd apps/backend && uv sync && uv run alembic upgrade head
-uv run uvicorn app.main:app --reload
-
-# Frontend (another terminal)
-cd apps/frontend && npm install && npm run dev
+cd apps/backend
+cp .env.example .env          # 按需修改密钥
+uv sync --group dev           # 安装依赖
+uv run alembic upgrade head   # 初始化数据库
+uv run python deploy_server.py
+# 后端 API + 前端静态资源 + 上传文件，全部跑在 http://localhost:8000
 ```
 
-### Option 3 — Production
+## 技术栈
+
+| 层 | 技术 |
+| --- | --- |
+| 前端 | React 19 · TypeScript 5.9 · TanStack Router/Query · Tailwind CSS v4 · pdf.js |
+| 后端 | FastAPI · SQLAlchemy 2 (async) · Alembic · PostgreSQL 17 / SQLite |
+| 安全 | WebAuthn · TOTP · JWT denylist · bcrypt · CSP 安全头 |
+| 质量 | pytest (644) · Playwright E2E (66) · ruff · mypy strict · npm audit |
+
+## 测试
 
 ```bash
-cp .env .env.prod                 # fill at least SCHOLARHUB_SECRET_KEY + SCHOLARHUB_ADMIN_PASSWORD
-# edit infra/Caddyfile -> replace scholarhub.example.com with your domain
-docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d --build
-```
+# 后端（单元 + 迁移一致性）
+cd apps/backend && uv run pytest
 
-> Mail (Mailgun / SendGrid / SES / Postmark) and OIDC SSO (Google / GitHub / Keycloak): see [integrations.md](docs/integrations.md).
+# 前端（lint + typecheck + 单测 + 构建）
+cd apps/frontend && npm ci && npm run lint && npm run typecheck && npm test
 
-## Tech stack
-
-Every choice is mainstream and long-term hostable — no exotic dependencies.
-
-| Layer | Backend | Frontend |
-|---|---|---|
-| Language / framework | Python 3.12+, FastAPI 0.115+ | React 19, TypeScript 5.9, Vite 7 |
-| Data | SQLAlchemy 2 (async), Alembic, PostgreSQL 17 | TanStack Router v1, TanStack Query v5, Zustand |
-| Validation / auth | Pydantic 2, JWT + bcrypt, PyJWT, authlib (OIDC) | shadcn/ui + Radix, Tailwind v4, lucide-react |
-| Infra | Docker Compose, Caddy (auto TLS), structlog | Playwright (E2E) |
-| Toolchain | uv, ruff, mypy (strict), pytest, bandit | ESLint, Vitest, tsc project references |
-
-All variables are prefixed `SCHOLARHUB_`. The full list and the `.env` template live in [`apps/backend/app/core/config.py`](apps/backend/app/core/config.py) and [`apps/backend/.env.example`](apps/backend/.env.example). Essentials: `SCHOLARHUB_SECRET_KEY`, `SCHOLARHUB_ADMIN_PASSWORD`, `SCHOLARHUB_DATABASE_URL`, `SCHOLARHUB_TENANCY_MODE` (`single` / `multi`), `SCHOLARHUB_ENVIRONMENT`.
-
-## Security
-
-Defense in depth is enabled the moment the backend boots:
-
-- **Auth** — bcrypt hashing; short-lived JWT access + httpOnly refresh cookie + per-user `token_version`.
-- **2FA (TOTP)** — RFC 6238, per-user secret Fernet-encrypted at rest, 10 single-use backup codes (SHA-256).
-- **Passkeys** — WebAuthn registration / authentication state machine with one-time, TTL-bound challenges.
-- **JWT key rotation** — ordered key chain; `POST /api/admin/reload-secret-keys` rotates with zero downtime.
-- **Rate limit** — sliding window per IP + route; `RedisRateLimiterStore` when `SCHOLARHUB_REDIS_URL` is set, otherwise in-memory (Redis errors auto-fail-open).
-- **GDPR** — export / soft-delete (30-day grace) / restore self-service endpoints.
-- **Headers & errors** — CSP, HSTS, CSRF double-submit; RFC 7807 `application/problem+json` everywhere; per-tenant audit log on every privileged action.
-
-See [SECURITY.md](SECURITY.md) for the full policy and threat model.
-
-## Default roles
-
-`core` creates these on startup (assignable from the admin shell):
-
-| Role | Scope |
-|---|---|
-| `admin` | Full access — admin shell, user management, audit log |
-| `editor` | Assign reviewers, organize volumes/issues, accept/reject, push to *published* |
-| `reviewer` | View assigned submissions, file review reports |
-| `author` | Submit manuscripts, view own status, upload revisions |
-| `member` | Read, save, follow, view recommendations |
-
-## Testing
-
-Quality is enforced in CI, not just claimed:
-
-- **Backend** — **644** `pytest` cases at **84% line coverage** with a hard `--cov-fail-under=80` gate; `mypy --strict` and `ruff` clean.
-- **Frontend** — `vitest` unit + component tests under strict `tsc` (**100** cases).
-- **E2E** — **66 Playwright specs** exercising the real submit → review → publish → read workflow against a spawned test server (no flaky production parity).
-- **CI** — backend, frontend, and e2e jobs on every push; strict pytest markers; a version-consistency guard keeps `VERSION` / `pyproject` / `package.json` / `__version__` in lockstep.
-
-```bash
-# Backend
-cd apps/backend && uv run ruff check . && uv run mypy app && uv run pytest -q
-
-# Frontend
-cd apps/frontend && npm run lint && npm run typecheck && npm run test
-
-# E2E (Playwright spawns both servers via E2E_SPAWN_SERVER=1)
+# E2E（投稿 → 审稿 → 录用全链路）
 cd apps/frontend && E2E_SPAWN_SERVER=1 npx playwright test
 ```
 
-## Docs
+## 文档
 
-- [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md) · [Integrations](docs/integrations.md)
-- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Support](SUPPORT.md) · [Changelog](CHANGELOG.md)
-
-## Contributing
-
-Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit conventions, and the PR checklist.
-
-## Repository
-
-Four platforms in parallel (same branches, tags, and HEAD) — no favorites, pick any one:
-
-| Platform | URL |
-|---|---|
-| GitHub | <https://github.com/x33834/scholarhub> |
-| GitHub | <https://github.com/Morningstar202604/scholarhub> |
-| GitCode | <https://gitcode.com/badhope/scholarhub> |
-| Gitee | <https://gitee.com/badhope/scholarhub> |
-
-Official sites (GitHub Pages, both accounts, identical):
-<https://x33834.github.io/scholarhub/> · <https://morningstar202604.github.io/scholarhub/>
+- [架构详解](docs/ARCHITECTURE.md) · [部署手册](DEPLOY.md)
+- [贡献指南](CONTRIBUTING.md) · [行为准则](CODE_OF_CONDUCT.md)
 
 ## License
 
-Copyright © 2026 Morningstar202604. Released under the [Apache-2.0 License](LICENSE). Provided "as is", without warranty of any kind.
+[Apache-2.0](LICENSE)

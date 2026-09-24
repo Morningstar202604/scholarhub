@@ -23,6 +23,7 @@ import type {
 } from '@/lib/types'
 import { extractError } from '@/lib/utils'
 import { PageHeader } from '@/components/common/page-header'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { Pagination } from '@/components/common/pagination'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 import { Badge } from '@/components/ui/badge'
@@ -64,6 +65,14 @@ const DECISION_OPTIONS: { value: EditorDecision; label: string; hint?: string }[
   { value: 'major_revision', label: '大修（Major Revision）' },
   { value: 'reject', label: '拒稿（Reject）' },
 ]
+
+// 审稿评分维度显示用中文（存储 key 是英文，展示时才翻译，避免前后端口径漂移）
+const SCORE_LABELS: Record<string, string> = {
+  originality: '原创性',
+  methodology: '方法学',
+  clarity: '清晰度',
+  significance: '重要性',
+}
 
 // 编辑工作台状态 tab：全部 + 7 种 submission status
 type StatusTab = SubmissionStatus | 'all'
@@ -149,8 +158,12 @@ function PendingSubmissionsPage() {
   const [assignTarget, setAssignTarget] = useState<SubmissionResponse | null>(null)
   const [assignmentsTarget, setAssignmentsTarget] = useState<SubmissionResponse | null>(null)
   const [decisionTarget, setDecisionTarget] = useState<SubmissionResponse | null>(null)
+  // 拒稿是终态决定，二次确认后才真正执行
+  const [rejectConfirm, setRejectConfirm] = useState(false)
   const [reportsTarget, setReportsTarget] = useState<SubmissionResponse | null>(null)
   const [decisionForm, setDecisionForm] = useState<DecisionFormState>(EMPTY_DECISION)
+  // 做决定时内嵌审稿报告摘要：推荐 + 评分 + 编辑保密意见，编辑不必另开弹窗
+  const decisionReportsQ = useSubmissionReports(decisionTarget?.id ?? 0)
 
   const updateSearch = (patch: Partial<PendingSearch>) => {
     void navigate({
@@ -163,6 +176,15 @@ function PendingSubmissionsPage() {
   const onConfirmDecision = async () => {
     if (!decisionTarget) return
     const target = decisionTarget
+    // 拒稿：先弹二次确认（终态操作，误触会直接断送作者的这次投稿）
+    if (decisionForm.decision === 'reject') {
+      setRejectConfirm(true)
+      return
+    }
+    await doDecision(target)
+  }
+
+  const doDecision = async (target: SubmissionResponse) => {
     try {
       await decisionMut.mutateAsync({
         id: target.id,
@@ -320,6 +342,41 @@ function PendingSubmissionsPage() {
             <DialogTitle>做决定 — {decisionTarget?.title}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* 审稿报告摘要：有报告时直接展示，帮助编辑在同一个弹窗里完成决定 */}
+            {decisionReportsQ.data && decisionReportsQ.data.length > 0 && (
+              <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="text-xs font-medium text-muted-foreground">
+                  审稿报告摘要（{decisionReportsQ.data.length} 份）
+                </div>
+                {decisionReportsQ.data.map((r) => (
+                  <div key={r.id} className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">推荐：{r.recommendation}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(r.submitted_at).toLocaleString()}
+                      </span>
+                    </div>
+                    {Object.keys(r.scores).length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(r.scores).map(([k, v]) => (
+                          <span
+                            key={k}
+                            className="rounded bg-muted px-2 py-0.5 text-xs"
+                          >
+                            {SCORE_LABELS[k] ?? k} {v}/5
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {r.comments_to_editor && (
+                      <p className="whitespace-pre-wrap rounded bg-amber-500/10 p-2 text-xs text-amber-700">
+                        编辑保密意见：{r.comments_to_editor}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="decision">决定</Label>
               <Select
@@ -382,6 +439,20 @@ function PendingSubmissionsPage() {
           onClose={() => setReportsTarget(null)}
         />
       )}
+
+      {/* 拒稿二次确认：终态操作，先想清楚再执行 */}
+      <ConfirmDialog
+        open={rejectConfirm}
+        title="确认拒稿"
+        description="拒稿后该投稿将进入「已拒稿」状态，作者不能继续修改或重投。确定要拒稿吗？"
+        confirmText="确认拒稿"
+        destructive
+        onConfirm={() => {
+          setRejectConfirm(false)
+          if (decisionTarget) void doDecision(decisionTarget)
+        }}
+        onOpenChange={(o) => !o && setRejectConfirm(false)}
+      />
     </div>
   )
 }
@@ -736,7 +807,9 @@ function ReportsDialog({
                       key={k}
                       className="rounded bg-muted p-1 text-center text-xs"
                     >
-                      <div className="font-medium capitalize">{k}</div>
+                      <div className="font-medium">
+                        {SCORE_LABELS[k] ?? k}
+                      </div>
                       <div className="text-muted-foreground">{v}/5</div>
                     </div>
                   ))}

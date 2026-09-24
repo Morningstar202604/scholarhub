@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { exportResources, useResources } from '@/hooks/api/use-modules'
 import type { ResourceType } from '@/lib/types'
-import { extractError } from '@/lib/utils'
+import { extractError, formatAuthors } from '@/lib/utils'
 import { PageHeader } from '@/components/common/page-header'
 import { EmptyState, ErrorState, Loading } from '@/components/common/state'
 import { Pagination } from '@/components/common/pagination'
@@ -209,10 +209,7 @@ function CatalogListPage() {
               </TableHeader>
               <TableBody>
                 {data.data.map((r) => {
-                  const authors =
-                    r.authors.length > 2
-                      ? `${r.authors.slice(0, 2).join(', ')} et al.`
-                      : r.authors.join(', ')
+                  const authors = formatAuthors(r.authors)
                   return (
                     <TableRow
                       key={r.id}

@@ -18,6 +18,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from urllib.parse import urlparse
 
 from app.core.schemas import Authors, PaginationMeta
 
@@ -69,11 +70,26 @@ class ResourceBase(BaseModel):
     abstract: str = Field(min_length=1, max_length=20000)
     # Optional preview; falls back to the first 500 chars of abstract (matches SubmissionCreate).
     preview: str | None = Field(default=None, max_length=5000)
-    download_url: AnyHttpUrl | None = None
-    external_url: AnyHttpUrl | None = None
+    # download_url / external_url 允许两种形态：
+    #   1) http(s) 绝对链接（外部托管）；
+    #   2) 以 / 开头的同源相对路径（本地托管的稿件文件，如 /uploads/...）。
+    # 其余 scheme（javascript:、data: 等）一律拒绝，避免存入后
+    # 被阅读器 iframe 当成可执行内容（存储型 XSS）。
+    download_url: str | None = None
+    external_url: str | None = None
     doi: str | None = Field(default=None, max_length=200)
-    # Optional parallel list of author enrichment objects. Must have
-    # the same length as ``authors`` (when set), or be empty/null.
+
+    @field_validator("download_url", "external_url")
+    @classmethod
+    def _safe_url(cls, v: str | None) -> str | None:
+        if v is None or v.startswith("/"):
+            return v
+        parsed = urlparse(v)
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            return v
+        raise ValueError("url 必须以 http(s) 开头，或为 / 开头的同源相对路径")
+
+    # Optional parallel list of author enrichment objects. Must have the same length as ``authors`` (when set), or be empty/null.
     authors_meta: list[AuthorMeta] | None = Field(default=None, max_length=200)
 
     @model_validator(mode="after")
@@ -131,11 +147,9 @@ class ResourceUpdate(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=50)
     abstract: str | None = Field(default=None, min_length=1, max_length=20000)
     preview: str | None = Field(default=None, min_length=1, max_length=5000)
-    # Use AnyHttpUrl | None (matching ResourceBase) so the URL scheme is
-    # constrained to http/https. A plain str | None would accept
-    # javascript: and other dangerous schemes, enabling stored XSS.
-    download_url: AnyHttpUrl | None = None
-    external_url: AnyHttpUrl | None = None
+    # URL scheme 安全性由 ResourceBase._safe_url 统一校验（http/https 或同源相对路径）。
+    download_url: str | None = None
+    external_url: str | None = None
     doi: str | None = Field(default=None, max_length=200)
     volume: str | None = Field(default=None, max_length=50)
     issue: str | None = Field(default=None, max_length=50)

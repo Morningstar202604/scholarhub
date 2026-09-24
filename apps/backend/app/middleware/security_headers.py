@@ -39,11 +39,13 @@ class SecurityHeadersMiddleware:
                             b"content-security-policy",
                             b"default-src 'self'; "
                             b"script-src 'self'; "
-                            b"style-src 'self'; "
-                            b"frame-src https:; "
+                            b"style-src 'self' 'unsafe-inline'; "
+                            b"frame-src 'self' https:; "
                             b"connect-src 'self'; "
                             b"img-src 'self' data: https:; "
-                            b"font-src 'self'",
+                            b"font-src 'self' data:; "
+                            b"worker-src 'self' blob:; "
+                            b"object-src 'self' blob:",
                         ),
                         (b"x-api-version", __version__.encode()),
                     ]

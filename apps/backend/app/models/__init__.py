@@ -262,35 +262,6 @@ class UserRole(Base, TenantScopedMixin):
     role: Mapped[Role] = relationship(back_populates="assignments")
 
 
-class ModuleState(Base, TenantScopedMixin):
-    """Tracks per-tenant module enable/disable state.
-
-    The Python ``ENABLED_MODULES`` list controls which modules are
-    *loaded* at the process level (code available). This table tracks
-    which modules are *enabled* per tenant (admin can turn modules off
-    for a specific tenant without redeploying).
-    """
-
-    __tablename__ = "module_states"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "module_name", name="uq_module_states_tenant_module"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    module_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    settings: Mapped[dict[str, Any] | None] = mapped_column(JSONBVariant, nullable=True)
-    enabled_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-        onupdate=utcnow,
-        nullable=False,
-    )
-
-
 class AuditLog(Base):
     """Immutable record of destructive operations (user delete, role change,
     module enable/disable, schema migration).
@@ -345,7 +316,6 @@ class AuditLog(Base):
 __all__ = [
     "AuditLog",
     "Base",
-    "ModuleState",
     "Role",
     "Tenant",
     "TenantHost",

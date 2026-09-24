@@ -17,9 +17,9 @@ jobs:
         working-directory: apps/backend
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
-          version: latest
+          version: "0.12.18"
       - name: Version consistency
         # 脚本在仓库根 scripts/（job 的 working-directory 是 apps/backend），
         # 脚本内部会 cd 到仓库根再做四路版本比对。
@@ -75,9 +75,9 @@ jobs:
       SCHOLARHUB_ENVIRONMENT: test
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
-          version: latest
+          version: "0.12.18"
       - name: Sync dependencies
         run: uv sync --group dev
       # `upgrade head` (singular) fails on multiple head revisions, so this
@@ -104,7 +104,9 @@ jobs:
       - name: Dependency vulnerability audit (npm audit)
         # 对 npm 依赖做漏洞审计（与 backend 的 pip-audit 对称）。--audit 仅
         # 检查已锁定的依赖，不触发 install，速度可控。命中高危漏洞时 exit 1。
-        run: npm audit --audit-level=high
+        # 显式指定官方 registry：国内镜像（npmmirror）不实现 audit 端点，
+        # 在中国区 runner 上会 404 并挂掉整个 job。
+        run: npm audit --audit-level=high --registry=https://registry.npmjs.org
       - name: Lint
         run: npm run lint
       - name: Typecheck
@@ -138,9 +140,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/frontend/package-lock.json
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
-          version: latest
+          version: "0.12.18"
       - name: Install frontend deps
         run: npm ci
       - name: Sync backend deps
@@ -174,9 +176,9 @@ jobs:
         working-directory: apps/backend
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
-          version: latest
+          version: "0.12.18"
       - name: Sync dependencies
         run: uv sync --group dev
       - name: Bandit static scan

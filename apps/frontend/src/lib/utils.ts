@@ -38,6 +38,24 @@ export function parseListField(s: string): string[] {
     .filter(Boolean)
 }
 
+// 作者名展示统一入口：
+// 1) 把 "Last, First" 规范成 "First Last"（BibTeX/RIS 导入常带逗号格式，
+//    直接 join 会让人误以为拆成多个作者）；
+// 2) 超过 2 位作者时截断为 "前两位 et al."。
+export function formatAuthors(authors: string[], limit = 2): string {
+  const names = authors.map((a) => {
+    const parts = a
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    return parts.length >= 2 ? `${parts.slice(1).join(' ')} ${parts[0]}` : a
+  })
+  if (names.length > limit) {
+    return `${names.slice(0, limit).join('、')} 等`
+  }
+  return names.join('、')
+}
+
 // Trigger a browser download from a Blob response (export / file download).
 // Filename is parsed from Content-Disposition, falling back to fallbackName.
 // Deduplicates the blob-download logic previously hand-rolled in
