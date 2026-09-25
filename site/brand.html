@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>品牌标识规范 — ScholarHUB</title>
-<meta name="description" content="ScholarHUB 品牌视觉规范：学术徽章、书页之 S 图形标、配色、字体、安全区、最小尺寸与禁用示例。" />
+<title data-i18n-attr="title">品牌标识规范 — ScholarHUB</title>
+<meta name="description" data-i18n-attr="description" content="ScholarHUB 品牌视觉规范：学术徽章、书页之 S 图形标、配色、字体、安全区、最小尺寸与禁用示例。" />
 <style>
   :root{
     --bg:#0a0c10; --bg2:#11151c; --bg3:#171c26;
@@ -27,7 +27,11 @@
   nav .links a{color:var(--fg2)}
   nav .links a:hover{color:var(--fg);text-decoration:none}
   nav .links a.on{color:var(--fg);font-weight:600}
-  @media(max-width:720px){nav .links{display:none}}
+  @media(max-width:900px){nav .links{display:none}}
+  .lang-switch{display:flex;gap:4px;border:1px solid var(--line2);border-radius:8px;padding:3px}
+  @media(max-width:900px){.lang-switch{margin-left:auto}}
+  .lang-switch button{background:transparent;border:none;color:var(--fg3);font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:6px;cursor:pointer;transition:.15s}
+  .lang-switch button.on{background:var(--bg3);color:var(--fg)}
   /* hero */
   header{padding:64px 0 40px;text-align:center}
   header h1{font-size:clamp(28px,4.5vw,42px);letter-spacing:-1px;font-weight:800}
@@ -53,17 +57,13 @@
   .sw-g{background:linear-gradient(135deg,var(--gold2),var(--gold))}
   .sw-s{background:#5A6B7C}
   .sw-w{background:var(--fg)}
-  .sw-ok{background:var(--ok)}
-  .sw-bad{background:var(--bad)}
   .swarn{font-size:12.5px;color:var(--fg2)}
   .swarn b{display:block;font-size:13px;color:var(--fg);font-weight:600;margin-top:2px}
   .swarn code{font-size:11.5px;color:var(--fg3);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   /* do/dont */
-  .do .tile{box-shadow:inset 0 0 0 2px rgba(40,199,111,.35)}
   .dont .tile{box-shadow:inset 0 0 0 2px rgba(239,75,92,.45)}
   .dont img{filter:grayscale(.15) opacity(.55)}
   .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:1px;padding:3px 10px;border-radius:20px;margin-bottom:12px}
-  .tag.ok{background:rgba(40,199,111,.14);color:var(--ok)}
   .tag.bad{background:rgba(239,75,92,.14);color:var(--bad)}
   /* table */
   table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -84,146 +84,313 @@
       ScholarHUB
     </a>
     <div class="links">
-      <a href="index.html#why">为什么</a>
-      <a href="index.html#flow">全流程</a>
-      <a href="index.html#shots">界面实拍</a>
-      <a href="index.html#cap">核心能力</a>
-      <a href="index.html#arch">架构</a>
-      <a href="index.html#start">快速开始</a>
-      <a class="on" href="brand.html">品牌规范</a>
+      <a href="index.html#why" data-i18n="nav-why">为什么</a>
+      <a href="index.html#flow" data-i18n="nav-flow">全流程</a>
+      <a href="index.html#shots" data-i18n="nav-shots">界面实拍</a>
+      <a href="index.html#usable" data-i18n="nav-usable">核心能力</a>
+      <a href="index.html#arch" data-i18n="nav-arch">架构</a>
+      <a href="index.html#start" data-i18n="nav-start">快速开始</a>
+      <a class="on" href="brand.html" data-i18n="nav-brand">品牌规范</a>
       <a href="https://github.com/x33834/scholarhub">GitHub</a>
     </div>
+    <span class="lang-switch" id="langSwitch">
+      <button data-lang="zh" class="on">中文</button>
+      <button data-lang="en">EN</button>
+    </span>
   </div>
 </nav>
 
 <header>
   <div class="wrap">
-    <h1>ScholarHUB 品牌标识规范</h1>
-    <div class="sub">学术徽章 · 书页之 S · 配色 · 字体 · 安全区 · 禁用示例</div>
+    <h1 data-i18n="hero-h1">ScholarHUB 品牌标识规范</h1>
+    <div class="sub" data-i18n="hero-sub">学术徽章 · 书页之 S · 配色 · 字体 · 安全区 · 禁用示例</div>
   </div>
 </header>
 
 <div class="wrap">
 
   <section>
-    <h2>设计语言</h2>
-    <div class="lead">标志由三个共享同一图形基因的版本组成：<b>学术徽章</b>（主标志，期刊印章风）、<b>书页之 S</b>（图形标，翻起一页的意象）与<b>反白版</b>（深色背景专用）。深学术蓝 + 出版金 + 衬线字标，延续学术出版的传统字形与机构感。</div>
+    <h2 data-i18n="s1-h2">设计语言</h2>
+    <div class="lead"><span data-i18n="s1-lead1">标志由三个共享同一图形基因的版本组成：</span><b data-i18n="s1-lead2">学术徽章</b><span data-i18n="s1-lead3">（主标志，期刊印章风）、</span><b data-i18n="s1-lead4">书页之 S</b><span data-i18n="s1-lead5">（图形标，翻起一页的意象）与</span><b data-i18n="s1-lead6">反白版</b><span data-i18n="s1-lead7">（深色背景专用）。深学术蓝 + 出版金 + 衬线字标，延续学术出版的传统字形与机构感。</span></div>
     <div class="card">
       <div class="grid g3">
-        <div><b>图形概念</b><br/><span style="color:var(--fg2);font-size:14px">S 一笔成型，右下金色翻页角 = 投稿→审稿→发表；底部引用星 = DOI 与引用文化。</span></div>
-        <div><b>制图逻辑</b><br/><span style="color:var(--fg2);font-size:14px">纯几何可复现：S 严格居中，环为同心圆，所有版本同几何、同比例，缩小到 16px 仍清晰。</span></div>
-        <div><b>使用原则</b><br/><span style="color:var(--fg2);font-size:14px">浅色背景用标准版，深色背景用反白版；正式传播用徽章，小尺寸用图形标。</span></div>
+        <div><b data-i18n="s1-c1-t">图形概念</b><br/><span data-i18n="s1-c1-d" style="color:var(--fg2);font-size:14px">S 一笔成型，右下金色翻页角 = 投稿→审稿→发表；底部引用星 = DOI 与引用文化。</span></div>
+        <div><b data-i18n="s1-c2-t">制图逻辑</b><br/><span data-i18n="s1-c2-d" style="color:var(--fg2);font-size:14px">纯几何可复现：S 严格居中，环为同心圆，所有版本同几何、同比例，缩小到 16px 仍清晰。</span></div>
+        <div><b data-i18n="s1-c3-t">使用原则</b><br/><span data-i18n="s1-c3-d" style="color:var(--fg2);font-size:14px">浅色背景用标准版，深色背景用反白版；正式传播用徽章，小尺寸用图形标。</span></div>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>主标志 · 学术徽章</h2>
-    <div class="lead">双环徽章：外环深学术蓝、内环出版金，环带衬线字标 <span class="serif">SCHOLARHUB · OPEN SCHOLARLY PUBLISHING</span>，中央书页之 S，底部金色引用星。用于期刊封面、官网 Hero、README 与正式传播。</div>
+    <h2 data-i18n="s2-h2">主标志 · 学术徽章</h2>
+    <div class="lead"><span data-i18n="s2-lead1">双环徽章：外环深学术蓝、内环出版金，环带衬线字标 </span><span class="serif">SCHOLARHUB · OPEN SCHOLARLY PUBLISHING</span><span data-i18n="s2-lead2">，中央书页之 S，底部金色引用星。用于期刊封面、官网 Hero、README 与正式传播。</span></div>
     <div class="grid g2">
       <div class="card" style="text-align:center">
-        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="200" height="200" alt="学术徽章标准版" />
-        <div style="margin-top:10px;font-size:13px;color:var(--fg2)">标准版 · 浅色背景</div>
+        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="200" height="200" alt="学术徽章标准版" data-i18n-alt="s2-a1" />
+        <div data-i18n="s2-c1" style="margin-top:10px;font-size:13px;color:var(--fg2)">标准版 · 浅色背景</div>
       </div>
       <div class="card dark" style="text-align:center">
-        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-white.svg" width="200" height="200" alt="学术徽章反白版" />
-        <div style="margin-top:10px;font-size:13px;color:var(--fg3)">反白版 · 深色背景</div>
+        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-white.svg" width="200" height="200" alt="学术徽章反白版" data-i18n-alt="s2-a2" />
+        <div data-i18n="s2-c2" style="margin-top:10px;font-size:13px;color:var(--fg3)">反白版 · 深色背景</div>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>版本矩阵</h2>
-    <div class="lead">同一图形基因的四个正式版本：按场景选用，不做变形、不加效果。</div>
+    <h2 data-i18n="s3-h2">版本矩阵</h2>
+    <div class="lead" data-i18n="s3-lead">同一图形基因的四个正式版本：按场景选用，不做变形、不加效果。</div>
     <div class="grid g4">
       <div class="tile pad">
-        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="88" height="88" alt="徽章" />
-        <div class="cap">学术徽章</div><div class="sub">主标志 / 封面 / Hero</div>
+        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="88" height="88" alt="徽章" data-i18n-alt="s3-a1" />
+        <div class="cap" data-i18n="s3-t1">学术徽章</div><div class="sub" data-i18n="s3-d1">主标志 / 封面 / Hero</div>
       </div>
       <div class="tile pad">
-        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-mark.svg" width="88" height="88" alt="图形标" />
-        <div class="cap">书页之 S</div><div class="sub">favicon / 头像 / 导航</div>
+        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-mark.svg" width="88" height="88" alt="图形标" data-i18n-alt="s3-a2" />
+        <div class="cap" data-i18n="s3-t2">书页之 S</div><div class="sub" data-i18n="s3-d2">favicon / 头像 / 导航</div>
       </div>
       <div class="tile dark">
-        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-white.svg" width="88" height="88" alt="反白" />
-        <div class="cap">反白徽章</div><div class="sub">深色背景专用</div>
+        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-white.svg" width="88" height="88" alt="反白" data-i18n-alt="s3-a3" />
+        <div class="cap" data-i18n="s3-t3">反白徽章</div><div class="sub" data-i18n="s3-d3">深色背景专用</div>
       </div>
       <div class="tile dark">
-        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-horizontal-white.svg" width="150" alt="横版组合反白" />
-        <div class="cap">横版组合</div><div class="sub">页眉 / 文档（有反白版）</div>
+        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-horizontal-white.svg" width="150" alt="横版组合反白" data-i18n-alt="s3-a4" />
+        <div class="cap" data-i18n="s3-t4">横版组合</div><div class="sub" data-i18n="s3-d4">页眉 / 文档（有反白版）</div>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>配色规范</h2>
-    <div class="lead">主色深学术蓝用于标志与品牌主视觉；出版金仅作点缀（翻页角、引用星、细环线），不单独大面积使用。</div>
+    <h2 data-i18n="s4-h2">配色规范</h2>
+    <div class="lead" data-i18n="s4-lead">主色深学术蓝用于标志与品牌主视觉；出版金仅作点缀（翻页角、引用星、细环线），不单独大面积使用。</div>
     <div class="grid g4">
-      <div><div class="sw sw-d"></div><span class="swarn"><b>深学术蓝 · 主色</b><code>#16324F</code></span></div>
-      <div><div class="sw sw-g"></div><span class="swarn"><b>出版金 · 点缀</b><code>#C7A24B</code></span></div>
-      <div><div class="sw sw-s"></div><span class="swarn"><b>辅助灰蓝 · 文字</b><code>#5A6B7C</code></span></div>
-      <div><div class="sw sw-w"></div><span class="swarn"><b>页面白 / 反白文字</b><code>#FFFFFF</code></span></div>
+      <div><div class="sw sw-d"></div><span class="swarn"><b data-i18n="s4-t1">深学术蓝 · 主色</b><code>#16324F</code></span></div>
+      <div><div class="sw sw-g"></div><span class="swarn"><b data-i18n="s4-t2">出版金 · 点缀</b><code>#C7A24B</code></span></div>
+      <div><div class="sw sw-s"></div><span class="swarn"><b data-i18n="s4-t3">辅助灰蓝 · 文字</b><code>#5A6B7C</code></span></div>
+      <div><div class="sw sw-w"></div><span class="swarn"><b data-i18n="s4-t4">页面白 / 反白文字</b><code>#FFFFFF</code></span></div>
     </div>
   </section>
 
   <section>
-    <h2>字体规范</h2>
-    <div class="lead">字标使用衬线体（Georgia / Times New Roman 系），延续学术出版的字形传统；正文与界面文字使用系统无衬线字体。</div>
+    <h2 data-i18n="s5-h2">字体规范</h2>
+    <div class="lead" data-i18n="s5-lead">字标使用衬线体（Georgia / Times New Roman 系），延续学术出版的字形传统；正文与界面文字使用系统无衬线字体。</div>
     <div class="card">
       <div class="serif" style="font-size:38px;font-weight:700;color:#fff">ScholarHUB</div>
-      <div style="font-size:13px;color:var(--fg2);margin-top:6px">Georgia / Times New Roman · 粗体 · 字距 +1 · 首字母大写 S，其余小写</div>
-      <div style="font-size:12px;color:var(--fg3);margin-top:10px">辅助行：<span class="serif">OPEN SCHOLARLY PUBLISHING</span> · 全大写 · 字距 +6.5 · 灰蓝 #5A6B7C</div>
+      <div data-i18n="s5-d1" style="font-size:13px;color:var(--fg2);margin-top:6px">Georgia / Times New Roman · 粗体 · 字距 +1 · 首字母大写 S，其余小写</div>
+      <div data-i18n="s5-d2" style="font-size:12px;color:var(--fg3);margin-top:10px">辅助行：<span class="serif">OPEN SCHOLARLY PUBLISHING</span> · 全大写 · 字距 +6.5 · 灰蓝 #5A6B7C</div>
     </div>
   </section>
 
   <section>
-    <h2>安全区与最小尺寸</h2>
-    <div class="lead">标志四周保留至少「S 笔画宽度 × 2」的净空，不与文字、图片或其他图形元素相邻。</div>
+    <h2 data-i18n="s6-h2">安全区与最小尺寸</h2>
+    <div class="lead" data-i18n="s6-lead">标志四周保留至少「S 笔画宽度 × 2」的净空，不与文字、图片或其他图形元素相邻。</div>
     <div class="grid g2">
       <div class="card" style="text-align:center;background-image:linear-gradient(45deg,#1c2536 25%,transparent 25%,transparent 75%,#1c2536 75%),linear-gradient(45deg,#1c2536 25%,transparent 25%,transparent 75%,#1c2536 75%);background-size:20px 20px;background-position:0 0,10px 10px">
-        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="140" height="140" alt="安全区示意" />
-        <div style="margin-top:10px;font-size:13px;color:var(--fg2)">徽章安全区 = 环外 1/8 标志直径</div>
+        <img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="140" height="140" alt="安全区示意" data-i18n-alt="s6-a1" />
+        <div data-i18n="s6-c1" style="margin-top:10px;font-size:13px;color:var(--fg2)">徽章安全区 = 环外 1/8 标志直径</div>
       </div>
       <div class="card">
         <table>
-          <tr><th>版本</th><th>最小尺寸</th></tr>
-          <tr><td>学术徽章（标准 / 反白）</td><td><b>48 × 48 px</b>（环带文字在更小尺寸不可读，改用图形标）</td></tr>
-          <tr><td>书页之 S 图形标</td><td><b>16 × 16 px</b>（favicon 仍清晰）</td></tr>
-          <tr><td>横版组合</td><td><b>宽度 140 px</b></td></tr>
-          <tr><td>印刷</td><td><b>高度 ≥ 8 mm</b></td></tr>
+          <tr><th data-i18n="s6-h1">版本</th><th data-i18n="s6-h2">最小尺寸</th></tr>
+          <tr><td data-i18n="s6-r1c1">学术徽章（标准 / 反白）</td><td><b data-i18n="s6-r1c2a">48 × 48 px</b><span data-i18n="s6-r1c2b">（环带文字在更小尺寸不可读，改用图形标）</span></td></tr>
+          <tr><td data-i18n="s6-r2c1">书页之 S 图形标</td><td><b data-i18n="s6-r2c2">16 × 16 px</b><span data-i18n="s6-r2c2b">（favicon 仍清晰）</span></td></tr>
+          <tr><td data-i18n="s6-r3c1">横版组合</td><td><b data-i18n="s6-r3c2">宽度 140 px</b></td></tr>
+          <tr><td data-i18n="s6-r4c1">印刷</td><td><b data-i18n="s6-r4c2">高度 ≥ 8 mm</b></td></tr>
         </table>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>禁用示例</h2>
-    <div class="lead">以下用法破坏标志几何与品牌识别，一律禁止。</div>
+    <h2 data-i18n="s7-h2">禁用示例</h2>
+    <div class="lead" data-i18n="s7-lead">以下用法破坏标志几何与品牌识别，一律禁止。</div>
     <div class="grid g4">
-      <div class="tile dont"><span class="tag bad">× 禁止</span><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="80" height="80" style="transform:scaleX(1.6)" alt="拉伸" /><div class="cap">拉伸变形</div></div>
-      <div class="tile dont"><span class="tag bad">× 禁止</span><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="80" height="80" style="filter:hue-rotate(90deg)" alt="改色" /><div class="cap">任意改色 / 加渐变</div></div>
-      <div class="tile dont"><span class="tag bad">× 禁止</span><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="80" height="80" style="filter:drop-shadow(6px 6px 8px rgba(0,0,0,.6))" alt="阴影" /><div class="cap">加投影 / 描边</div></div>
-      <div class="tile dont"><span class="tag bad">× 禁止</span><div style="background:url('https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/screenshots/01-home.png') center/cover;border-radius:8px;height:88px;display:flex;align-items:center;justify-content:center"><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-mark.svg" width="60" height="60" alt="低对比" /></div><div class="cap">低对比背景上使用</div></div>
+      <div class="tile dont"><span class="tag bad" data-i18n="s7-tag">× 禁止</span><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="80" height="80" style="transform:scaleX(1.6)" alt="拉伸" data-i18n-alt="s7-a1" /><div class="cap" data-i18n="s7-c1">拉伸变形</div></div>
+      <div class="tile dont"><span class="tag bad" data-i18n="s7-tag">× 禁止</span><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="80" height="80" style="filter:hue-rotate(90deg)" alt="改色" data-i18n-alt="s7-a2" /><div class="cap" data-i18n="s7-c2">任意改色 / 加渐变</div></div>
+      <div class="tile dont"><span class="tag bad" data-i18n="s7-tag">× 禁止</span><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo.svg" width="80" height="80" style="filter:drop-shadow(6px 6px 8px rgba(0,0,0,.6))" alt="阴影" data-i18n-alt="s7-a3" /><div class="cap" data-i18n="s7-c3">加投影 / 描边</div></div>
+      <div class="tile dont"><span class="tag bad" data-i18n="s7-tag">× 禁止</span><div style="background:url('https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/screenshots/01-home.png') center/cover;border-radius:8px;height:88px;display:flex;align-items:center;justify-content:center"><img src="https://raw.githubusercontent.com/X33834/scholarhub/main/docs/assets/logo-mark.svg" width="60" height="60" alt="低对比" data-i18n-alt="s7-a4" /></div><div class="cap" data-i18n="s7-c4">低对比背景上使用</div></div>
     </div>
   </section>
 
   <section>
-    <h2>场景对照</h2>
+    <h2 data-i18n="s8-h2">场景对照</h2>
     <div class="card">
       <table>
-        <tr><th>触点</th><th>使用版本</th></tr>
-        <tr><td>官网 Hero / 期刊封面 / 正式传播</td><td><b>学术徽章</b>（深色背景用反白版）</td></tr>
-        <tr><td>README / 文档页头</td><td><b>横版组合</b>（深色文档用反白版）</td></tr>
-        <tr><td>favicon / 浏览器标签 / 头像</td><td><b>圆形底 favicon</b>（深蓝底 + 白 S）</td></tr>
-        <tr><td>应用侧边栏 / 导航小图</td><td><b>书页之 S 图形标</b>（跟随主题色）</td></tr>
-        <tr><td>产品内页头</td><td><b>横版组合</b>或<b>图形标</b></td></tr>
+        <tr><th data-i18n="s8-h1">触点</th><th data-i18n="s8-h2">使用版本</th></tr>
+        <tr><td data-i18n="s8-r1c1">官网 Hero / 期刊封面 / 正式传播</td><td><b data-i18n="s8-r1c2">学术徽章</b><span data-i18n="s8-r1c2b">（深色背景用反白版）</span></td></tr>
+        <tr><td data-i18n="s8-r2c1">README / 文档页头</td><td><b data-i18n="s8-r2c2">横版组合</b><span data-i18n="s8-r2c2b">（深色文档用反白版）</span></td></tr>
+        <tr><td data-i18n="s8-r3c1">favicon / 浏览器标签 / 头像</td><td><b data-i18n="s8-r3c2">圆形底 favicon</b><span data-i18n="s8-r3c2b">（深蓝底 + 白 S）</span></td></tr>
+        <tr><td data-i18n="s8-r4c1">应用侧边栏 / 导航小图</td><td><b data-i18n="s8-r4c2">书页之 S 图形标</b><span data-i18n="s8-r4c2b">（跟随主题色）</span></td></tr>
+        <tr><td data-i18n="s8-r5c1">产品内页头</td><td><b data-i18n="s8-r5c2">横版组合</b><span data-i18n="s8-r5c2b">或</span><b data-i18n="s8-r5c3">图形标</b></td></tr>
       </table>
     </div>
   </section>
 
   <footer>
-    <div class="wrap">ScholarHUB Brand Guidelines · Apache-2.0 · 源码：<a href="https://github.com/x33834/scholarhub">github.com/x33834/scholarhub</a></div>
+    <div class="wrap">ScholarHUB Brand Guidelines · Apache-2.0 · <span data-i18n="f1">源码：</span><a href="https://github.com/x33834/scholarhub">github.com/x33834/scholarhub</a></div>
   </footer>
 </div>
+
+<script>
+var I18N = {
+  "zh": {
+    "title": "品牌标识规范 — ScholarHUB",
+    "description": "ScholarHUB 品牌视觉规范：学术徽章、书页之 S 图形标、配色、字体、安全区、最小尺寸与禁用示例。",
+    "nav-why": "为什么", "nav-flow": "全流程", "nav-shots": "界面实拍",
+    "nav-usable": "核心能力", "nav-arch": "架构", "nav-start": "快速开始", "nav-brand": "品牌规范",
+    "hero-h1": "ScholarHUB 品牌标识规范",
+    "hero-sub": "学术徽章 · 书页之 S · 配色 · 字体 · 安全区 · 禁用示例",
+    "s1-h2": "设计语言",
+    "s1-lead1": "标志由三个共享同一图形基因的版本组成：", "s1-lead2": "学术徽章", "s1-lead3": "（主标志，期刊印章风）、",
+    "s1-lead4": "书页之 S", "s1-lead5": "（图形标，翻起一页的意象）与", "s1-lead6": "反白版",
+    "s1-lead7": "（深色背景专用）。深学术蓝 + 出版金 + 衬线字标，延续学术出版的传统字形与机构感。",
+    "s1-c1-t": "图形概念", "s1-c1-d": "S 一笔成型，右下金色翻页角 = 投稿→审稿→发表；底部引用星 = DOI 与引用文化。",
+    "s1-c2-t": "制图逻辑", "s1-c2-d": "纯几何可复现：S 严格居中，环为同心圆，所有版本同几何、同比例，缩小到 16px 仍清晰。",
+    "s1-c3-t": "使用原则", "s1-c3-d": "浅色背景用标准版，深色背景用反白版；正式传播用徽章，小尺寸用图形标。",
+    "s2-h2": "主标志 · 学术徽章",
+    "s2-lead1": "双环徽章：外环深学术蓝、内环出版金，环带衬线字标 ",
+    "s2-lead2": "，中央书页之 S，底部金色引用星。用于期刊封面、官网 Hero、README 与正式传播。",
+    "s2-a1": "学术徽章标准版", "s2-a2": "学术徽章反白版",
+    "s2-c1": "标准版 · 浅色背景", "s2-c2": "反白版 · 深色背景",
+    "s3-h2": "版本矩阵", "s3-lead": "同一图形基因的四个正式版本：按场景选用，不做变形、不加效果。",
+    "s3-a1": "徽章", "s3-a2": "图形标", "s3-a3": "反白", "s3-a4": "横版组合反白",
+    "s3-t1": "学术徽章", "s3-d1": "主标志 / 封面 / Hero",
+    "s3-t2": "书页之 S", "s3-d2": "favicon / 头像 / 导航",
+    "s3-t3": "反白徽章", "s3-d3": "深色背景专用",
+    "s3-t4": "横版组合", "s3-d4": "页眉 / 文档（有反白版）",
+    "s4-h2": "配色规范",
+    "s4-lead": "主色深学术蓝用于标志与品牌主视觉；出版金仅作点缀（翻页角、引用星、细环线），不单独大面积使用。",
+    "s4-t1": "深学术蓝 · 主色", "s4-t2": "出版金 · 点缀", "s4-t3": "辅助灰蓝 · 文字", "s4-t4": "页面白 / 反白文字",
+    "s5-h2": "字体规范",
+    "s5-lead": "字标使用衬线体（Georgia / Times New Roman 系），延续学术出版的字形传统；正文与界面文字使用系统无衬线字体。",
+    "s5-d1": "Georgia / Times New Roman · 粗体 · 字距 +1 · 首字母大写 S，其余小写",
+    "s5-d2": "辅助行：",
+    "s6-h2": "安全区与最小尺寸",
+    "s6-lead": "标志四周保留至少「S 笔画宽度 × 2」的净空，不与文字、图片或其他图形元素相邻。",
+    "s6-a1": "安全区示意",
+    "s6-c1": "徽章安全区 = 环外 1/8 标志直径",
+    "s6-h1": "版本", "s6-h2": "最小尺寸",
+    "s6-r1c1": "学术徽章（标准 / 反白）", "s6-r1c2a": "48 × 48 px", "s6-r1c2b": "（环带文字在更小尺寸不可读，改用图形标）",
+    "s6-r2c1": "书页之 S 图形标", "s6-r2c2": "16 × 16 px", "s6-r2c2b": "（favicon 仍清晰）",
+    "s6-r3c1": "横版组合", "s6-r3c2": "宽度 140 px",
+    "s6-r4c1": "印刷", "s6-r4c2": "高度 ≥ 8 mm",
+    "s7-h2": "禁用示例", "s7-lead": "以下用法破坏标志几何与品牌识别，一律禁止。",
+    "s7-tag": "× 禁止",
+    "s7-a1": "拉伸", "s7-c1": "拉伸变形",
+    "s7-a2": "改色", "s7-c2": "任意改色 / 加渐变",
+    "s7-a3": "阴影", "s7-c3": "加投影 / 描边",
+    "s7-a4": "低对比", "s7-c4": "低对比背景上使用",
+    "s8-h2": "场景对照",
+    "s8-h1": "触点", "s8-h2": "使用版本",
+    "s8-r1c1": "官网 Hero / 期刊封面 / 正式传播", "s8-r1c2": "学术徽章", "s8-r1c2b": "（深色背景用反白版）",
+    "s8-r2c1": "README / 文档页头", "s8-r2c2": "横版组合", "s8-r2c2b": "（深色文档用反白版）",
+    "s8-r3c1": "favicon / 浏览器标签 / 头像", "s8-r3c2": "圆形底 favicon", "s8-r3c2b": "（深蓝底 + 白 S）",
+    "s8-r4c1": "应用侧边栏 / 导航小图", "s8-r4c2": "书页之 S 图形标", "s8-r4c2b": "（跟随主题色）",
+    "s8-r5c1": "产品内页头", "s8-r5c2": "横版组合", "s8-r5c2b": "或", "s8-r5c3": "图形标",
+    "f1": "源码："
+  },
+  "en": {
+    "title": "Brand Guidelines — ScholarHUB",
+    "description": "ScholarHUB brand visual guidelines: academic seal, page-S mark, colors, typography, safe area, minimum sizes and forbidden uses.",
+    "nav-why": "Why", "nav-flow": "Workflow", "nav-shots": "Screenshots",
+    "nav-usable": "Capabilities", "nav-arch": "Architecture", "nav-start": "Quick Start", "nav-brand": "Brand",
+    "hero-h1": "ScholarHUB Brand Guidelines",
+    "hero-sub": "Academic Seal · Page-S Mark · Colors · Typography · Safe Area · Forbidden Uses",
+    "s1-h2": "Design language",
+    "s1-lead1": "The mark exists in three versions sharing one graphic gene: the ", "s1-lead2": "academic seal",
+    "s1-lead3": " (primary, journal-seal style), the ", "s1-lead4": "page-S",
+    "s1-lead5": " (symbol, a turned page) and the ", "s1-lead6": "reversed version",
+    "s1-lead7": " (for dark backgrounds). Deep academic blue + publishing gold + serif wordmark, carrying on the typographic tradition of scholarly publishing.",
+    "s1-c1-t": "Concept", "s1-c1-d": "One-stroke S; the gold page-turn at bottom-right = submit → review → publish; the citation star = DOI and citation culture.",
+    "s1-c2-t": "Construction", "s1-c2-d": "Pure geometry, reproducible: S strictly centered, concentric rings, all versions share geometry and proportions, still crisp at 16px.",
+    "s1-c3-t": "Usage", "s1-c3-d": "Standard version on light backgrounds, reversed on dark; seal for formal media, symbol at small sizes.",
+    "s2-h2": "Primary mark · Academic seal",
+    "s2-lead1": "A double-ring seal: deep academic blue outer ring, publishing gold inner ring, serif wordmark ",
+    "s2-lead2": " around the band, page-S in the center, gold citation star at the bottom. Used on journal covers, site hero, README and formal media.",
+    "s2-a1": "Academic seal, standard", "s2-a2": "Academic seal, reversed",
+    "s2-c1": "Standard · light background", "s2-c2": "Reversed · dark background",
+    "s3-h2": "Version matrix", "s3-lead": "Four official versions of one graphic gene — pick by context, never deform or re-style.",
+    "s3-a1": "Seal", "s3-a2": "Symbol", "s3-a3": "Reversed", "s3-a4": "Horizontal, reversed",
+    "s3-t1": "Academic seal", "s3-d1": "Primary / covers / hero",
+    "s3-t2": "Page-S", "s3-d2": "favicon / avatar / nav",
+    "s3-t3": "Reversed seal", "s3-d3": "Dark backgrounds",
+    "s3-t4": "Horizontal lockup", "s3-d4": "Headers / docs (reversed available)",
+    "s4-h2": "Color palette",
+    "s4-lead": "Deep academic blue carries the mark and brand visuals; publishing gold is an accent only (page-turn, citation star, thin ring) — never a large surface.",
+    "s4-t1": "Deep academic blue · primary", "s4-t2": "Publishing gold · accent", "s4-t3": "Slate blue · text", "s4-t4": "Page white / reversed text",
+    "s5-h2": "Typography",
+    "s5-lead": "The wordmark uses serif type (Georgia / Times New Roman) in the scholarly tradition; body and UI text use system sans-serif.",
+    "s5-d1": "Georgia / Times New Roman · bold · tracking +1 · capital S, lowercase rest",
+    "s5-d2": "Tagline: ",
+    "s6-h2": "Safe area & minimum sizes",
+    "s6-lead": "Keep clear space of at least “2 × S stroke width” on all sides — never touch text, images or other graphics.",
+    "s6-a1": "Safe area diagram",
+    "s6-c1": "Seal safe area = 1/8 of diameter beyond the ring",
+    "s6-h1": "Version", "s6-h2": "Minimum size",
+    "s6-r1c1": "Academic seal (standard / reversed)", "s6-r1c2a": "48 × 48 px", "s6-r1c2b": " (band text unreadable smaller — use the symbol)",
+    "s6-r2c1": "Page-S symbol", "s6-r2c2": "16 × 16 px", "s6-r2c2b": " (still crisp as favicon)",
+    "s6-r3c1": "Horizontal lockup", "s6-r3c2": "140 px wide",
+    "s6-r4c1": "Print", "s6-r4c2": "≥ 8 mm tall",
+    "s7-h2": "Forbidden uses", "s7-lead": "These break the mark's geometry and recognition — never do them.",
+    "s7-tag": "× No",
+    "s7-a1": "Stretched", "s7-c1": "Stretch / deform",
+    "s7-a2": "Recolored", "s7-c2": "Recolor / add gradients",
+    "s7-a3": "Shadowed", "s7-c3": "Drop shadow / outline",
+    "s7-a4": "Low contrast", "s7-c4": "On low-contrast backgrounds",
+    "s8-h2": "Touchpoints",
+    "s8-h1": "Touchpoint", "s8-h2": "Version to use",
+    "s8-r1c1": "Site hero / journal covers / formal media", "s8-r1c2": "Academic seal", "s8-r1c2b": " (reversed on dark)",
+    "s8-r2c1": "README / doc headers", "s8-r2c2": "Horizontal lockup", "s8-r2c2b": " (reversed in dark docs)",
+    "s8-r3c1": "favicon / browser tab / avatar", "s8-r3c2": "Circular favicon", "s8-r3c2b": " (blue base + white S)",
+    "s8-r4c1": "App sidebar / small nav marks", "s8-r4c2": "Page-S symbol", "s8-r4c2b": " (follows theme)",
+    "s8-r5c1": "In-product headers", "s8-r5c2": "Horizontal lockup", "s8-r5c2b": " or ", "s8-r5c3": "symbol",
+    "f1": "Source: "
+  }
+};
+
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem("sh-lang"); } catch (e) {}
+  var lang = (saved === "en" || saved === "zh") ? saved : "zh";
+
+  function apply(l) {
+    var dict = I18N[l];
+    document.documentElement.lang = (l === "zh") ? "zh-CN" : "en";
+    var nodes = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < nodes.length; i++) {
+      var k = nodes[i].getAttribute("data-i18n");
+      if (dict[k] !== undefined) nodes[i].innerHTML = dict[k];
+    }
+    var alts = document.querySelectorAll("[data-i18n-alt]");
+    for (var j = 0; j < alts.length; j++) {
+      var ka = alts[j].getAttribute("data-i18n-alt");
+      if (dict[ka] !== undefined) alts[j].setAttribute("alt", dict[ka]);
+    }
+    var attrs = document.querySelectorAll("[data-i18n-attr]");
+    for (var k2 = 0; k2 < attrs.length; k2++) {
+      var kv = attrs[k2].getAttribute("data-i18n-attr");
+      if (dict[kv] !== undefined) {
+        if (kv === "title") document.title = dict[kv];
+        else attrs[k2].setAttribute("content", dict[kv]);
+      }
+    }
+    var btns = document.querySelectorAll("#langSwitch button");
+    for (var b = 0; b < btns.length; b++) {
+      btns[b].className = (btns[b].getAttribute("data-lang") === l) ? "on" : "";
+    }
+    try { localStorage.setItem("sh-lang", l); } catch (e) {}
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    apply(lang);
+    var btns = document.querySelectorAll("#langSwitch button");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].addEventListener("click", function () {
+        apply(this.getAttribute("data-lang"));
+      });
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
